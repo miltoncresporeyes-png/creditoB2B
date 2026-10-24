@@ -16,8 +16,8 @@ def format_clp(val):
 
 def generate_invoice_pdf(transaction_data, billing_info=None):
     """
-    Genera un comprobante / factura electrónica de pago (Invoice PDF)
-    con estándar tributario chileno a nombre de la persona natural o jurídica.
+    Genera un Comprobante Oficial de Compra y Pago Comercial en PDF
+    con los datos de la transacción y del comprador.
     """
     if billing_info is None:
         billing_info = {}
@@ -52,23 +52,23 @@ def generate_invoice_pdf(transaction_data, billing_info=None):
         textColor=colors.HexColor('#475569')
     )
 
-    sii_box_title = ParagraphStyle(
-        'SIIBoxTitle',
+    box_title = ParagraphStyle(
+        'BoxTitle',
         parent=styles['Normal'],
         fontName='Helvetica-Bold',
-        fontSize=11,
-        leading=14,
-        textColor=colors.HexColor('#dc2626'),
+        fontSize=10.5,
+        leading=13,
+        textColor=colors.HexColor('#1e3a8a'),
         alignment=1
     )
 
-    sii_box_num = ParagraphStyle(
-        'SIIBoxNum',
+    box_num = ParagraphStyle(
+        'BoxNum',
         parent=styles['Normal'],
         fontName='Helvetica-Bold',
         fontSize=13,
         leading=16,
-        textColor=colors.HexColor('#dc2626'),
+        textColor=colors.HexColor('#1e3a8a'),
         alignment=1
     )
 
@@ -132,34 +132,34 @@ def generate_invoice_pdf(transaction_data, billing_info=None):
         Paragraph("Contacto: facturacion@creditob2b.cl · www.creditob2b.cl", header_sub_style),
     ]
 
-    # Folio / Recuadro Rojo Tributario
+    # Folio / Recuadro de Comprobante Comercial
     order_id = transaction_data.get('order_id', 'ORD-0001')
     raw_num = "".join([c for c in order_id if c.isdigit()])[-6:] or "1042"
     folio = f"N° {raw_num}"
     
     fecha_emision = transaction_data.get('paid_at') or datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-    sii_box_content = [
-        Paragraph("R.U.T.: 77.492.831-5", sii_box_title),
+    receipt_box_content = [
+        Paragraph("R.U.T.: 77.492.831-5", box_title),
         Spacer(1, 3),
-        Paragraph("FACTURA ELECTRÓNICA", sii_box_title),
-        Paragraph(folio, sii_box_num),
+        Paragraph("COMPROBANTE DE PAGO", box_title),
+        Paragraph(folio, box_num),
         Spacer(1, 3),
-        Paragraph("S.I.I. - SANTIAGO ORIENTE", ParagraphStyle('SIISub', parent=sii_box_title, fontSize=8, textColor=colors.HexColor('#dc2626')))
+        Paragraph("VENTA DE SERVICIOS DIGITALES", ParagraphStyle('SubB', parent=box_title, fontSize=7.5, textColor=colors.HexColor('#475569')))
     ]
 
     t_header = Table([
-        [emisor_info, sii_box_content]
-    ], colWidths=[350, 190])
+        [emisor_info, receipt_box_content]
+    ], colWidths=[340, 200])
 
     t_header.setStyle(TableStyle([
         ('VALIGN', (0,0), (-1,-1), 'TOP'),
-        ('BOX', (1,0), (1,0), 1.5, colors.HexColor('#dc2626')),
+        ('BOX', (1,0), (1,0), 1.5, colors.HexColor('#1e3a8a')),
         ('TOPPADDING', (1,0), (1,0), 8),
         ('BOTTOMPADDING', (1,0), (1,0), 8),
         ('LEFTPADDING', (1,0), (1,0), 8),
         ('RIGHTPADDING', (1,0), (1,0), 8),
-        ('BACKGROUND', (1,0), (1,0), colors.HexColor('#fff5f5')),
+        ('BACKGROUND', (1,0), (1,0), colors.HexColor('#f0f9ff')),
     ]))
     story.append(t_header)
     story.append(Spacer(1, 14))
@@ -287,27 +287,27 @@ def generate_invoice_pdf(transaction_data, billing_info=None):
     story.append(t_totales_container)
     story.append(Spacer(1, 20))
 
-    # Timbre Electrónico SII Simulado / Trazabilidad
+    # Constancia de Pago Comercial y Trazabilidad
     timbre_content = [
-        Paragraph("<b>TIMBRE ELECTRÓNICO S.I.I.</b>", ParagraphStyle('TB', parent=cell_label, fontSize=8, alignment=1)),
-        Paragraph("Res. N° 80 de 2014 - Verifique documento en www.sii.cl", ParagraphStyle('TS', parent=cell_val, fontSize=7, alignment=1, textColor=colors.HexColor('#64748b'))),
+        Paragraph("<b>CONSTANCIA DE TRANSACCIÓN DIGITAL</b>", ParagraphStyle('TB', parent=cell_label, fontSize=8, alignment=1)),
+        Paragraph("Comprobante de compra para efectos comerciales y de auditoría interna.", ParagraphStyle('TS', parent=cell_val, fontSize=7, alignment=1, textColor=colors.HexColor('#64748b'))),
         Spacer(1, 4),
-        Paragraph(f"Ref. Transacción: {order_id} | MP Ref: {transaction_data.get('token_acceso', 'AUT-APROBADO')[:16]}", ParagraphStyle('TH', parent=cell_val, fontSize=6.5, alignment=1, textColor=colors.HexColor('#94a3b8'))),
-        Paragraph("Documento Tributario Electrónico emitido de conformidad con la Ley N° 19.983.", ParagraphStyle('TL', parent=cell_val, fontSize=6.5, alignment=1, textColor=colors.HexColor('#64748b')))
+        Paragraph(f"ID Orden: {order_id} | Token Autorización: {transaction_data.get('token_acceso', 'AUT-OK')[:20]}", ParagraphStyle('TH', parent=cell_val, fontSize=6.5, alignment=1, textColor=colors.HexColor('#94a3b8'))),
+        Paragraph("Para solicitar la emisión de su Factura Electrónica formal con DTE del SII, escriba a facturacion@creditob2b.cl.", ParagraphStyle('TL', parent=cell_val, fontSize=6.5, alignment=1, textColor=colors.HexColor('#1e3a8a')))
     ]
 
-    t_timbre = Table([[timbre_content]], colWidths=[320])
+    t_timbre = Table([[timbre_content]], colWidths=[380])
     t_timbre.setStyle(TableStyle([
         ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#1e3a8a')),
-        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f0f9ff')),
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f8fafc')),
         ('TOPPADDING', (0,0), (-1,-1), 8),
         ('BOTTOMPADDING', (0,0), (-1,-1), 8),
-        ('LEFTPADDING', (0,0), (-1,-1), 10),
-        ('RIGHTPADDING', (0,0), (-1,-1), 10),
+        ('LEFTPADDING', (0,0), (-1,-1), 12),
+        ('RIGHTPADDING', (0,0), (-1,-1), 12),
         ('ALIGN', (0,0), (-1,-1), 'CENTER'),
     ]))
 
-    story.append(Table([["", t_timbre]], colWidths=[110, 320]))
+    story.append(Table([["", t_timbre]], colWidths=[80, 380]))
 
     doc.build(story)
     buf.seek(0)

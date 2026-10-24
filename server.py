@@ -1,11 +1,14 @@
 import os, re, time, threading
 from flask import Flask, request, jsonify, send_from_directory, send_file
+from dotenv import load_dotenv
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException
 
+ROOT = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(ROOT, '.env'))
+
 app = Flask(__name__, static_folder='assets', static_url_path='/assets')
-ROOT = 'C:/workspace/CRM Evaluacion Credito'
 CACHE = {}
 LOCK = threading.Lock()
 
@@ -197,28 +200,39 @@ import report_generator
 import invoice_generator
 from flask import Response
 
-@app.route('/api/evaluations', methods=['GET', 'POST'])
+@app.route('/api/evaluations', methods=['POST'])
 def handle_evaluations():
-    if request.method == 'POST':
-        body = request.get_json() or {}
-        input_data = body.get('input', {})
-        result_data = body.get('result', {})
-        if not input_data:
-            return jsonify({'error': 'Faltan datos de evaluación'}), 400
-        try:
-            eval_id = db.save_evaluation(input_data, result_data)
-            return jsonify({'success': True, 'id': eval_id})
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
-    else:
-        try:
-            records = db.list_evaluations()
-            return jsonify({'success': True, 'evaluations': records})
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
+    """Registra de forma segura un expediente de evaluación evaluado localmente."""
+    body = request.get_json() or {}
+    input_data = body.get('input', {})
+    result_data = body.get('result', {})
+    if not input_data:
+        return jsonify({'error': 'Faltan datos de evaluación'}), 400
+    try:
+        eval_id = db.save_evaluation(input_data, result_data)
+        return jsonify({'success': True, 'id': eval_id})
+    except Exception as e:
+        return jsonify({'error': 'Error al guardar el expediente'}), 500
+
+@app.route('/api/evaluations', methods=['GET'])
+def list_evaluations_restricted():
+    """El listado público de expedientes confidenciales está bloqueado por seguridad."""
+    return jsonify({
+        'error': 'Acceso no autorizado. El listado masivo de expedientes confidenciales está restringido.'
+    }), 403
 
 @app.route('/api/evaluations/<int:eval_id>', methods=['GET'])
 def get_single_evaluation(eval_id):
+    """Consulta segura de expediente que requiere token de acceso válido."""
+    token = request.args.get('token', '').strip()
+    if not token:
+        return jsonify({'error': 'Token de autorización requerido para consultar el expediente'}), 401
+    
+    # Validar que el token corresponda a una transacción autorizada
+    tx = db.check_payment_access(token)
+    if not tx or tx.get('evaluacion_id') != eval_id:
+        return jsonify({'error': 'Acceso denegado al expediente solicitado'}), 403
+
     eval_record = db.get_evaluation(eval_id)
     if not eval_record:
         return jsonify({'error': 'Evaluación no encontrada'}), 404
@@ -347,14 +361,19 @@ def create_payment():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# Variables Mercado Pago desde .env
-MP_ACCESS_TOKEN = os.environ.get('MERCADO_PAGO_ACCESS_TOKEN', 'APP_USR-5491201460035364-102412-450733be6374ac8cee49c21e5eb47c9c-3748834258')
-MP_PUBLIC_KEY = os.environ.get('MERCADO_PAGO_PUBLIC_KEY', 'APP_USR-4c385356-2bf8-4765-9412-7b17955eafb4')
+# Variables Mercado Pago exclusivamente desde entorno (.env)
+MP_ACCESS_TOKEN = os.environ.get('MERCADO_PAGO_ACCESS_TOKEN')
+MP_PUBLIC_KEY = os.environ.get('MERCADO_PAGO_PUBLIC_KEY')
 
 @app.route('/api/payments/mp-preference', methods=['POST'])
 def create_mp_preference():
     """Genera preferencia de pago oficial en Mercado Pago Sandbox/Producción."""
     import requests as req
+    
+    # Validar que existan credenciales configuradas
+    if not MP_ACCESS_TOKEN or not MP_PUBLIC_KEY:
+        return jsonify({'error': 'La pasarela de pago no está configurada en el servidor (faltan credenciales en el entorno).'}), 503
+
     data = request.get_json() or {}
     plan = data.get('plan', 'pack_3')
     eval_id = data.get('eval_id')
@@ -406,23 +425,22 @@ def create_mp_preference():
                 'public_key': MP_PUBLIC_KEY
             })
         else:
-            return jsonify({'error': f'Mercado Pago error: {mp_res.text}'}), 502
+            return jsonify({'error': 'Error de comunicación con la pasarela de pago.'}), 502
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Error al procesar la solicitud de pago.'}), 500
 
 @app.route('/api/payments/mp-webhook', methods=['POST'])
 def mp_webhook():
-    """Webhook oficial de Mercado Pago: confirma transacciones directamente desde el servidor."""
+    """Webhook oficial de Mercado Pago: confirma transacciones directamente desde el servidor verificando orden, monto y moneda."""
     import requests as req
     data = request.get_json() or {}
     topic = data.get('type') or request.args.get('topic') or data.get('topic')
     
-    # Manejar notificación de tipo payment
     payment_id = None
     if topic == 'payment':
         payment_id = data.get('data', {}).get('id') or request.args.get('id')
     
-    if payment_id:
+    if payment_id and MP_ACCESS_TOKEN:
         try:
             # Consultar estado real a la API de Mercado Pago
             headers = {'Authorization': f'Bearer {MP_ACCESS_TOKEN}'}
@@ -431,33 +449,81 @@ def mp_webhook():
                 payment_info = chk_res.json()
                 status = payment_info.get('status')
                 order_id = payment_info.get('external_reference')
+                paid_amount = payment_info.get('transaction_amount')
+                currency = payment_info.get('currency_id')
                 
-                if status == 'approved' and order_id:
+                # Validar existencia de orden en la BD
+                order_record = db.get_payment_order(order_id) if order_id else None
+                if not order_record:
+                    return jsonify({'error': 'Orden no encontrada'}), 404
+                
+                # Validar integridad: estado aprobado, moneda CLP y monto coincidente
+                expected_amount = float(order_record.get('monto', 0))
+                if status == 'approved' and currency == 'CLP' and float(paid_amount) >= expected_amount:
                     access_token = f"tok_{secrets.token_urlsafe(24)}"
                     db.verify_and_complete_payment(order_id, access_token)
                     return jsonify({'status': 'approved_and_verified', 'order_id': order_id}), 200
-        except Exception as e:
-            return jsonify({'error': str(e)}), 500
+        except Exception:
+            return jsonify({'error': 'Error procesando notificación'}), 500
 
     return jsonify({'status': 'received'}), 200
 
 @app.route('/pago/exito')
 def pago_exito():
-    order_id = request.args.get('order_id', '')
-    collection_id = request.args.get('collection_id', '')
-    status = request.args.get('collection_status', 'approved')
+    """Página informativa de retorno tras el checkout de Mercado Pago."""
+    import requests as req
+    order_id = request.args.get('order_id', '').strip()
+    collection_id = request.args.get('collection_id', '').strip()
+    payment_id = request.args.get('payment_id', '').strip() or collection_id
 
-    # Confirmar orden automáticamente si viene aprobada desde Mercado Pago
     order_record = db.get_payment_order(order_id)
-    if order_record and order_record['estado'] != 'APPROVED':
-        access_token = f"tok_{secrets.token_urlsafe(24)}"
-        order_record, _ = db.verify_and_complete_payment(order_id, access_token)
-    
-    billing = (order_record or {}).get('billing_data', {})
+    if not order_record:
+        return f"""
+        <!DOCTYPE html>
+        <html lang="es"><head><meta charset="UTF-8"><title>Orden no encontrada</title></head>
+        <body style="font-family: sans-serif; text-align: center; padding: 50px;">
+          <h2>Orden de compra no encontrada</h2>
+          <p>La referencia de orden proporcionada no existe en el sistema.</p>
+          <a href="/">Volver al Inicio</a>
+        </body></html>
+        """, 404
+
+    # Verificación segura server-to-server con API de Mercado Pago si no está ya aprobada
+    if order_record['estado'] != 'APPROVED' and payment_id and MP_ACCESS_TOKEN:
+        try:
+            headers = {'Authorization': f'Bearer {MP_ACCESS_TOKEN}'}
+            chk_res = req.get(f'https://api.mercadopago.com/v1/payments/{payment_id}', headers=headers, timeout=10)
+            if chk_res.status_code == 200:
+                payment_info = chk_res.json()
+                mp_status = payment_info.get('status')
+                mp_order_id = payment_info.get('external_reference')
+                paid_amount = payment_info.get('transaction_amount')
+                currency = payment_info.get('currency_id')
+                expected_amount = float(order_record.get('monto', 0))
+
+                if mp_status == 'approved' and mp_order_id == order_id and currency == 'CLP' and float(paid_amount) >= expected_amount:
+                    access_token = f"tok_{secrets.token_urlsafe(24)}"
+                    order_record, _ = db.verify_and_complete_payment(order_id, access_token)
+        except Exception:
+            pass
+
+    is_approved = order_record.get('estado') == 'APPROVED'
+    billing = order_record.get('billing_data', {})
     receptor_nombre = billing.get('razon_social') or billing.get('nombre') or 'Cliente Registrado'
     receptor_rut = billing.get('rut') or 'N/A'
-    plan_nombre = PRICES_CONFIG.get(order_record.get('plan_tipo') if order_record else '', {}).get('nombre', 'Evaluación de Crédito')
-    monto_fmt = f"${int(order_record.get('monto', 0)):,}".replace(',', '.') if order_record else "$0"
+    plan_nombre = PRICES_CONFIG.get(order_record.get('plan_tipo'), {}).get('nombre', 'Evaluación de Crédito')
+    monto_fmt = f"${int(order_record.get('monto', 0)):,}".replace(',', '.')
+
+    status_badge_text = "Pago Confirmado" if is_approved else "Verificando Transacción"
+    status_msg = "Tu pago ha sido confirmado. Puedes descargar de inmediato tu comprobante comercial y acceder a la plataforma." if is_approved else "Estamos validando la confirmación de la pasarela bancaria. Si el pago fue completado, tu acceso se habilitará en breve."
+
+    download_button = f"""
+    <a href="/api/invoice-pdf?order_id={order_id}" class="btn btn-invoice" target="_blank" download>
+      📄 Descargar Comprobante de Compra (PDF)
+    </a>
+    """ if is_approved else """
+    <p style="color: #f59e0b; font-size: 13px;">⏳ La descarga se habilitará una vez recibido el comprobante bancario.</p>
+    """
 
     return f"""
     <!DOCTYPE html>
@@ -465,7 +531,7 @@ def pago_exito():
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>¡Compra Realizada Exitosamente! - CréditoB2B</title>
+      <title>Confirmación de Compra - CréditoB2B</title>
       <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
       <style>
         :root {{
@@ -514,7 +580,7 @@ def pago_exito():
           border: 2px solid rgba(16, 185, 129, 0.3);
         }}
         h1 {{
-          font-size: 26px;
+          font-size: 24px;
           font-weight: 800;
           margin: 0 0 10px;
           color: #ffffff;
@@ -522,8 +588,8 @@ def pago_exito():
         }}
         .lead {{
           color: var(--text-muted);
-          font-size: 15px;
-          margin: 0 0 28px;
+          font-size: 14.5px;
+          margin: 0 0 24px;
           line-height: 1.5;
         }}
         .order-box {{
@@ -532,13 +598,13 @@ def pago_exito():
           border-radius: 14px;
           padding: 20px;
           text-align: left;
-          margin-bottom: 28px;
+          margin-bottom: 24px;
         }}
         .order-row {{
           display: flex;
           justify-content: space-between;
           padding: 8px 0;
-          font-size: 14px;
+          font-size: 13.5px;
           border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }}
         .order-row:last-child {{ border-bottom: none; }}
@@ -554,9 +620,9 @@ def pago_exito():
           align-items: center;
           justify-content: center;
           gap: 8px;
-          padding: 14px 24px;
+          padding: 13px 24px;
           border-radius: 10px;
-          font-size: 15px;
+          font-size: 14.5px;
           font-weight: 700;
           text-decoration: none;
           cursor: pointer;
@@ -564,12 +630,12 @@ def pago_exito():
           border: none;
         }}
         .btn-invoice {{
-          background: #dc2626;
+          background: #1e3a8a;
           color: #ffffff;
-          box-shadow: 0 4px 14px rgba(220, 38, 38, 0.35);
+          border: 1px solid #3b82f6;
         }}
         .btn-invoice:hover {{
-          background: #b91c1c;
+          background: #1d4ed8;
           transform: translateY(-1px);
         }}
         .btn-app {{
@@ -590,20 +656,18 @@ def pago_exito():
           border-color: #475569;
         }}
         .tax-note {{
-          font-size: 12px;
+          font-size: 11.5px;
           color: #64748b;
-          margin-top: 20px;
+          margin-top: 18px;
           line-height: 1.4;
         }}
       </style>
     </head>
     <body>
       <div class="container">
-        <div class="success-badge">✓</div>
-        <h1>¡Compra Realizada con Éxito!</h1>
-        <p class="lead">
-          Tu pago ha sido confirmado. La factura tributaria electrónica ha sido emitida a nombre de tu empresa y se encuentra lista para descarga.
-        </p>
+        <div class="success-badge">{'✓' if is_approved else '⏳'}</div>
+        <h1>{status_badge_text}</h1>
+        <p class="lead">{status_msg}</p>
 
         <div class="order-box">
           <div class="order-row">
@@ -619,25 +683,23 @@ def pago_exito():
             <span class="order-value" style="color: #34d399;">{monto_fmt} CLP</span>
           </div>
           <div class="order-row">
-            <span class="order-label">Facturado a:</span>
+            <span class="order-label">Comprador:</span>
             <span class="order-value">{receptor_nombre}</span>
           </div>
           <div class="order-row">
-            <span class="order-label">RUT Facturación:</span>
+            <span class="order-label">RUT Comprador:</span>
             <span class="order-value">{receptor_rut}</span>
           </div>
           <div class="order-row">
-            <span class="order-label">ID Transacción Mercado Pago:</span>
-            <span class="order-value" style="font-family: monospace; font-size: 13px;">{collection_id or 'Aprobado'}</span>
+            <span class="order-label">Estado Orden:</span>
+            <span class="order-value" style="color: {'#34d399' if is_approved else '#f59e0b'};">{'Aprobada' if is_approved else 'En Verificación'}</span>
           </div>
         </div>
 
         <div class="actions">
-          <a href="/api/invoice-pdf?order_id={order_id}" class="btn btn-invoice" target="_blank" download>
-            📄 Descargar Factura Electrónica (PDF)
-          </a>
+          {download_button}
           <a href="/app" class="btn btn-app">
-            🚀 Comenzar a Evaluar Clientes en la Plataforma
+            🚀 Comenzar a Evaluar en la Plataforma
           </a>
           <a href="/" class="btn btn-home">
             Volver a la Portada
@@ -645,8 +707,8 @@ def pago_exito():
         </div>
 
         <p class="tax-note">
-          Factura Electrónica emitida bajo normativa del SII y Ley N° 19.983.<br/>
-          También hemos enviado una copia de respaldo a tu casilla de correo electrónico.
+          Comprobante digital de servicio comercial.<br/>
+          Para solicitar factura formal con DTE del SII contacte a facturacion@creditob2b.cl.
         </p>
       </div>
     </body>
