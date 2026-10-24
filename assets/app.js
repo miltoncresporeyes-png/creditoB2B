@@ -1,0 +1,1182 @@
+(function () {
+  "use strict";
+
+  var M = window.CreditModel;
+  if (!M) return;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var form = $("creditForm");
+  var results = $("results");
+  var btnPrint = $("btnPrint");
+  var helpModal = $("helpModal");
+  var draftNotice = $("draftNotice");
+  var draftText = $("draftText");
+  var toast = $("toast");
+  var LAST_RESULT = null;
+  var saveTimer = null;
+  var toastTimer = null;
+  var STORAGE_KEY = "credit-eval-draft-v1";
+  var REQUIRED_DOCS = M.REQUIRED_DOCS;
+
+  var EXAMPLE = {
+    razonSocial: "Andes Tecnología SpA",
+    rut: "76.543.210-3",
+    rutERut: "76.543.210-3",
+    rutSolicitante: "12.345.678-5",
+    representantes: "12.345.678-5\n9.876.543-3",
+    sector: "servicios_ti",
+    antiguedad: 8,
+    ventas12m: 1200000000,
+    montoSolicitado: 50000000,
+    plazo: "60",
+    exposicionActual: 12000000,
+    concentracionTopCliente: 25,
+    activoCorriente: 320000000,
+    pasivoCorriente: 180000000,
+    inventarios: 30000000,
+    caja: 40000000,
+    cuentasPorCobrar: 180000000,
+    ebitda: 150000000,
+    flujoCajaOperacional: 110000000,
+    gastosFinancieros: 18000000,
+    servicioDeuda: 35000000,
+    pasivoTotal: 380000000,
+    patrimonio: 300000000,
+    deudaFinanciera: 120000000,
+    deudaFinancieraCP: 30000000,
+    maxDiasMora: 0,
+    deudaVencida: 0,
+    deudaCastigada: 0,
+    instituciones: 2,
+    protestos: 0,
+    morosidades: 0,
+    montoMorosidades: 0,
+    pagoHistorico: "puntual",
+    facturasVencidas: 0,
+    situacionTributaria: "ok",
+    deudaTGR: 0,
+    f29SinDeclarar: 0,
+    tendenciaVentas: "sube",
+    docTribOk: true,
+    docERutOk: true,
+    docCMFOk: true,
+    docEscrituraOk: true,
+    docEEFFOk: true,
+    docDicomOk: true,
+    inicioVigente: "1",
+    sociedadVigente: true,
+    facultades: true,
+    eeccVerificados: true,
+    aval: false,
+    garantia: false,
+    seguroCredito: true,
+    limitePoliticaRiesgo: 80000000,
+    factorComercial: 0.9,
+    multiplicadorFlujo: 1,
+    validacionLegal: true,
+    autorizacion90: false,
+    justificacion90: false,
+    analista: "Analista de crédito",
+    observaciones: "Ejemplo demostrativo. Empresa con liquidez, flujo positivo y buen comportamiento de pago."
+  };
+
+  function esc(value) {
+    return String(value === null || value === undefined ? "" : value).replace(/[&<>"']/g, function (character) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character];
+    });
+  }
+
+  function collectForm() {
+    var data = {};
+    form.querySelectorAll("input, select, textarea").forEach(function (field) {
+      if (!field.id || field.type === "file") return;
+      data[field.id] = field.type === "checkbox" ? field.checked : field.value;
+    });
+    return data;
+  }
+
+  function toModelInput(data) {
+    return {
+      razonSocial: data.razonSocial,
+      rut: data.rut,
+      rutERut: data.rutERut,
+      rutSolicitante: data.rutSolicitante,
+      representantes: data.representantes,
+      sector: data.sector,
+      antiguedad: data.antiguedad,
+      ventas12m: data.ventas12m,
+      montoSolicitado: data.montoSolicitado,
+      plazo: data.plazo,
+      exposicionActual: data.exposicionActual,
+      concentracionTopCliente: data.concentracionTopCliente,
+      activoCorriente: data.activoCorriente,
+      pasivoCorriente: data.pasivoCorriente,
+      inventarios: data.inventarios,
+      caja: data.caja,
+      cuentasPorCobrar: data.cuentasPorCobrar,
+      ebitda: data.ebitda,
+      flujoCajaOperacional: data.flujoCajaOperacional,
+      gastosFinancieros: data.gastosFinancieros,
+      servicioDeuda: data.servicioDeuda,
+      pasivoTotal: data.pasivoTotal,
+      patrimonio: data.patrimonio,
+      deudaFinanciera: data.deudaFinanciera,
+      deudaFinancieraCP: data.deudaFinancieraCP,
+      maxDiasMora: data.maxDiasMora,
+      deudaVencida: data.deudaVencida,
+      deudaCastigada: data.deudaCastigada,
+      instituciones: data.instituciones,
+      protestos: data.protestos,
+      morosidades: data.morosidades,
+      montoMorosidades: data.montoMorosidades,
+      pagoHistorico: data.pagoHistorico,
+      facturasVencidas: data.facturasVencidas,
+      situacionTributaria: data.situacionTributaria,
+      deudaTGR: data.deudaTGR,
+      f29SinDeclarar: data.f29SinDeclarar,
+      tendenciaVentas: data.tendenciaVentas,
+      docs: {
+        trib: !!data.docTribOk,
+        erut: !!data.docERutOk,
+        cmf: !!data.docCMFOk,
+        escritura: !!data.docEscrituraOk,
+        eecc: !!data.docEEFFOk,
+        dicom: !!data.docDicomOk
+      },
+      inicioVigente: data.inicioVigente,
+      sociedadVigente: data.sociedadVigente,
+      facultades: data.facultades,
+      eeccVerificados: data.eeccVerificados,
+      aval: data.aval,
+      garantia: data.garantia,
+      seguroCredito: data.seguroCredito,
+      limitePoliticaRiesgo: data.limitePoliticaRiesgo,
+      factorComercial: data.factorComercial,
+      multiplicadorFlujo: data.multiplicadorFlujo,
+      validacionLegal: data.validacionLegal,
+      autorizacion90: data.autorizacion90,
+      justificacion90: data.justificacion90,
+      analista: data.analista,
+      observaciones: data.observaciones
+    };
+  }
+
+  function populateSelects() {
+    var sector = $("sector");
+    Object.keys(M.SECTORS).forEach(function (key) {
+      var option = document.createElement("option");
+      option.value = key;
+      option.textContent = M.SECTORS[key].label;
+      sector.appendChild(option);
+    });
+    var payment = $("pagoHistorico");
+    Object.keys(M.PAYMENT_HISTORY).forEach(function (key) {
+      var option = document.createElement("option");
+      option.value = key;
+      option.textContent = M.PAYMENT_HISTORY[key].label;
+      payment.appendChild(option);
+    });
+  }
+
+  function applySelectDefaults() {
+    $("sector").value = "servicios_ti";
+    $("pagoHistorico").value = "sin_historial";
+  }
+
+  function setForm(data) {
+    Object.keys(data).forEach(function (id) {
+      var field = $(id);
+      if (!field) return;
+      if (field.type === "checkbox") field.checked = !!data[id];
+      else if (data[id] !== null && data[id] !== undefined) field.value = data[id];
+    });
+    updateMoneyHints();
+    updateRutValidation();
+    updateLiveMetrics();
+  }
+
+  function updateMoneyHints() {
+    form.querySelectorAll("[data-money]").forEach(function (field) {
+      var hint = document.querySelector('[data-hint-for="' + field.id + '"]');
+      if (!hint) return;
+      var value = Number(field.value);
+      hint.textContent = field.value !== "" && Number.isFinite(value) ? M.formatCLP(value) : "";
+    });
+  }
+
+  function updateRutValidation() {
+    ["rut", "rutERut", "rutSolicitante"].forEach(function (id) {
+      var field = $(id);
+      if (!field) return;
+      field.classList.remove("rut-valid", "rut-invalid");
+      if (String(field.value || "").trim() === "") return;
+      if (M.isValidRut(M.cleanRut(field.value))) field.classList.add("rut-valid");
+      else field.classList.add("rut-invalid");
+    });
+  }
+
+  function setText(id, text) {
+    var element = $(id);
+    if (element) element.textContent = text;
+  }
+
+  function ratioText(value) {
+    if (value === null || value === undefined) return "—";
+    if (value >= 999) return "∞";
+    return M.formatRatio(value) + "x";
+  }
+
+  function updateLiveMetrics() {
+    var input = M.normalize(toModelInput(collectForm()));
+    var r = M.ratios(input);
+    setText("liveRc", ratioText(r.razonCorriente));
+    setText("liveAcid", ratioText(r.pruebaAcida));
+    setText("liveLeverage", ratioText(r.deudaPatrimonio));
+    setText("liveNetDebt", r.deudaNetaEbitda === -1 ? "Caja neta" : ratioText(r.deudaNetaEbitda));
+    setText("liveMargin", M.formatPct(r.margenEbitda));
+    setText("liveFreeCash", r.flujoLibre === null ? "—" : M.formatCLP(r.flujoLibre));
+    setText("liveDso", r.dso === null ? "—" : Math.round(r.dso) + " días");
+  }
+
+  function processPdfUpload(field, file) {
+    var docType = field.getAttribute("data-extract-type") || "auto";
+    var formData = new FormData();
+    formData.append("file", file);
+    formData.append("type", docType);
+
+    var dpBox = $("docProgressBox");
+    var dpText = $("docProgressText");
+    var dpBar = $("docProgressBar");
+    var dpPct = $("docProgressPct");
+    var dpTimer = null;
+
+    if (dpBox) {
+      dpBox.classList.remove("hidden");
+      var step = 20;
+      dpText.textContent = "Cargando y leyendo " + file.name + "...";
+      dpBar.style.width = "20%";
+      dpPct.textContent = "20%";
+
+      dpTimer = setInterval(function() {
+        if (step < 88) {
+          step += Math.floor(Math.random() * 15) + 6;
+          if (step > 88) step = 88;
+          dpBar.style.width = step + "%";
+          dpPct.textContent = step + "%";
+          if (step > 45 && step <= 70) {
+            dpText.textContent = "Extrayendo partidas financieras y formularios...";
+          } else if (step > 70) {
+            dpText.textContent = "Consolidando métricas del negocio...";
+          }
+        }
+      }, 500);
+    }
+
+    showToast("Extrayendo datos de " + file.name + "...");
+    fetch("/api/extract-pdf", {
+      method: "POST",
+      body: formData
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(res) {
+      clearInterval(dpTimer);
+      if (dpBar) dpBar.style.width = "100%";
+      if (dpPct) dpPct.textContent = "100%";
+      if (dpText) dpText.textContent = "Extracción completada: " + file.name;
+      setTimeout(function() {
+        if (dpBox) dpBox.classList.add("hidden");
+      }, 1500);
+
+      if (!res.success || !res.data) {
+        showToast(res.error || "No se pudo extraer información del archivo");
+        return;
+      }
+      var d = res.data;
+      var okCheck = document.querySelector("#" + field.id + "Ok");
+      if (okCheck) okCheck.checked = true;
+
+      if (docType === "erut" || d.tipo === "e-RUT") {
+        if (d.rut) {
+          $("rut").value = d.rut;
+          $("rutERut").value = d.rut;
+        }
+        if (d.razon_social) $("razonSocial").value = d.razon_social;
+        if (d.solicitante_rut) $("rutSolicitante").value = d.solicitante_rut;
+        showToast("e-RUT procesado: " + (d.razon_social || d.rut));
+      } else if (docType === "cmf" || d.tipo === "CMF_DEUDAS") {
+        if (d.deuda_total !== undefined) {
+          $("deudaFinanciera").value = d.deuda_total;
+        }
+        if (d.mora_total !== undefined && d.mora_total > 0) {
+          if ($("morosidades")) $("morosidades").value = "1";
+          if ($("montoMorosidades")) $("montoMorosidades").value = d.mora_total;
+        }
+        if (d.mora_90_mas > 0) {
+          if ($("maxDiasMora")) $("maxDiasMora").value = "90";
+          if ($("deudaCastigada")) $("deudaCastigada").value = d.mora_90_mas;
+        } else if (d.mora_60_89 > 0) {
+          if ($("maxDiasMora")) $("maxDiasMora").value = "60";
+        } else if (d.mora_30_59 > 0) {
+          if ($("maxDiasMora")) $("maxDiasMora").value = "30";
+        }
+        showToast("Informe CMF procesado: Deuda " + M.formatCLP(d.deuda_total));
+      } else if (docType === "carpeta_tributaria" || d.tipo === "CARPETA_TRIBUTARIA") {
+        var fieldsToUpdate = {};
+        if (d.rut) fieldsToUpdate.rut = d.rut;
+        if (d.razon_social) fieldsToUpdate.razonSocial = d.razon_social;
+        if (d.antiguedad_anios) fieldsToUpdate.antiguedad = d.antiguedad_anios;
+        if (d.ventas_12m) fieldsToUpdate.ventas12m = d.ventas_12m;
+        if (d.eeff_f22) {
+          if (d.eeff_f22.total_activo) fieldsToUpdate.activoCorriente = d.eeff_f22.total_activo;
+          if (d.eeff_f22.total_pasivo) fieldsToUpdate.pasivoTotal = d.eeff_f22.total_pasivo;
+          if (d.eeff_f22.patrimonio) fieldsToUpdate.patrimonio = d.eeff_f22.patrimonio;
+          if (d.eeff_f22.caja) fieldsToUpdate.caja = d.eeff_f22.caja;
+          if (d.eeff_f22.inventarios) fieldsToUpdate.inventarios = d.eeff_f22.inventarios;
+          if (d.eeff_f22.resultado) fieldsToUpdate.ebitda = d.eeff_f22.resultado;
+        }
+
+        // Detectar si alguno de los campos de destino ya tiene datos ingresados
+        var hasExistingData = Object.keys(fieldsToUpdate).some(function (fieldId) {
+          var el = $(fieldId);
+          return el && String(el.value || "").trim() !== "";
+        });
+
+        var shouldApply = true;
+        if (hasExistingData) {
+          shouldApply = window.confirm(
+            "La Carpeta Tributaria contiene datos de ventas y balances F22 que reemplazarán valores ya ingresados en el formulario.\n\n¿Deseas sobrescribir los campos con los datos oficiales extraídos?"
+          );
+        }
+
+        if (shouldApply) {
+          Object.keys(fieldsToUpdate).forEach(function (fieldId) {
+            var el = $(fieldId);
+            if (el) el.value = fieldsToUpdate[fieldId];
+          });
+          showToast("Carpeta Tributaria procesada: Ventas 12m " + M.formatCLP(d.ventas_12m) + (d.eeff_f22 ? " + Balances F22" : ""));
+        } else {
+          showToast("Extracción completada: Se mantuvieron los datos existentes.");
+        }
+      } else if (docType === "estatutos" || d.tipo === "ESTATUTOS_PODERES") {
+        if (d.ruts_detectados && d.ruts_detectados.length) {
+          var existingReps = String($("representantes").value || "").trim();
+          var applyReps = true;
+          if (existingReps !== "") {
+            applyReps = window.confirm("Ya existen representantes ingresados. ¿Deseas reemplazarlos por los detectados en los estatutos?");
+          }
+          if (applyReps) {
+            $("representantes").value = d.ruts_detectados.join("\n");
+          }
+        }
+        if (d.facultades_financieras_detectadas) {
+          $("facultades").checked = true;
+        }
+        $("sociedadVigente").checked = true;
+        showToast("Estatutos/Poderes procesados correctamente");
+      }
+
+      updateMoneyHints();
+      updateRutValidation();
+      updateLiveMetrics();
+      scheduleSave();
+    })
+    .catch(function(err) {
+      clearInterval(dpTimer);
+      if (dpBox) dpBox.classList.add("hidden");
+      showToast("Error de conexión al procesar el PDF");
+    });
+  }
+
+  function bindFileLabels() {
+    form.querySelectorAll('input[type="file"]').forEach(function (field) {
+      field.addEventListener("change", function () {
+        var label = document.querySelector('[data-file-label="' + field.id + '"]');
+        if (!label) return;
+        if (!field.files || field.files.length === 0) {
+          label.textContent = "Sin archivo";
+          return;
+        }
+        var names = Array.prototype.map.call(field.files, function (file) { return file.name; });
+        label.textContent = (field.files.length > 1 ? field.files.length + " archivos: " : "") + names.join(", ");
+
+        var primaryFile = field.files[0];
+        if (primaryFile && primaryFile.name.toLowerCase().endsWith(".pdf")) {
+          processPdfUpload(field, primaryFile);
+        }
+      });
+    });
+  }
+
+  function saveDraft() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        version: 1,
+        savedAt: new Date().toISOString(),
+        data: collectForm()
+      }));
+    } catch (error) {
+      return;
+    }
+  }
+
+  function scheduleSave() {
+    window.clearTimeout(saveTimer);
+    saveTimer = window.setTimeout(saveDraft, 400);
+  }
+
+  function clearDraft() {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (error) {
+      return;
+    }
+  }
+
+  function loadDraft() {
+    try {
+      var stored = localStorage.getItem(STORAGE_KEY);
+      if (!stored) return;
+      var draft = JSON.parse(stored);
+      if (!draft || draft.version !== 1 || !draft.data) return;
+      setForm(draft.data);
+      if (draftNotice && draftText) {
+        draftText.textContent = "Borrador restaurado (" + new Date(draft.savedAt).toLocaleString("es-CL") + ").";
+        draftNotice.classList.remove("hidden");
+      }
+    } catch (error) {
+      return;
+    }
+  }
+
+  function showToast(message) {
+    if (!toast) return;
+    toast.textContent = message;
+    toast.classList.add("show");
+    window.clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(function () {
+      toast.classList.remove("show");
+    }, 2600);
+  }
+
+  function clearResults() {
+    LAST_RESULT = null;
+    if (results) {
+      results.innerHTML = "";
+      results.classList.add("hidden");
+    }
+    if (btnPrint) btnPrint.disabled = true;
+  }
+
+  function markStale() {
+    if (!LAST_RESULT || results.classList.contains("hidden")) return;
+    if (btnPrint) btnPrint.disabled = true;
+    results.querySelectorAll("[data-print], [data-copy]").forEach(function (button) {
+      button.disabled = true;
+    });
+    if (results.querySelector(".stale-notice")) return;
+    var notice = document.createElement("div");
+    notice.className = "notice stale-notice";
+    notice.innerHTML = "Los datos del formulario cambiaron. Vuelve a evaluar antes de usar o imprimir el resultado. " +
+      '<button class="btn ghost small" type="button" data-reevaluate>Volver a evaluar</button>';
+    results.insertBefore(notice, results.firstChild);
+    notice.querySelector("[data-reevaluate]").addEventListener("click", runEvaluation);
+  }
+
+  function resetFileLabels() {
+    form.querySelectorAll('input[type="file"]').forEach(function (field) {
+      var label = document.querySelector('[data-file-label="' + field.id + '"]');
+      if (label) label.textContent = "Sin archivo";
+    });
+  }
+
+  function resetForm() {
+    form.reset();
+    applySelectDefaults();
+    clearDraft();
+    clearResults();
+    resetFileLabels();
+    if (draftNotice) draftNotice.classList.add("hidden");
+    updateMoneyHints();
+    updateLiveMetrics();
+  }
+
+  function loadExample() {
+    form.reset();
+    setForm(EXAMPLE);
+    clearResults();
+    resetFileLabels();
+    if (draftNotice) draftNotice.classList.add("hidden");
+    saveDraft();
+    showToast("Ejemplo cargado. Revisa los datos y presiona Evaluar crédito.");
+  }
+
+  function metric(label, value, hint) {
+    return '<div class="metric"><small>' + esc(label) + "</small><b>" + esc(value) + "</b>" +
+      (hint ? "<span>" + esc(hint) + "</span>" : "") + "</div>";
+  }
+
+  function formatPoints(value) {
+    return M.formatRatio(value, 2);
+  }
+
+  function limitingLabel(key) {
+    var labels = {
+      commercial: "límite comercial",
+      financial: "límite financiero",
+      risk: "política de riesgo por cliente",
+      policy: "política de crédito"
+    };
+    return labels[key] || "—";
+  }
+
+  function statusNote(r) {
+    if (r.status.key === "pending") return "El puntaje es provisional. Completa los antecedentes pendientes para habilitar una decisión.";
+    if (r.status.key === "blocked") return "El puntaje no prevalece sobre los bloqueos críticos. Resuelve los bloqueos antes de continuar.";
+    if (r.status.key === "no_availability") return "El límite bruto ya está consumido por la exposición actual. No hay disponibilidad adicional.";
+    if (r.status.key === "no_ordinary" || r.status.key === "rejected") return "No se recomienda otorgar crédito ordinario con los antecedentes actuales.";
+    if (r.status.key === "review") return "Se requiere revisión de jefatura, mitigantes o una reducción del límite antes de aprobar.";
+    return "Decisión sujeta a revisión humana y validación legal del plazo.";
+  }
+
+  function issueGroup(title, items, className, markCritical) {
+    if (!items.length) return "";
+    return '<div class="issue-group"><h3>' + esc(title) + '</h3><ul class="issue-list ' + className + '">' +
+      items.map(function (item) {
+        return "<li>" + (markCritical && item.critical ? "<strong>Crítico: </strong>" : "") + esc(item.text) + "</li>";
+      }).join("") + "</ul></div>";
+  }
+
+  function renderIssues(r) {
+    var parts = [];
+    parts.push(issueGroup("Bloqueos críticos", r.hardBlockers, "hard", false));
+    parts.push(issueGroup("Antecedentes pendientes", r.pendingItems, "pending", false));
+    parts.push(issueGroup("Alertas de riesgo", r.warnings, "warning", true));
+    parts.push(issueGroup("Observaciones", r.infoItems, "info", false));
+    if (!r.hardBlockers.length && !r.pendingItems.length && !r.warnings.length && !r.infoItems.length) {
+      parts.push('<div class="issue-group"><ul class="issue-list ok"><li>Sin alertas críticas.</li></ul></div>');
+    }
+    return parts.join("");
+  }
+
+  function controlRow(label, ok, detail, optional) {
+    var status = optional && !ok ? "Opcional" : ok ? "OK" : "Revisar";
+    var color = optional && !ok ? "var(--mut)" : ok ? "var(--ok)" : "var(--warn)";
+    return "<tr><td>" + esc(label) + '</td><td><span class="score-chip" style="color:' + color + '">' +
+      esc(status) + "</span></td><td>" + esc(detail || "—") + "</td></tr>";
+  }
+
+  function renderControls(r) {
+    var docsOk = REQUIRED_DOCS.filter(function (key) { return r.input.docs[key]; }).length;
+    var rows = [
+      controlRow("RUT de la empresa", M.isValidRut(r.input.rut), M.formatRut(r.input.rut)),
+      controlRow("RUT del e-RUT coincide", !!r.input.rutERut && r.input.rutERut === r.input.rut, M.formatRut(r.input.rutERut)),
+      controlRow("RUT del solicitante", M.isValidRut(r.input.rutSolicitante), M.formatRut(r.input.rutSolicitante)),
+      controlRow("Solicitante en nómina de representantes", r.input.representantes.indexOf(r.input.rutSolicitante) >= 0, r.input.representantes.length + " representante(s) informado(s)"),
+      controlRow("Inicio de actividades vigente", r.input.inicioVigente, ""),
+      controlRow("Sociedad vigente", r.input.sociedadVigente, ""),
+      controlRow("Facultades del representante", r.input.facultades, ""),
+      controlRow("Documentos obligatorios", docsOk === REQUIRED_DOCS.length, docsOk + "/" + REQUIRED_DOCS.length + " revisados"),
+      controlRow("Estados financieros verificados", r.input.eeccVerificados, ""),
+      controlRow("DICOM revisado", r.input.docs.dicom, r.input.docs.dicom ? "Presentado" : "No presentado", true)
+    ];
+    return '<div class="table-wrap"><table><thead><tr><th>Control</th><th>Estado</th><th>Detalle</th></tr></thead><tbody>' +
+      rows.join("") + "</tbody></table></div>";
+  }
+
+  function renderDimensions(r) {
+    return r.dimensions.map(function (dimension) {
+      var color = dimension.note >= 70 ? "var(--ok)" : dimension.note >= 55 ? "var(--ac)" : dimension.note >= 40 ? "var(--warn)" : "var(--bad)";
+      var rows = dimension.indicators.map(function (indicator) {
+        return '<li><span class="name">' + esc(indicator.label) + '</span><span class="value">' +
+          esc(indicator.display) + '</span><span class="pts' + (indicator.score < 50 ? " underperform" : "") + '">' +
+          indicator.score + "</span></li>";
+      }).join("");
+      return '<div class="dimension">' +
+        '<div class="dim-head"><div><strong>' + esc(dimension.label) + "</strong><small>Peso " +
+        dimension.weight + "% · Contribución " + formatPoints(dimension.contribution) + ' pts</small></div>' +
+        '<span class="score-chip">' + dimension.note + "/100</span></div>" +
+        '<div class="bar"><span style="width:' + dimension.note + "%;background:" + color + '"></span></div>' +
+        '<ul class="indicator-list">' + rows + "</ul></div>";
+    }).join("") +
+      '<div class="dimension" style="background:var(--ac-soft)"><div class="dim-head"><div><strong>Puntaje total</strong><small>Suma ponderada de las cinco dimensiones</small></div><span class="score-chip">' +
+      M.formatRatio(r.score, 1) + "/100</span></div></div>";
+  }
+
+  function renderLimits(r) {
+    var approvable = ["approved", "conditional", "review", "no_availability"].indexOf(r.status.key) >= 0;
+    if (!approvable) {
+      return '<section class="result-section"><h2>Cálculo del límite</h2><p class="small muted">' +
+        (r.status.key === "pending"
+          ? "El límite no se habilita hasta completar los antecedentes pendientes."
+          : "No se calcula línea ordinaria para esta decisión.") + "</p></section>";
+    }
+    var preAdjustment = Math.min(r.limits.commercial, r.limits.financial, r.limits.risk);
+    var adjustment = Math.max(0, preAdjustment - r.limits.gross);
+    var adjustmentRow = adjustment > 0
+      ? '<tr><td>Ajuste por revisión de riesgo</td><td class="num">-' + M.formatCLP(adjustment) + "</td></tr>"
+      : "";
+    return '<section class="result-section"><h2>Cálculo del límite</h2><div class="table-wrap compact"><table>' +
+      '<thead><tr><th>Concepto</th><th class="num">Valor</th></tr></thead><tbody>' +
+      '<tr><td>Límite comercial<span class="formula">(Ventas 12m / 365) × ' + (r.limits.termDays || 0) + " días × " + esc(r.limits.factor) + "</span></td><td class=\"num\">" + M.formatCLP(r.limits.commercial) + "</td></tr>" +
+      '<tr><td>Límite financiero<span class="formula">máx(0, FCO − servicio de deuda) × ' + esc(r.limits.multiplier) + "</span></td><td class=\"num\">" + M.formatCLP(r.limits.financial) + "</td></tr>" +
+      '<tr><td>Límite de política de riesgo</td><td class="num">' + M.formatCLP(r.limits.risk) + "</td></tr>" +
+      adjustmentRow +
+      '<tr><td><b>Límite bruto</b><span class="formula">Menor de los límites aplicables</span></td><td class="num"><b>' + M.formatCLP(r.limits.gross) + "</b></td></tr>" +
+      '<tr><td>Exposición actual</td><td class="num">' + M.formatCLP(r.limits.exposure) + "</td></tr>" +
+      '<tr><td>Disponible adicional</td><td class="num">' + M.formatCLP(r.limits.available) + "</td></tr>" +
+      '<tr><td>Monto solicitado</td><td class="num">' + M.formatCLP(r.limits.requested) + "</td></tr>" +
+      '<tr class="total"><td>Monto aprobado</td><td class="num">' + M.formatCLP(r.limits.approved) + "</td></tr>" +
+      "</tbody></table></div><p class=\"small muted\" style=\"margin:8px 0 0\">Factor limitante: " +
+      esc(limitingLabel(r.limits.limitingFactor)) + ". El monto aprobado se redondea a $100.000 y nunca supera la disponibilidad.</p></section>";
+  }
+
+  function renderTerm(r) {
+    var mitigants = [];
+    if (r.input.aval) mitigants.push("Aval personal o solidario");
+    if (r.input.garantia) mitigants.push("Garantía real o prenda");
+    if (r.input.seguroCredito) mitigants.push("Seguro de crédito comercial");
+    var notes = r.term.notes.slice();
+    if (r.term.approved > 30) notes.push("Plazo superior a 30 días: validación legal registrada por el analista.");
+    if (r.term.approved === 90) notes.push("Excepción de 90 días: requiere autorización superior y justificación comercial documentada.");
+    return '<section class="result-section"><h2>Plazo y condiciones</h2><div class="metrics">' +
+      metric("Plazo solicitado", r.term.requested ? r.term.requested + " días" : "—", "") +
+      metric("Plazo máximo interno", r.term.max ? r.term.max + " días" : "—", "") +
+      metric("Plazo aprobado", r.term.approved ? r.term.approved + " días" : "—", "") +
+      "</div>" +
+      (mitigants.length ? '<p class="small" style="margin:12px 0 0"><b>Mitigantes registrados:</b> ' + esc(mitigants.join(", ")) + "</p>" : "") +
+      (notes.length ? '<ul class="conditions">' + notes.map(function (note) { return "<li>" + esc(note) + "</li>"; }).join("") + "</ul>" : "") +
+      '<p class="legal" style="margin-top:12px">Ley N.º 19.983, modificada por la Ley N.º 21.131: regla general de pago de facturas dentro de 30 días corridos desde su recepción. Los plazos superiores requieren cumplir las condiciones legales, incluyendo acuerdo escrito e inscripción cuando proceda. La evaluación crediticia no sustituye la validación jurídica.</p></section>';
+  }
+
+  var FEEDBACK_KEY = "credit-ml-feedback-v1";
+  function loadFeedback() {
+    try { return JSON.parse(localStorage.getItem(FEEDBACK_KEY) || "[]"); } catch (e) { return []; }
+  }
+  function saveFeedback(list) {
+    try { localStorage.setItem(FEEDBACK_KEY, JSON.stringify(list)); } catch (e) {}
+  }
+  function renderPrediction(r) {
+    var p = r.prediction;
+    if (!p) return '<p class="small muted">Modelo predictivo no disponible.</p>';
+    var conf = (p.confidence * 100).toFixed(1) + "%";
+    var review = p.needsReview ? "Si (revision humana requerida)" : "No";
+    var probRows = Object.keys(p.probabilities).map(function (k) {
+      return "<tr><td>" + esc(k) + "</td><td class=\"num\">" + (p.probabilities[k] * 100).toFixed(1) + "%</td></tr>";
+    }).join("");
+    return '<div class="metrics">' +
+      metric("Decision predicha", p.label, "Modelo supervisado") +
+      metric("Confianza", conf, "Probabilidad de la clase") +
+      metric("Revision humana", review, "Umbral 75% o clases de riesgo") +
+      '</div>' +
+      '<div class="table-wrap compact" style="margin-top:10px"><table><thead><tr><th>Clase</th><th class="num">Probabilidad</th></tr></thead><tbody>' + probRows + '</tbody></table></div>' +
+      '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">' +
+      '<button class="btn ghost small" type="button" data-ml-feedback="approved">Marcar aprobado</button>' +
+      '<button class="btn ghost small" type="button" data-ml-feedback="rejected">Marcar rechazado</button>' +
+      '<button class="btn ghost small" type="button" data-ml-feedback="review">Marcar revision</button>' +
+      '<button class="btn ghost small" type="button" data-ml-train>Entrenar con feedback (' + loadFeedback().length + ')</button>' +
+      '<button class="btn ghost small" type="button" data-ml-reset>Reiniciar modelo</button>' +
+      '</div>' +
+      '<p class="small muted" style="margin-top:8px">El feedback humano se guarda localmente y permite reentrenar el modelo (aprendizaje supervisado). La decision final sigue siendo humana.</p>';
+  }
+
+  function renderResults(r) {
+    LAST_RESULT = r;
+    var score = Math.max(0, Math.min(100, r.scoreDisplay));
+    var company = esc(r.input.razonSocial || "Empresa sin nombre");
+    var rut = r.input.rut ? " · " + esc(M.formatRut(r.input.rut)) : "";
+    var generated = new Date(r.generatedAt).toLocaleString("es-CL");
+    var analyst = esc(r.input.analista || "No informado");
+    var observations = r.input.observaciones
+      ? '<p class="small muted" style="margin:8px 0 0"><b>Observaciones:</b> ' + esc(r.input.observaciones) + "</p>"
+      : "";
+    var isPending = r.status.key === "pending";
+    var approvedValue = isPending ? "Pendiente" : M.formatCLP(r.limits.approved);
+    var grossValue = isPending ? "—" : M.formatCLP(r.limits.gross);
+    var availableValue = isPending ? "—" : M.formatCLP(r.limits.available);
+    var termValue = r.term.approved ? r.term.approved + " días" : "—";
+    var classificationText = r.classification.label;
+    var scoreHint = r.classification.label;
+    if (r.status.key === "blocked") classificationText += " · bloqueado por alertas";
+    else if (r.status.key === "pending") {
+      classificationText = "Puntaje provisional";
+      scoreHint = "Faltan antecedentes";
+    } else if (r.status.key === "review" && r.score >= 85) {
+      classificationText += " · sujeto a revisión";
+    }
+    function renderKpiCards(r) {
+      var ratios = r.ratios;
+      
+      // 1. Razón Corriente (Benchmark: >= 1.3x)
+      var rcVal = ratios.razonCorriente;
+      var rcClass = rcVal === null ? "kpi-info" : rcVal >= 1.3 ? "kpi-success" : rcVal >= 1.0 ? "kpi-warning" : "kpi-danger";
+      var rcBadge = rcVal === null ? '<span class="kpi-badge badge-neutral">S/D</span>' : rcVal >= 1.3 ? '<span class="kpi-badge badge-ok">Saludable</span>' : rcVal >= 1.0 ? '<span class="kpi-badge badge-warn">Ajustado</span>' : '<span class="kpi-badge badge-bad">Riesgo</span>';
+      var rcText = rcVal === null ? "—" : (rcVal >= 999 ? "∞" : M.formatRatio(rcVal) + "x");
+      var rcPct = rcVal === null ? 0 : Math.min(100, Math.round((rcVal / 2.0) * 100));
+
+      // 2. Cobertura de Deuda Neta / EBITDA (Benchmark: <= 2.5x)
+      var netDebtVal = ratios.deudaNetaEbitda;
+      var netDebtClass = netDebtVal === null ? "kpi-info" : (netDebtVal === -1 || netDebtVal <= 2.5) ? "kpi-success" : netDebtVal <= 3.5 ? "kpi-warning" : "kpi-danger";
+      var netDebtBadge = netDebtVal === null ? '<span class="kpi-badge badge-neutral">S/D</span>' : netDebtVal === -1 ? '<span class="kpi-badge badge-ok">Caja Neta</span>' : netDebtVal <= 2.5 ? '<span class="kpi-badge badge-ok">Óptimo</span>' : netDebtVal <= 3.5 ? '<span class="kpi-badge badge-warn">Moderado</span>' : '<span class="kpi-badge badge-bad">Elevado</span>';
+      var netDebtText = netDebtVal === null ? "—" : netDebtVal === -1 ? "Caja neta" : (netDebtVal >= 999 ? "Excesiva" : M.formatRatio(netDebtVal) + "x");
+      var netDebtPct = netDebtVal === null ? 0 : netDebtVal === -1 ? 100 : Math.min(100, Math.max(10, Math.round((4.0 - Math.min(4.0, netDebtVal)) / 4.0 * 100)));
+
+      // 3. Margen EBITDA (Rentabilidad Operativa)
+      var mEbitda = ratios.margenEbitda;
+      var ebitdaClass = mEbitda === null ? "kpi-info" : mEbitda >= 0.12 ? "kpi-success" : mEbitda >= 0.05 ? "kpi-warning" : "kpi-danger";
+      var ebitdaBadge = mEbitda === null ? '<span class="kpi-badge badge-neutral">S/D</span>' : mEbitda >= 0.12 ? '<span class="kpi-badge badge-ok">Sólido</span>' : mEbitda >= 0.05 ? '<span class="kpi-badge badge-warn">Marginal</span>' : '<span class="kpi-badge badge-bad">Crítico</span>';
+      var ebitdaText = mEbitda === null ? "—" : M.formatPct(mEbitda);
+      var ebitdaPct = mEbitda === null ? 0 : Math.min(100, Math.max(5, Math.round((mEbitda / 0.25) * 100)));
+
+      // 4. DSO - Días de Rotación de Cartera (Ley 19.983: <= 30-45 días)
+      var dsoVal = ratios.dso;
+      var dsoClass = dsoVal === null ? "kpi-info" : dsoVal <= 45 ? "kpi-success" : dsoVal <= 75 ? "kpi-warning" : "kpi-danger";
+      var dsoBadge = dsoVal === null ? '<span class="kpi-badge badge-neutral">S/D</span>' : dsoVal <= 45 ? '<span class="kpi-badge badge-ok">Rápido</span>' : dsoVal <= 75 ? '<span class="kpi-badge badge-warn">Normal</span>' : '<span class="kpi-badge badge-bad">Lento</span>';
+      var dsoText = dsoVal === null ? "—" : Math.round(dsoVal) + " días";
+      var dsoPct = dsoVal === null ? 0 : Math.min(100, Math.max(10, Math.round((120 - Math.min(120, dsoVal)) / 120 * 100)));
+
+      // 5. Apalancamiento Financiero (Pasivo / Patrimonio)
+      var levVal = ratios.deudaPatrimonio;
+      var levClass = levVal === null ? "kpi-info" : levVal <= 1.5 ? "kpi-success" : levVal <= 2.5 ? "kpi-warning" : "kpi-danger";
+      var levBadge = levVal === null ? '<span class="kpi-badge badge-neutral">S/D</span>' : levVal <= 1.5 ? '<span class="kpi-badge badge-ok">Bajo</span>' : levVal <= 2.5 ? '<span class="kpi-badge badge-warn">Medio</span>' : '<span class="kpi-badge badge-bad">Alto</span>';
+      var levText = levVal === null ? "—" : (levVal >= 999 ? "Negativo / Inf" : M.formatRatio(levVal) + "x");
+      var levPct = levVal === null ? 0 : Math.min(100, Math.max(10, Math.round((3.0 - Math.min(3.0, levVal)) / 3.0 * 100)));
+
+      // 6. Flujo Libre Operacional
+      var fLibre = ratios.flujoLibre;
+      var fClass = fLibre === null ? "kpi-info" : fLibre > 0 ? "kpi-success" : "kpi-danger";
+      var fBadge = fLibre === null ? '<span class="kpi-badge badge-neutral">S/D</span>' : fLibre > 0 ? '<span class="kpi-badge badge-ok">Superávit</span>' : '<span class="kpi-badge badge-bad">Déficit</span>';
+      var fText = fLibre === null ? "—" : M.formatCLP(fLibre);
+
+      return '<div class="kpi-grid">' +
+        // Card 1
+        '<div class="kpi-card ' + rcClass + '">' +
+          '<div class="kpi-header"><span class="kpi-title">Razón Corriente</span>' + rcBadge + '</div>' +
+          '<div class="kpi-value">' + rcText + '</div>' +
+          '<div class="kpi-subtitle">Activo / Pasivo Cte (Meta: &ge; 1.3x)</div>' +
+          '<div class="kpi-bar-track"><div class="kpi-bar-fill" style="width:' + rcPct + '%;"></div></div>' +
+        '</div>' +
+        // Card 2
+        '<div class="kpi-card ' + netDebtClass + '">' +
+          '<div class="kpi-header"><span class="kpi-title">Deuda Neta / EBITDA</span>' + netDebtBadge + '</div>' +
+          '<div class="kpi-value">' + netDebtText + '</div>' +
+          '<div class="kpi-subtitle">Capacidad de repago (Meta: &le; 2.5x)</div>' +
+          '<div class="kpi-bar-track"><div class="kpi-bar-fill" style="width:' + netDebtPct + '%;"></div></div>' +
+        '</div>' +
+        // Card 3
+        '<div class="kpi-card ' + ebitdaClass + '">' +
+          '<div class="kpi-header"><span class="kpi-title">Margen EBITDA</span>' + ebitdaBadge + '</div>' +
+          '<div class="kpi-value">' + ebitdaText + '</div>' +
+          '<div class="kpi-subtitle">Generación operacional sobre ventas</div>' +
+          '<div class="kpi-bar-track"><div class="kpi-bar-fill" style="width:' + ebitdaPct + '%;"></div></div>' +
+        '</div>' +
+        // Card 4
+        '<div class="kpi-card ' + dsoClass + '">' +
+          '<div class="kpi-header"><span class="kpi-title">Días Cobro (DSO)</span>' + dsoBadge + '</div>' +
+          '<div class="kpi-value">' + dsoText + '</div>' +
+          '<div class="kpi-subtitle">Ciclo medio rotación de cartera</div>' +
+          '<div class="kpi-bar-track"><div class="kpi-bar-fill" style="width:' + dsoPct + '%;"></div></div>' +
+        '</div>' +
+        // Card 5
+        '<div class="kpi-card ' + levClass + '">' +
+          '<div class="kpi-header"><span class="kpi-title">Pasivo / Patrimonio</span>' + levBadge + '</div>' +
+          '<div class="kpi-value">' + levText + '</div>' +
+          '<div class="kpi-subtitle">Apalancamiento con terceros (&le; 1.5x)</div>' +
+          '<div class="kpi-bar-track"><div class="kpi-bar-fill" style="width:' + levPct + '%;"></div></div>' +
+        '</div>' +
+        // Card 6
+        '<div class="kpi-card ' + fClass + '">' +
+          '<div class="kpi-header"><span class="kpi-title">Flujo Libre de Caja</span>' + fBadge + '</div>' +
+          '<div class="kpi-value" style="font-size:18px;">' + fText + '</div>' +
+          '<div class="kpi-subtitle">FCO neto tras servicio de deuda</div>' +
+        '</div>' +
+      '</div>';
+    }
+
+    var html = '<article class="report">' +
+      '<section class="result-hero tone-' + esc(r.status.tone) + '">' +
+      '<div class="score-layout"><div class="gauge" style="--score:' + score + '"><div class="gauge-inner"><strong>' + score + "</strong><small>/ 100</small></div></div>" +
+      '<div class="result-copy"><span class="badge">' + esc(r.status.label) + "</span><h2>" + esc(classificationText) + "</h2>" +
+      '<div class="company">' + company + rut + "</div><p class=\"decision\">" + esc(r.status.message) + "</p></div></div></section>" +
+      '<section class="result-section"><h2>Panel de Control y KPIs Financieros</h2>' +
+      renderKpiCards(r) +
+      '<div class="metrics" style="margin-top:14px;">' +
+      metric("Monto aprobado", approvedValue, "Sujeto a política y validación") +
+      metric("Plazo aprobado", termValue, "Máximo interno") +
+      metric("Límite bruto", grossValue, "Mínimo de los límites") +
+      metric("Disponible adicional", availableValue, "Después de exposición actual") +
+      metric("Exposición actual", M.formatCLP(r.limits.exposure), "Facturas y pedidos comprometidos") +
+      metric("Venta mensual", M.formatCLP(r.ratios.ventasMensuales), "Ventas 12m / 12") +
+      '</div><p class="small muted" style="margin:10px 0 0">' + esc(statusNote(r)) + "</p></section>" +
+      renderLimits(r) +
+      '<section class="result-section"><h2>Desglose del scoring</h2>' + renderDimensions(r) + "</section>" +
+      '<section class="result-section"><h2>Alertas y bloqueos</h2>' + renderIssues(r) + "</section>" +
+      '<section class="result-section"><h2>Controles del expediente</h2>' + renderControls(r) + "</section>" +
+      '<section class="result-section"><h2>Modelo predictivo (aprendizaje supervisado)</h2>' + renderPrediction(r) + "</section>" +
+      renderTerm(r) +
+      '<section class="result-section"><h2>Informe ejecutivo</h2><div class="metrics">' +
+      metric("Analista", analyst, "Responsable de la evaluación") +
+      metric("Fecha de evaluación", generated, "Generado por la herramienta") +
+      metric("Puntaje", M.formatRatio(r.score, 1) + " / 100", esc(scoreHint)) +
+      "</div>" + observations +
+      '<p class="legal" style="margin-top:12px">Herramienta de apoyo a la decisión. No constituye una clasificación oficial de la CMF ni una probabilidad estadística de incumplimiento. La aprobación final debe ser humana, documentada y sujeta a la validación legal del plazo.</p>' +
+      '<div class="report-footer"><span class="small muted">Evaluación generada el ' + esc(generated) + "</span>" +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+      '<button class="btn primary small" type="button" data-export-pdf>📄 Descargar Dictamen PDF</button> ' +
+      '<button class="btn ghost small" type="button" data-print>Imprimir</button> ' +
+      '<button class="btn ghost small" type="button" data-copy>Copiar resumen</button></div></div></section>' +
+      "</article>";
+    results.innerHTML = html;
+    results.classList.remove("hidden");
+    btnPrint.disabled = false;
+  }
+
+  function runEvaluation() {
+    try {
+      var input = toModelInput(collectForm());
+      var result = M.evaluate(input);
+      renderResults(result);
+      saveDraft();
+
+      // Guardar en base de datos ACID relacional
+      fetch("/api/evaluations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ input: input, result: result })
+      }).then(function(res) { return res.json(); })
+        .then(function(data) {
+          if (data.success) {
+            showToast("Evaluación guardada en base de datos (Expediente #" + data.id + ")");
+          }
+        }).catch(function() {});
+
+      window.requestAnimationFrame(function () {
+        results.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    } catch (error) {
+      showToast("No se pudo evaluar: " + (error && error.message ? error.message : "error inesperado"));
+    }
+  }
+
+  function buildSummary(r) {
+    var lines = [
+      "Evaluación de crédito comercial",
+      "Empresa: " + (r.input.razonSocial || "Sin nombre") + " · RUT " + M.formatRut(r.input.rut),
+      "Fecha: " + new Date(r.generatedAt).toLocaleString("es-CL"),
+      "Analista: " + (r.input.analista || "No informado"),
+      "Puntaje: " + M.formatRatio(r.score, 1) + "/100 · " + (r.status.key === "pending" ? "Provisional" : r.classification.label),
+      "Decisión: " + r.status.label,
+      "Monto aprobado: " + M.formatCLP(r.limits.approved),
+      "Plazo aprobado: " + (r.term.approved ? r.term.approved + " días" : "No aplicable"),
+      "Límite bruto: " + M.formatCLP(r.limits.gross),
+      "Disponible adicional: " + M.formatCLP(r.limits.available),
+      "Exposición actual: " + M.formatCLP(r.limits.exposure),
+      "DSO: " + (r.ratios.dso === null ? "No informado" : Math.round(r.ratios.dso) + " días"),
+      "",
+      "Dimensiones:"
+    ];
+    r.dimensions.forEach(function (dimension) {
+      lines.push("- " + dimension.label + ": " + dimension.note + "/100 (peso " + dimension.weight + "%)");
+    });
+    if (r.hardBlockers.length) {
+      lines.push("", "Bloqueos:");
+      r.hardBlockers.forEach(function (item) { lines.push("- " + item.text); });
+    }
+    if (r.pendingItems.length) {
+      lines.push("", "Pendientes:");
+      r.pendingItems.forEach(function (item) { lines.push("- " + item.text); });
+    }
+    if (r.warnings.length) {
+      lines.push("", "Alertas:");
+      r.warnings.forEach(function (item) { lines.push("- " + item.text); });
+    }
+    if (r.term.notes.length) {
+      lines.push("", "Condiciones de plazo:");
+      r.term.notes.forEach(function (note) { lines.push("- " + note); });
+    }
+    return lines.join("\n");
+  }
+
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(text);
+    return new Promise(function (resolve, reject) {
+      var area = document.createElement("textarea");
+      area.value = text;
+      area.style.position = "fixed";
+      area.style.opacity = "0";
+      document.body.appendChild(area);
+      area.select();
+      try {
+        if (document.execCommand("copy")) resolve();
+        else reject(new Error("copy"));
+      } catch (error) {
+        reject(error);
+      } finally {
+        document.body.removeChild(area);
+      }
+    });
+  }
+
+  function copySummary() {
+    if (!LAST_RESULT) return;
+    copyText(buildSummary(LAST_RESULT)).then(function () {
+      showToast("Resumen copiado.");
+    }).catch(function () {
+      showToast("No se pudo copiar el resumen.");
+    });
+  }
+
+  function openHelp() {
+    helpModal.classList.remove("hidden");
+    helpModal.querySelector("button").focus();
+  }
+
+  function closeHelp() {
+    helpModal.classList.add("hidden");
+  }
+
+  form.addEventListener("input", function () {
+    updateMoneyHints();
+    updateRutValidation();
+    updateLiveMetrics();
+    scheduleSave();
+    markStale();
+  });
+
+  form.addEventListener("change", function () {
+    updateMoneyHints();
+    updateRutValidation();
+    updateLiveMetrics();
+    scheduleSave();
+    markStale();
+  });
+
+  $("btnEvaluate").addEventListener("click", runEvaluation);
+  btnPrint.addEventListener("click", function () { window.print(); });
+  $("btnExample").addEventListener("click", loadExample);
+  $("btnReset").addEventListener("click", function () {
+    if (window.confirm("¿Limpiar todos los datos y el borrador guardado?")) resetForm();
+  });
+  $("btnDiscardDraft").addEventListener("click", function () {
+    resetForm();
+    showToast("Borrador descartado.");
+  });
+  $("btnHelp").addEventListener("click", openHelp);
+  if ($("btnSii")) $("btnSii").addEventListener("click", function () {
+    var rutValue = $("rut").value;
+    if (!M.isValidRut(M.cleanRut(rutValue))) { showToast("RUT inválido"); return; }
+    showToast("Consultando SII...");
+    var btn = $("btnSii");
+    if (btn) { btn.disabled = true; btn.textContent = "Consultando..."; }
+
+    var pBox = $("siiProgressBox");
+    var pText = $("siiProgressText");
+    var pBar = $("siiProgressBar");
+    var pPct = $("siiProgressPct");
+    var progressTimer = null;
+
+    if (pBox) {
+      pBox.classList.remove("hidden");
+      var currentStep = 15;
+      pText.textContent = "Conectando con portal del SII...";
+      pBar.style.width = "15%";
+      pPct.textContent = "15%";
+
+      progressTimer = setInterval(function () {
+        if (currentStep < 85) {
+          currentStep += Math.floor(Math.random() * 12) + 5;
+          if (currentStep > 85) currentStep = 85;
+          pBar.style.width = currentStep + "%";
+          pPct.textContent = currentStep + "%";
+          if (currentStep > 40 && currentStep <= 65) {
+            pText.textContent = "Extrayendo situación tributaria y timbraje...";
+          } else if (currentStep > 65) {
+            pText.textContent = "Procesando actividades económicas...";
+          }
+        }
+      }, 700);
+    }
+
+    fetch("/api/sii?rut=" + encodeURIComponent(rutValue))
+      .then(function (response) { return response.json(); })
+      .then(function (data) {
+        clearInterval(progressTimer);
+        if (pBar) pBar.style.width = "100%";
+        if (pPct) pPct.textContent = "100%";
+        if (pText) pText.textContent = "Datos obtenidos exitosamente.";
+
+        setTimeout(function() {
+          if (pBox) pBox.classList.add("hidden");
+        }, 1200);
+
+        if (btn) { btn.disabled = false; btn.textContent = "Consultar SII"; }
+
+        if (data.error) { showToast(data.error); return; }
+        if (data.nombre) {
+          $("razonSocial").value = data.nombre;
+        }
+        if (data.rut && $("rutERut")) {
+          $("rutERut").value = data.rut;
+        }
+        if (data.inicioActividades === "SI") {
+          $("inicioVigente").value = "1";
+          if ($("sociedadVigente")) $("sociedadVigente").checked = true;
+        } else if (data.inicioActividades === "NO") {
+          $("inicioVigente").value = "0";
+        }
+        if (data.antiguedad !== null && data.antiguedad !== undefined) {
+          $("antiguedad").value = data.antiguedad;
+        }
+
+        // Mostrar Cápsula de Compliance SII
+        var capsule = $("siiCapsule");
+        if (capsule) {
+          capsule.classList.remove("hidden");
+          var tBadge = $("siiTimbrajeBadge");
+          if (tBadge) {
+            if (data.anioTimbraje) {
+              tBadge.textContent = "Factura Electrónica: " + data.anioTimbraje;
+              tBadge.style.background = "#dcfce7";
+              tBadge.style.color = "#166534";
+            } else {
+              tBadge.textContent = "Timbraje: No informado";
+              tBadge.style.background = "#fef3c7";
+              tBadge.style.color = "#92400e";
+            }
+          }
+          if ($("siiActividadText")) {
+            $("siiActividadText").textContent = "Giro: " + (data.actividad || "Sin giro especificado") + (data.codActividad ? " (" + data.codActividad + ")" : "");
+          }
+          if ($("siiIvaText")) {
+            $("siiIvaText").textContent = "Afecta a IVA: " + (data.afectaIva || "Sí (Primera Categoría)");
+          }
+          if ($("siiTamanoText")) {
+            $("siiTamanoText").textContent = "Tamaño: " + (data.empresaMenorTamano === "SI" ? "PyME (Ley 20.416)" : "Empresa General");
+          }
+          if ($("siiInicioText")) {
+            $("siiInicioText").textContent = "Inicio: " + (data.fechaInicioActividades || "Vigente");
+          }
+
+          var docsList = $("siiDocsTimbradosList");
+          if (docsList) {
+            docsList.innerHTML = "";
+            var docs = data.documentosTimbrados || [];
+            if (docs.length > 0) {
+              var currentYear = new Date().getFullYear();
+              docs.forEach(function(item) {
+                var isRecent = Number(item.anio) >= (currentYear - 1);
+                var pill = document.createElement("span");
+                pill.style.display = "inline-flex";
+                pill.style.alignItems = "center";
+                pill.style.gap = "4px";
+                pill.style.padding = "2px 6px";
+                pill.style.borderRadius = "4px";
+                pill.style.fontSize = "10.5px";
+                pill.style.fontWeight = "500";
+                pill.style.background = isRecent ? "#dcfce7" : "#f1f5f9";
+                pill.style.color = isRecent ? "#166534" : "#475569";
+                pill.style.border = "1px solid " + (isRecent ? "#86efac" : "#cbd5e1");
+                pill.textContent = item.documento + " (" + item.anio + ")";
+                docsList.appendChild(pill);
+              });
+            } else if (data.anioTimbraje) {
+              var pill = document.createElement("span");
+              pill.style.padding = "2px 6px";
+              pill.style.borderRadius = "4px";
+              pill.style.fontSize = "10.5px";
+              pill.style.background = "#dcfce7";
+              pill.style.color = "#166534";
+              pill.textContent = "Factura Electrónica (" + data.anioTimbraje + ")";
+              docsList.appendChild(pill);
+            } else {
+              docsList.innerHTML = '<span style="font-size:11px; color:#64748b;">No registra documentos autorizados recientes.</span>';
+            }
+          }
+        }
+
+        updateMoneyHints();
+        updateRutValidation();
+        updateLiveMetrics();
+        scheduleSave();
+        showToast("Datos SII cargados: " + (data.nombre || rutValue));
+      })
+      .catch(function () {
+        clearInterval(progressTimer);
+        if (pBox) pBox.classList.add("hidden");
+        if (btn) { btn.disabled = false; btn.textContent = "Consultar SII"; }
+        showToast("Error consultando SII");
+      });
+  });
+  $("btnCloseHelp").addEventListener("click", closeHelp);
+  helpModal.addEventListener("click", function (event) {
+    if (event.target === helpModal) closeHelp();
+  });
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape" && !helpModal.classList.contains("hidden")) closeHelp();
+  });
+  results.addEventListener("click", function (event) {
+    var target = event.target.closest("[data-print], [data-copy], [data-export-pdf], [data-ml-feedback], [data-ml-train], [data-ml-reset]");
+    if (!target) return;
+    if (target.hasAttribute("data-export-pdf")) {
+      if (!LAST_RESULT) return;
+      showToast("Generando Dictamen PDF oficial...");
+      fetch("/api/report-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ input: LAST_RESULT.input, result: LAST_RESULT })
+      })
+      .then(function(res) {
+        if (!res.ok) throw new Error("Error en servidor");
+        return res.blob();
+      })
+      .then(function(blob) {
+        var url = window.URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = "Dictamen_Credito_" + (LAST_RESULT.input.rut || "Comercial") + ".pdf";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        showToast("Dictamen PDF descargado con éxito.");
+      })
+      .catch(function(err) {
+        showToast("No se pudo generar el PDF");
+      });
+      return;
+    }
+    if (target.hasAttribute("data-print")) window.print();
+    if (target.hasAttribute("data-copy")) copySummary();
+    if (target.hasAttribute("data-ml-feedback")) {
+      var label = target.getAttribute("data-ml-feedback");
+      var list = loadFeedback();
+      if (LAST_RESULT) {
+        list.push({ input: LAST_RESULT.input, label: label });
+        saveFeedback(list);
+        showToast("Feedback guardado (" + list.length + ").");
+      }
+    }
+    if (target.hasAttribute("data-ml-train")) {
+      var ml = window.CreditML;
+      var list2 = loadFeedback();
+      if (ml && ml.fit) {
+        var res = ml.fit(list2, { epochs: 10, lr: 0.05 });
+        showToast(res.ok ? ("Modelo reentrenado con " + res.samples + " muestras.") : (res.message || "Error"));
+        if (LAST_RESULT) runEvaluation();
+      }
+    }
+    if (target.hasAttribute("data-ml-reset")) {
+      var ml2 = window.CreditML;
+      if (ml2 && ml2.reset) ml2.reset();
+      showToast("Modelo reiniciado.");
+      if (LAST_RESULT) runEvaluation();
+    }
+  });
+
+  populateSelects();
+  applySelectDefaults();
+  bindFileLabels();
+  loadDraft();
+  updateMoneyHints();
+  updateRutValidation();
+  updateLiveMetrics();
+  })();

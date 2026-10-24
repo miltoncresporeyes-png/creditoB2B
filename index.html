@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1d4ed8">
+<meta name="description" content="Evaluador móvil de capacidad de crédito comercial para empresas en Chile. Scoring, límite recomendado y plazo de pago.">
+<title>Evaluador de crédito comercial · Chile</title>
+<link rel="stylesheet" href="assets/styles.css">
+<link rel="stylesheet" href="assets/finance.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        <path d="m9 12 2 2 4-4"/>
+      </svg>
+    </span>
+    <div>
+      <strong style="display:flex;align-items:center;gap:4px;">Crédito<span style="color:#2563eb;">B2B</span> · Evaluador Comercial</strong>
+      <small>Chile · Capacidad y Exposición Financiera · Ley 19.983</small>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;">
+    <span id="userEmailBadge" style="display:none;background:#eef4ff;color:#1e40af;border:1px solid #cbd5e1;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;align-items:center;gap:4px;">
+      👤 <span id="userEmailText"></span>
+    </span>
+    <a href="/" class="btn small" style="text-decoration:none;background:#0a2540;color:#ffffff;border:1px solid #061727;font-weight:600;display:inline-flex;align-items:center;gap:4px;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12"></line>
+        <polyline points="12 19 5 12 12 5"></polyline>
+      </svg>
+      Volver al inicio
+    </a>
+    <button id="btnHelp" class="btn ghost small" type="button">Metodología</button>
+  </div>
+</header>
+
+<main class="app">
+  <section class="hero">
+    <h1>Decide a quién vender a crédito, cuánto y a qué plazo</h1>
+    <p>Modelo para empresas medianas y grandes. Combina liquidez, flujo de caja, endeudamiento, comportamiento de pago y calidad de la información. El motor de scoring opera en tu navegador; los archivos PDF adjuntos y consultas RUT son procesados por el backend local de la aplicación para extraer datos tributarios y financieros, almacenando el expediente en la base de datos de auditoría.</p>
+    <div class="hero-actions">
+      <button id="btnExample" class="btn ghost small" type="button">Cargar ejemplo</button>
+      <button id="btnReset" class="btn ghost small" type="button">Limpiar</button>
+    </div>
+  </section>
+
+  <div id="draftNotice" class="notice hidden">
+    <span id="draftText">Borrador restaurado.</span>
+    <button id="btnDiscardDraft" class="btn ghost small" type="button">Descartar</button>
+  </div>
+
+  <form id="creditForm" autocomplete="off" novalidate>
+    <details class="card" open>
+      <summary>
+        <span class="step">1</span>
+        <div>
+          <strong>Empresa y solicitud</strong>
+          <small>Identificación, tamaño y condiciones pedidas</small>
+        </div>
+      </summary>
+      <div class="card-body">
+        <div class="grid">
+          <label class="field span-2">
+            <span>Razón social</span>
+            <input id="razonSocial" name="razonSocial" type="text" placeholder="Ej: Andes Tecnología SpA" autocomplete="organization">
+          </label>
+          <label class="field">
+            <span>RUT de la empresa</span>
+            <div style="display:flex;gap:8px">
+              <input id="rut" name="rut" type="text" placeholder="76.123.456-7" inputmode="text" style="flex:1">
+              <button id="btnSii" class="btn ghost small" type="button">Consultar SII</button>
+            </div>
+            <!-- Barra de estado y progreso en tiempo real -->
+            <div id="siiProgressBox" class="task-progress-box hidden">
+              <div class="task-progress-header">
+                <span id="siiProgressText">Conectando con el SII...</span>
+                <span class="task-progress-indicator"><span class="spinner"></span> <span id="siiProgressPct">15%</span></span>
+              </div>
+              <div class="task-progress-bar-wrap">
+                <div id="siiProgressBar" class="task-progress-bar" style="width: 15%;"></div>
+              </div>
+            </div>
+            <div id="siiCapsule" class="hidden" style="margin-top:8px; padding:10px 12px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; font-size:12px; color:#166534; line-height:1.4;">
+              <div style="display:flex; justify-content:space-between; align-items:center; font-weight:700; margin-bottom:4px;">
+                <span>🛡️ Verificación Tributaria Oficial (SII)</span>
+                <span id="siiTimbrajeBadge" style="background:#dcfce7; padding:2px 6px; border-radius:4px; font-size:11px;">Timbraje: —</span>
+              </div>
+              <div id="siiActividadText" style="color:#15803d; margin-bottom:2px;">Giro: —</div>
+              <div style="display:flex; gap:12px; font-size:11px; color:#14532d; opacity:0.9;">
+                <span id="siiIvaText">Afecta a IVA: —</span>
+                <span id="siiTamanoText">Tamaño: —</span>
+                <span id="siiInicioText">Inicio: —</span>
+              </div>
+              <div id="siiDocsTimbradosBox" style="margin-top:6px; padding-top:6px; border-top:1px dashed #bbf7d0;">
+                <div style="font-weight:600; font-size:11px; margin-bottom:3px; color:#166534;">Documentos timbrados autorizados:</div>
+                <div id="siiDocsTimbradosList" style="display:flex; flex-wrap:wrap; gap:4px;"></div>
+              </div>
+            </div>
+          </label>
+          <label class="field">
+            <span>Sector / modelo de negocio</span>
+            <select id="sector" name="sector"></select>
+          </label>
+          <label class="field">
+            <span>Antigüedad (años)</span>
+            <input id="antiguedad" name="antiguedad" type="number" min="0" step="0.5" inputmode="decimal" placeholder="Ej: 8">
+          </label>
+          <label class="field">
+            <span>Ventas últimos 12 meses (CLP) <small class="money-hint" data-hint-for="ventas12m"></small></span>
+            <input id="ventas12m" name="ventas12m" type="number" min="0" step="1" inputmode="numeric" data-money placeholder="Ej: 1.200.000.000">
+          </label>
+          <label class="field">
+            <span>Monto solicitado (CLP) <small class="money-hint" data-hint-for="montoSolicitado"></small></span>
+            <input id="montoSolicitado" name="montoSolicitado" type="number" min="0" step="1" inputmode="numeric" data-money placeholder="Ej: 50.000.000">
+          </label>
+          <label class="field">
+            <span>Plazo solicitado</span>
+            <select id="plazo" name="plazo">
+              <option value="30">30 días</option>
+              <option value="60" selected>60 días</option>
+              <option value="90">90 días</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Exposición actual (CLP) <small class="money-hint" data-hint-for="exposicionActual"></small></span>
+            <input id="exposicionActual" name="exposicionActual" type="number" min="0" step="1" inputmode="numeric" data-money placeholder="Facturas pendientes y pedidos comprometidos">
+          </label>
+          <label class="field">
+            <span>Concentración top cliente (%)</span>
+            <input id="concentracionTopCliente" name="concentracionTopCliente" type="number" min="0" max="100" step="1" inputmode="numeric" placeholder="Ej: 25">
+          </label>
+        </div>
+        <div class="check-grid">
+          <label class="check"><input id="aval" name="aval" type="checkbox">Aval personal o solidario</label>
+          <label class="check"><input id="garantia" name="garantia" type="checkbox">Garantía real o prenda</label>
+          <label class="check"><input id="seguroCredito" name="seguroCredito" type="checkbox">Seguro de crédito comercial</label>
+        </div>
+        <p class="section-note">La exposición actual debe incluir facturas pendientes, despachos en tránsito y pedidos liberados aún no facturados.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary>
+        <span class="step">2</span>
+        <div>
+          <strong>Documentos y antecedentes societarios</strong>
+          <small>Control de existencia, representación y expediente</small>
+        </div>
+      </summary>
+      <div class="card-body">
+        <div class="inline-note" style="border-left: 4px solid #16a34a; background: #f0fdf4;">
+          <span style="color:#166534; font-weight:600;">⚡ Extracción Automática Activa: Al adjuntar tus archivos PDF (Carpeta Tributaria SII, e-RUT, Deudas CMF o Estatutos), el sistema extraerá automáticamente las ventas, deuda financiera, atrasos, representantes y datos societarios.</span>
+        </div>
+        <!-- Barra de progreso para lectura y extracción de PDFs -->
+        <div id="docProgressBox" class="task-progress-box hidden" style="margin-bottom: 14px;">
+          <div class="task-progress-header">
+            <span id="docProgressText">Leyendo y analizando PDF...</span>
+            <span class="task-progress-indicator"><span class="spinner"></span> <span id="docProgressPct">20%</span></span>
+          </div>
+          <div class="task-progress-bar-wrap">
+            <div id="docProgressBar" class="task-progress-bar" style="width: 20%;"></div>
+          </div>
+        </div>
+        <div class="doc-grid">
+          <div class="doc">
+            <label class="doc-head"><input id="docTribOk" name="docTribOk" type="checkbox"><span>Carpeta tributaria (SII)</span></label>
+            <input id="docTrib" type="file" accept=".pdf" data-extract-type="carpeta_tributaria">
+            <small class="file-label" data-file-label="docTrib">Sin archivo (Autocompleta ventas 12m)</small>
+          </div>
+          <div class="doc">
+            <label class="doc-head"><input id="docERutOk" name="docERutOk" type="checkbox"><span>e-RUT</span></label>
+            <input id="docERut" type="file" accept=".pdf" data-extract-type="erut">
+            <small class="file-label" data-file-label="docERut">Sin archivo (Autocompleta RUT y Razón)</small>
+          </div>
+          <div class="doc">
+            <label class="doc-head"><input id="docCMFOk" name="docCMFOk" type="checkbox"><span>Informe de deudas CMF</span></label>
+            <input id="docCMF" type="file" accept=".pdf" data-extract-type="cmf">
+            <small class="file-label" data-file-label="docCMF">Sin archivo (Autocompleta Deuda y Moras)</small>
+          </div>
+          <div class="doc">
+            <label class="doc-head"><input id="docEscrituraOk" name="docEscrituraOk" type="checkbox"><span>Escritura / estatutos</span></label>
+            <input id="docEscritura" type="file" accept=".pdf" data-extract-type="estatutos">
+            <small class="file-label" data-file-label="docEscritura">Sin archivo (Detecta Representantes)</small>
+          </div>
+          <div class="doc">
+            <label class="doc-head"><input id="docEEFFOk" name="docEEFFOk" type="checkbox"><span>Estados financieros</span></label>
+            <input id="docEEFF" type="file" accept=".pdf,image/*" multiple>
+            <small class="file-label" data-file-label="docEEFF">Sin archivo</small>
+          </div>
+          <div class="doc">
+            <label class="doc-head"><input id="docDicomOk" name="docDicomOk" type="checkbox"><span>DICOM / informe comercial (opcional)</span></label>
+            <input id="docDicom" type="file" accept=".pdf,image/*" multiple>
+            <small class="file-label" data-file-label="docDicom">Sin archivo</small>
+          </div>
+        </div>
+
+        <div class="grid" style="margin-top:14px">
+          <label class="field">
+            <span>RUT de la empresa según e-RUT</span>
+            <input id="rutERut" name="rutERut" type="text" placeholder="76.123.456-7" inputmode="text">
+          </label>
+          <label class="field">
+            <span>Inicio de actividades</span>
+            <select id="inicioVigente" name="inicioVigente">
+              <option value="1">Vigente</option>
+              <option value="0">Terminado / no vigente</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>RUT de quien solicita el crédito</span>
+            <input id="rutSolicitante" name="rutSolicitante" type="text" placeholder="12.345.678-9" inputmode="text">
+          </label>
+          <label class="field span-2">
+            <span>Representantes legales vigentes (un RUT por línea)</span>
+            <textarea id="representantes" name="representantes" rows="3" placeholder="12.345.678-9&#10;9.876.543-2"></textarea>
+          </label>
+        </div>
+        <div class="check-grid">
+          <label class="check"><input id="sociedadVigente" name="sociedadVigente" type="checkbox" checked>Sociedad vigente según certificado</label>
+          <label class="check"><input id="facultades" name="facultades" type="checkbox" checked>Representante con facultades para obligar y endeudar</label>
+          <label class="check"><input id="eeccVerificados" name="eeccVerificados" type="checkbox">Estados financieros verificados o auditados</label>
+        </div>
+        <p class="section-note">Si un documento no está disponible, el expediente queda pendiente. El modelo no asigna una calificación favorable por falta de datos.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary>
+        <span class="step">3</span>
+        <div>
+          <strong>Estados financieros</strong>
+          <small>Liquidez, rentabilidad, caja y solvencia</small>
+        </div>
+      </summary>
+      <div class="card-body">
+        <div class="grid">
+          <label class="field">
+            <span>Activo corriente (CLP) <small class="money-hint" data-hint-for="activoCorriente"></small></span>
+            <input id="activoCorriente" name="activoCorriente" type="number" min="0" step="1" inputmode="numeric" data-money placeholder="Último balance disponible">
+          </label>
+          <label class="field">
+            <span>Pasivo corriente (CLP) <small class="money-hint" data-hint-for="pasivoCorriente"></small></span>
+            <input id="pasivoCorriente" name="pasivoCorriente" type="number" min="0" step="1" inputmode="numeric" data-money placeholder="Último balance disponible">
+          </label>
+          <label class="field">
+            <span>Inventarios (CLP) <small class="money-hint" data-hint-for="inventarios"></small></span>
+            <input id="inventarios" name="inventarios" type="number" min="0" step="1" inputmode="numeric" data-money placeholder="0 si no aplica">
+          </label>
+          <label class="field">
+            <span>Caja y equivalentes (CLP) <small class="money-hint" data-hint-for="caja"></small></span>
+            <input id="caja" name="caja" type="number" min="0" step="1" inputmode="numeric" data-money placeholder="Saldo disponible">
+          </label>
+          <label class="field">
+            <span>Cuentas por cobrar (CLP) <small class="money-hint" data-hint-for="cuentasPorCobrar"></small></span>
+            <input id="cuentasPorCobrar" name="cuentasPorCobrar" type="number" min="0" step="1" inputmode="numeric" data-money placeholder="Saldo pendiente de cobro">
+          </label>
+          <label class="field">
+            <span>EBITDA últimos 12 meses (CLP) <small class="money-hint" data-hint-for="ebitda"></small></span>
+            <input id="ebitda" name="ebitda" type="number" step="1" inputmode="numeric" data-money placeholder="Resultado operacional + depreciación + amortización">
+          </label>
+          <label class="field">
+            <span>Flujo de caja operacional 12m (CLP) <small class="money-hint" data-hint-for="flujoCajaOperacional"></small></span>
+            <input id="flujoCajaOperacional" name="flujoCajaOperacional" type="number" step="1" inputmode="numeric" data-money placeholder="Caja generada por la operación">
+          </label>
+          <label class="field">
+            <span>Gastos financieros 12m (CLP) <small class="money-hint" data-hint-for="gastosFinancieros"></small></span>
+            <input id="gastosFinancieros" name="gastosFinancieros" type="number" min="0" step="1" inputmode="numeric" data-money placeholder="Intereses y otros gastos financieros">
+          </label>
+          <label class="field">
+            <span>Servicio de deuda 12m (CLP) <small class="money-hint" data-hint-for="servicioDeuda"></small></span>
+            <input id="servicioDeuda" name="servicioDeuda" type="number" min="0" step="1" inputmode="numeric" data-money placeholder="Intereses + amortizaciones">
+          </label>
+          <label class="field">
+            <span>Pasivo total (CLP) <small class="money-hint" data-hint-for="pasivoTotal"></small></span>
+            <input id="pasivoTotal" name="pasivoTotal" type="number" min="0" step="1" inputmode="numeric" data-money placeholder="Deuda total con terceros">
+          </label>
+          <label class="field">
+            <span>Patrimonio (CLP) <small class="money-hint" data-hint-for="patrimonio"></small></span>
+            <input id="patrimonio" name="patrimonio" type="number" step="1" inputmode="numeric" data-money placeholder="Patrimonio neto">
+          </label>
+          <label class="field">
+            <span>Deuda financiera total (CLP) <small class="money-hint" data-hint-for="deudaFinanciera"></small></span>
+            <input id="deudaFinanciera" name="deudaFinanciera" type="number" min="0" step="1" inputmode="numeric" data-money placeholder="Bancos y otras entidades">
+          </label>
+          <label class="field">
+            <span>Deuda financiera corto plazo (CLP) <small class="money-hint" data-hint-for="deudaFinancieraCP"></small></span>
+            <input id="deudaFinancieraCP" name="deudaFinancieraCP" type="number" min="0" step="1" inputmode="numeric" data-money placeholder="Vencimientos dentro de 12 meses">
+          </label>
+        </div>
+
+        <div class="live-metrics">
+          <div class="live-metric"><small>Razón corriente</small><b id="liveRc">—</b></div>
+          <div class="live-metric"><small>Prueba ácida</small><b id="liveAcid">—</b></div>
+          <div class="live-metric"><small>Pasivo / patrimonio</small><b id="liveLeverage">—</b></div>
+          <div class="live-metric"><small>Deuda neta / EBITDA</small><b id="liveNetDebt">—</b></div>
+          <div class="live-metric"><small>Margen EBITDA</small><b id="liveMargin">—</b></div>
+          <div class="live-metric"><small>Flujo libre</small><b id="liveFreeCash">—</b></div>
+          <div class="live-metric"><small>DSO</small><b id="liveDso">—</b></div>
+        </div>
+        <p class="section-note">Usa los últimos dos cierres y el último balance disponible. Mantén la misma base monetaria (con o sin IVA) en ventas, cuentas por cobrar y exposición.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary>
+        <span class="step">4</span>
+        <div>
+          <strong>Comportamiento de pago y situación tributaria</strong>
+          <small>CMF, DICOM, historial propio y controles SII</small>
+        </div>
+      </summary>
+      <div class="card-body">
+        <div class="grid">
+          <label class="field">
+            <span>Máximo días de mora CMF</span>
+            <input id="maxDiasMora" name="maxDiasMora" type="number" min="0" step="1" inputmode="numeric" placeholder="0 si está al día">
+          </label>
+          <label class="field">
+            <span>Deuda vencida CMF (CLP) <small class="money-hint" data-hint-for="deudaVencida"></small></span>
+            <input id="deudaVencida" name="deudaVencida" type="number" min="0" step="1" inputmode="numeric" data-money placeholder="Monto en mora">
+          </label>
+          <label class="field">
+            <span>Deuda castigada (CLP) <small class="money-hint" data-hint-for="deudaCastigada"></small></span>
+            <input id="deudaCastigada" name="deudaCastigada" type="number" min="0" step="1" inputmode="numeric" data-money placeholder="0 si no hay">
+          </label>
+          <label class="field">
+            <span>Instituciones acreedoras (N°)</span>
+            <input id="instituciones" name="instituciones" type="number" min="0" step="1" inputmode="numeric" placeholder="Ej: 2">
+          </label>
+          <label class="field">
+            <span>Protestos vigentes (N°)</span>
+            <input id="protestos" name="protestos" type="number" min="0" step="1" inputmode="numeric" placeholder="0 si no hay">
+          </label>
+          <label class="field">
+            <span>Morosidades vigentes (N°)</span>
+            <input id="morosidades" name="morosidades" type="number" min="0" step="1" inputmode="numeric" placeholder="0 si no hay">
+          </label>
+          <label class="field">
+            <span>Monto morosidades (CLP) <small class="money-hint" data-hint-for="montoMorosidades"></small></span>
+            <input id="montoMorosidades" name="montoMorosidades" type="number" min="0" step="1" inputmode="numeric" data-money placeholder="0 si no hay">
+          </label>
+          <label class="field">
+            <span>Historial de pago con tu empresa</span>
+            <select id="pagoHistorico" name="pagoHistorico"></select>
+          </label>
+          <label class="field">
+            <span>Facturas vencidas con tu empresa (CLP) <small class="money-hint" data-hint-for="facturasVencidas"></small></span>
+            <input id="facturasVencidas" name="facturasVencidas" type="number" min="0" step="1" inputmode="numeric" data-money placeholder="0 si está al día">
+          </label>
+          <label class="field">
+            <span>Situación tributaria</span>
+            <select id="situacionTributaria" name="situacionTributaria">
+              <option value="ok">Al día</option>
+              <option value="esp">Atrasos esporádicos</option>
+              <option value="deu">Deuda en Tesorería (TGR)</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Deuda en Tesorería (CLP) <small class="money-hint" data-hint-for="deudaTGR"></small></span>
+            <input id="deudaTGR" name="deudaTGR" type="number" min="0" step="1" inputmode="numeric" data-money placeholder="0 si no hay">
+          </label>
+          <label class="field">
+            <span>Períodos F29 sin declarar (N°)</span>
+            <input id="f29SinDeclarar" name="f29SinDeclarar" type="number" min="0" step="1" inputmode="numeric" placeholder="Últimos 12 meses">
+          </label>
+          <label class="field">
+            <span>Tendencia de ventas</span>
+            <select id="tendenciaVentas" name="tendenciaVentas">
+              <option value="">No informada</option>
+              <option value="sube">Al alza</option>
+              <option value="estable">Estable</option>
+              <option value="cae">A la baja</option>
+            </select>
+          </label>
+        </div>
+        <p class="section-note">Fuentes: SII (situación tributaria y declaraciones), CMF (Informe de Deudas de Personas Jurídicas), DICOM/Equifax y Boletín de Informaciones Comerciales, según acceso y autorización. La ausencia de alertas no certifica solvencia.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary>
+        <span class="step">5</span>
+        <div>
+          <strong>Política, condiciones y evaluación</strong>
+          <small>Parámetros internos, autorizaciones y responsable</small>
+        </div>
+      </summary>
+      <div class="card-body">
+        <div class="grid">
+          <label class="field">
+            <span>Límite de política por cliente (CLP) <small class="money-hint" data-hint-for="limitePoliticaRiesgo"></small></span>
+            <input id="limitePoliticaRiesgo" name="limitePoliticaRiesgo" type="number" min="0" step="100000" inputmode="numeric" data-money value="10000000">
+          </label>
+          <label class="field">
+            <span>Factor comercial (F)</span>
+            <input id="factorComercial" name="factorComercial" type="number" min="0.1" max="1.5" step="0.01" inputmode="decimal" value="0.9">
+          </label>
+          <label class="field">
+            <span>Multiplicador de flujo (M)</span>
+            <input id="multiplicadorFlujo" name="multiplicadorFlujo" type="number" min="0.1" max="10" step="0.1" inputmode="decimal" value="1">
+          </label>
+          <label class="field">
+            <span>Analista responsable</span>
+            <input id="analista" name="analista" type="text" placeholder="Nombre del evaluador">
+          </label>
+          <label class="field span-2">
+            <span>Observaciones de la evaluación</span>
+            <textarea id="observaciones" name="observaciones" rows="3" placeholder="Condiciones, mitigantes, antecedentes pendientes o justificación de la decisión"></textarea>
+          </label>
+        </div>
+        <div class="check-grid">
+          <label class="check"><input id="validacionLegal" name="validacionLegal" type="checkbox">Validación legal para plazo superior a 30 días</label>
+          <label class="check"><input id="autorizacion90" name="autorizacion90" type="checkbox">Autorización de nivel superior para 90 días</label>
+          <label class="check"><input id="justificacion90" name="justificacion90" type="checkbox">Justificación comercial específica para 90 días</label>
+        </div>
+        <p class="section-note">El factor comercial y el multiplicador de flujo son parámetros de política. No existe un multiplicador universal: calíbralos con tu experiencia de pago y tu sector.</p>
+      </div>
+    </details>
+  </form>
+
+  <div class="actions">
+    <button id="btnEvaluate" class="btn primary" type="button">Evaluar crédito</button>
+    <button id="btnPrint" class="btn ghost" type="button" disabled>Imprimir / PDF</button>
+  </div>
+
+  <section id="results" class="results hidden" aria-live="polite"></section>
+</main>
+
+<footer class="footer">
+  Herramienta de apoyo a la decisión. No constituye una clasificación oficial de la CMF ni una probabilidad estadística de incumplimiento. La aprobación final debe ser humana y documentada.
+</footer>
+
+<div id="helpModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2 id="helpTitle">Metodología del modelo</h2>
+      <button id="btnCloseHelp" class="btn ghost small" type="button">Cerrar</button>
+    </div>
+    <p>El modelo evalúa tres preguntas: si la empresa puede pagar, si suele pagar y cuánto crédito se le puede otorgar. El puntaje es una política interna de crédito comercial, no una clasificación oficial.</p>
+
+    <h3>Dimensiones y ponderaciones</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Dimensión</th><th class="num">Peso</th><th>Indicadores principales</th></tr></thead>
+        <tbody>
+          <tr><td>Liquidez y capital de trabajo</td><td class="num">20</td><td>Razón corriente, prueba ácida, capital de trabajo</td></tr>
+          <tr><td>Rentabilidad y flujo de caja</td><td class="num">25</td><td>Margen EBITDA, flujo operacional, cobertura de deuda</td></tr>
+          <tr><td>Endeudamiento y solvencia</td><td class="num">20</td><td>Pasivo/patrimonio, deuda neta/EBITDA, vencimientos</td></tr>
+          <tr><td>Comportamiento de pago</td><td class="num">25</td><td>Mora CMF, deuda vencida, historial propio, DICOM</td></tr>
+          <tr><td>Estabilidad y calidad de información</td><td class="num">10</td><td>Antigüedad, tendencia, EEFF verificados, concentración</td></tr>
+          <tr class="total"><td>Total</td><td class="num">100</td><td>Puntaje de 0 a 100</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Fórmulas clave</h3>
+    <ul>
+      <li><b>Puntaje:</b> S = Σ (Peso de la dimensión × Nota de la dimensión / 100).</li>
+      <li><b>Límite comercial:</b> (Ventas 12m / 365) × Plazo aprobado × Factor comercial.</li>
+      <li><b>Límite financiero:</b> máx(0, Flujo operacional − Servicio de deuda) × Multiplicador de flujo.</li>
+      <li><b>Límite bruto:</b> mínimo entre límite comercial, financiero y de política de riesgo.</li>
+      <li><b>Disponible:</b> máx(0, Límite bruto − Exposición actual).</li>
+      <li><b>Monto aprobado:</b> mínimo entre monto solicitado y disponible, redondeado a $100.000.</li>
+    </ul>
+
+    <h3>Criterios de decisión</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Puntaje</th><th>Clasificación</th><th>Decisión inicial</th></tr></thead>
+        <tbody>
+          <tr><td>85–100</td><td>Bajo riesgo</td><td>Aprobación estándar; 60 días y 90 solo como excepción autorizada</td></tr>
+          <tr><td>70–84</td><td>Moderado-bajo</td><td>Aprobación condicionada; 30 días</td></tr>
+          <tr><td>55–69</td><td>Medio</td><td>Crédito restringido; 30 días con menor límite o mitigantes</td></tr>
+          <tr><td>40–54</td><td>Alto</td><td>Sin línea ordinaria; prepago o garantía</td></tr>
+          <tr><td>0–39</td><td>Muy alto</td><td>Rechazo o bloqueo preventivo</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Fuentes chilenas</h3>
+    <ul>
+      <li><b>SII:</b> situación tributaria, F29, F22 y antecedentes de actividad.</li>
+      <li><b>CMF:</b> Informe de Deudas de Personas Jurídicas, con las credenciales y facultades correspondientes.</li>
+      <li><b>DICOM/Equifax y Boletín de Informaciones Comerciales:</b> morosidades, protestos y referencias, según el reporte contratado.</li>
+      <li><b>Empresa evaluada:</b> balances, resultados, flujo de caja, aging de cuentas por cobrar y pagar, y proyecciones.</li>
+    </ul>
+
+    <h3>Controles</h3>
+    <ul>
+      <li>Validación de RUT, representante legal, vigencia societaria y facultades.</li>
+      <li>Documentación obligatoria y alerta de expediente incompleto.</li>
+      <li>Bloqueos automáticos por mora grave, deuda castigada, protestos o desorden tributario.</li>
+      <li>Seguimiento de DSO y aging de cobranza; alerta si el DSO supera 90 días.</li>
+      <li>Revisión mensual de cartera y trimestral de clientes relevantes.</li>
+      <li>Aprobación humana documentada; el puntaje no reemplaza los bloqueos críticos.</li>
+    </ul>
+
+    <h3>Advertencia legal</h3>
+    <p>La Ley N.º 19.983, modificada por la Ley N.º 21.131, establece como regla general el pago de facturas dentro de 30 días corridos desde su recepción. Los plazos superiores requieren cumplir las condiciones legales, incluyendo acuerdo escrito e inscripción cuando proceda. La evaluación crediticia no sustituye la validación jurídica de la operación.</p>
+
+    <p class="muted small">Los rangos y ponderaciones son ilustrativos y deben calibrarse con datos históricos de pago e impago. La herramienta no genera una probabilidad estadística de incumplimiento.</p>
+  </div>
+</div>
+
+<script src="assets/model.js"></script>
+<script src="assets/ml.js"></script>
+<script src="assets/app.js"></script>
+<script>
+  (function initSession() {
+    // Leer email desde URL o localStorage
+    const params = new URLSearchParams(window.location.search);
+    let email = params.get('email');
+    if (email && email.includes('@')) {
+      localStorage.setItem('creditob2b_user_email', email);
+    } else {
+      email = localStorage.getItem('creditob2b_user_email');
+    }
+
+    if (!email || !email.includes('@')) {
+      // Si no ha ingresado correo, redirigir a la landing para autenticación
+      window.location.href = '/';
+      return;
+    }
+
+    // Mostrar insignia de usuario autenticado
+    const badge = document.getElementById('userEmailBadge');
+    const badgeText = document.getElementById('userEmailText');
+    if (badge && badgeText) {
+      badgeText.textContent = email;
+      badge.style.display = 'inline-flex';
+    }
+
+    // Si el analista está vacío en el formulario, pre-llenar con el email
+    const analistaInp = document.getElementById('analista');
+    if (analistaInp && !analistaInp.value) {
+      analistaInp.value = email;
+    }
+  })();
+</script>
+</body>
+</html>

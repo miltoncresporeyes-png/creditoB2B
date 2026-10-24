@@ -1,0 +1,26 @@
+# Variables de entorno y credenciales sensibles
+.env
+.env.*
+!.env.example
+
+# Base de datos local
+*.db
+*.sqlite
+*.sqlite3
+
+# Python bytecode y caché
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Archivos de sistema y logs
+*.log
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Directorios de pruebas/temporales
+node_modules/
+dist/
+build/

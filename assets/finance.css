@@ -1,0 +1,214 @@
+/* Financial UI overrides */
+:root {
+  --bg: #f2f5f9;
+  --card: #ffffff;
+  --field: #f7f9fc;
+  --tx: #0f1f33;
+  --mut: #5b6b80;
+  --bd: #d9e1ec;
+  --ac: #0b3d91;
+  --ac-strong: #082a63;
+  --ac-soft: #e6edf8;
+  --ok: #1f7a4d;
+  --ok-bg: #e7f4ed;
+  --warn: #9a6b00;
+  --warn-bg: #faf1dc;
+  --bad: #b3261e;
+  --bad-bg: #fdecea;
+  --info: #0b5cad;
+  --info-bg: #e8f2ff;
+  --track: #e3e9f2;
+  --shadow: 0 12px 32px rgba(11, 31, 51, 0.08);
+  --radius: 14px;
+  color-scheme: light;
+}
+
+body {
+  font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-feature-settings: "tnum" 1;
+}
+
+.topbar {
+  background: linear-gradient(180deg, #0b3d91 0%, #082a63 100%);
+  color: #fff;
+  border-bottom: 1px solid #061d45;
+}
+
+.topbar .brand strong, .topbar .brand small { color: #fff; }
+.topbar .brand small { color: #c9d6ee; }
+.topbar .logo { background: #fff; color: #0b3d91; }
+.topbar button.btn { background: rgba(255,255,255,0.12); color: #fff; border-color: rgba(255,255,255,0.2); }
+
+.hero {
+  background: linear-gradient(135deg, #0b3d91 0%, #1247a8 60%, #1a5fc7 100%);
+  color: #fff;
+  border: none;
+}
+.hero h1, .hero p { color: #fff; }
+.hero p { color: #dce6f7; }
+.hero .btn { background: rgba(255,255,255,0.15); color: #fff; border-color: rgba(255,255,255,0.25); }
+
+.card { border: 1px solid var(--bd); box-shadow: 0 4px 14px rgba(11,31,51,0.05); }
+.card > summary { background: #f7f9fc; }
+
+.step { background: var(--ac-soft); color: var(--ac); }
+
+.btn {
+  border-radius: 8px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+.btn.primary { background: var(--ac); color: #fff; border-color: var(--ac); }
+
+.field input, .field select, .field textarea {
+  border-radius: 8px;
+  border-color: var(--bd);
+  background: #fff;
+}
+.field input:focus, .field select:focus, .field textarea:focus {
+  border-color: var(--ac);
+  box-shadow: 0 0 0 3px rgba(11,61,145,0.12);
+}
+
+.field input.rut-valid { border-color: var(--ok); box-shadow: 0 0 0 3px rgba(31,122,77,0.12); }
+.field input.rut-invalid { border-color: var(--bad); box-shadow: 0 0 0 3px rgba(179,38,30,0.12); }
+
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.metric {
+  background: #fff;
+  border: 1px solid var(--bd);
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: 0 2px 6px rgba(11,31,51,0.04);
+}
+.metric small { text-transform: uppercase; letter-spacing: 0.6px; font-size: 10px; color: var(--mut); font-weight: 700; }
+.metric b { font-size: 18px; color: var(--tx); font-variant-numeric: tabular-nums; }
+.metric span { font-size: 11px; color: var(--mut); }
+
+.table-wrap { border: 1px solid var(--bd); border-radius: 10px; overflow: hidden; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th { background: var(--ac); color: #fff; font-weight: 700; text-transform: uppercase; font-size: 11px; letter-spacing: 0.6px; }
+tbody tr:nth-child(even) { background: #f7f9fc; }
+tbody tr:hover { background: var(--ac-soft); }
+td, th { padding: 9px 12px; border-bottom: 1px solid var(--bd); }
+.num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+
+.gauge { background: conic-gradient(var(--ac) calc(var(--score)*1%), var(--track) 0); }
+.gauge-inner { background: #fff; }
+
+.badge { background: var(--ac-soft); color: var(--ac); font-weight: 700; text-transform: uppercase; font-size: 11px; letter-spacing: 0.6px; }
+
+.issue-list li { border-left: 3px solid var(--bd); padding-left: 10px; margin-bottom: 6px; }
+.issue-list.hard li { border-left-color: var(--bad); }
+.issue-list.pending li { border-left-color: var(--warn); }
+.issue-list.warning li { border-left-color: var(--warn); }
+.issue-list.info li { border-left-color: var(--info); }
+
+.live-metric b { font-variant-numeric: tabular-nums; }
+
+.dimension { border: 1px solid var(--bd); border-radius: 10px; }
+.bar span { height: 8px; border-radius: 4px; }
+
+.score-chip { font-variant-numeric: tabular-nums; font-weight: 700; }
+
+.legal { border-top: 1px dashed var(--bd); padding-top: 10px; }
+
+/* Enhanced Visual KPIs & Credit Dashboard Cards */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.kpi-card {
+  background: #ffffff;
+  border: 1px solid var(--bd);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(11, 31, 51, 0.04);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(11, 31, 51, 0.08);
+}
+
+.kpi-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: var(--kpi-border, var(--ac));
+}
+
+.kpi-card.kpi-success { --kpi-border: var(--ok); }
+.kpi-card.kpi-warning { --kpi-border: var(--warn); }
+.kpi-card.kpi-danger { --kpi-border: var(--bad); }
+.kpi-card.kpi-info { --kpi-border: var(--ac); }
+
+.kpi-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.kpi-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  font-weight: 700;
+  color: var(--mut);
+  line-height: 1.3;
+}
+
+.kpi-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.kpi-badge.badge-ok { background: var(--ok-bg); color: var(--ok); }
+.kpi-badge.badge-warn { background: var(--warn-bg); color: var(--warn); }
+.kpi-badge.badge-bad { background: var(--bad-bg); color: var(--bad); }
+.kpi-badge.badge-neutral { background: var(--ac-soft); color: var(--ac); }
+
+.kpi-value {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--tx);
+  letter-spacing: -0.02em;
+  margin-bottom: 4px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.kpi-subtitle {
+  font-size: 11px;
+  color: var(--mut);
+  line-height: 1.3;
+}
+
+.kpi-bar-track {
+  width: 100%;
+  height: 6px;
+  background: #edf2f7;
+  border-radius: 3px;
+  margin-top: 10px;
+  overflow: hidden;
+}
+
+.kpi-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--kpi-border, var(--ac));
+}
