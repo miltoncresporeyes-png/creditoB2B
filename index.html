@@ -11,43 +11,52 @@
 </head>
 <body>
 <header class="topbar">
-  <div class="brand">
-    <span class="logo">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 2.5L4 5.5V11C4 16.5 7.5 21 12 22.5C16.5 21 20 16.5 20 11V5.5L12 2.5Z" stroke="#ffffff" stroke-width="1.8" stroke-linejoin="round" opacity="0.35"/>
-        <path d="M7.2 14.5A6.5 6.5 0 1 1 16.8 14.5" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round"/>
-        <path d="M12 13.5L15 8.5" stroke="#38bdf8" stroke-width="2.4" stroke-linecap="round"/>
-        <circle cx="12" cy="13.5" r="1.6" fill="#38bdf8"/>
-      </svg>
-    </span>
-    <div>
-      <strong style="display:flex;align-items:center;gap:4px;">Crédito<span style="color:#2563eb;">B2B</span> <span style="font-size:10px;background:#eef4ff;color:#2563eb;padding:1px 6px;border-radius:12px;border:1px solid #bfdbfe;font-weight:700;">CHILE</span></strong>
-      <small>Capacidad & Riesgo Comercial · Ley 19.983</small>
+  <div class="topbar-container">
+    <div class="brand">
+      <span class="logo">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2.5L4 5.5V11C4 16.5 7.5 21 12 22.5C16.5 21 20 16.5 20 11V5.5L12 2.5Z" stroke="#ffffff" stroke-width="1.8" stroke-linejoin="round" opacity="0.35"/>
+          <path d="M7.2 14.5A6.5 6.5 0 1 1 16.8 14.5" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round"/>
+          <path d="M12 13.5L15 8.5" stroke="#38bdf8" stroke-width="2.4" stroke-linecap="round"/>
+          <circle cx="12" cy="13.5" r="1.6" fill="#38bdf8"/>
+        </svg>
+      </span>
+      <div>
+        <strong style="display:flex;align-items:center;gap:4px;">Crédito<span style="color:#2563eb;">B2B</span> <span style="font-size:10px;background:#eef4ff;color:#2563eb;padding:1px 6px;border-radius:12px;border:1px solid #bfdbfe;font-weight:700;">CHILE</span></strong>
+        <small>Capacidad & Riesgo Comercial · Ley 19.983</small>
+      </div>
     </div>
-  </div>
-  <div style="display:flex;gap:8px;align-items:center;">
-    <button type="button" id="btnCreditsTopBadge" style="display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;color:#166534;border:1px solid #86efac;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.2s ease;" title="Administrar mis créditos de informes">
-      <span style="display:inline-block;width:8px;height:8px;background:#22c55e;border-radius:50%;"></span>
-      <span id="creditsTopText">Mis Créditos</span>
-    </button>
-    <span id="userTypeBadge" style="display:none;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;align-items:center;gap:4px;">
-      <span id="userTypeIcon">💼</span> <span id="userTypeText">Registrado</span>
-    </span>
-    <span id="userEmailBadge" style="display:none;background:#eef4ff;color:#1e40af;border:1px solid #cbd5e1;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;align-items:center;gap:4px;">
-      <span id="userEmailText"></span>
-    </span>
-    <a href="/" class="btn small" style="text-decoration:none;background:#0a2540;color:#ffffff;border:1px solid #061727;font-weight:600;display:inline-flex;align-items:center;gap:4px;">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="19" y1="12" x2="5" y2="12"></line>
-        <polyline points="12 19 5 12 12 5"></polyline>
-      </svg>
-      Volver al inicio
-    </a>
-    <button id="btnHelp" class="btn ghost small" type="button">Metodología</button>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button type="button" id="btnCreditsTopBadge" style="display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;color:#166534;border:1px solid #86efac;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.2s ease;" title="Administrar mis créditos de informes">
+        <span style="display:inline-block;width:8px;height:8px;background:#22c55e;border-radius:50%;"></span>
+        <span id="creditsTopText">Mis Créditos</span>
+      </button>
+      <span id="userTypeBadge" style="display:none;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;align-items:center;gap:4px;">
+        <span id="userTypeIcon">💼</span> <span id="userTypeText">Registrado</span>
+      </span>
+      <span id="userEmailBadge" style="display:none;background:#eef4ff;color:#1e40af;border:1px solid #cbd5e1;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;align-items:center;gap:4px;">
+        <span id="userEmailText"></span>
+      </span>
+      <a href="/" class="btn small" style="text-decoration:none;background:#0a2540;color:#ffffff;border:1px solid #061727;font-weight:600;display:inline-flex;align-items:center;gap:4px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="19" y1="12" x2="5" y2="12"></line>
+          <polyline points="12 19 5 12 12 5"></polyline>
+        </svg>
+        Volver al inicio
+      </a>
+      <button id="btnHelp" class="btn ghost small" type="button">Metodología</button>
+    </div>
   </div>
 </header>
 
 <main class="app">
+  <!-- Breadcrumb estructurado con alineación uniforme -->
+  <nav class="breadcrumb" aria-label="Ruta de navegación">
+    <a href="/">Inicio</a>
+    <span class="breadcrumb-separator">/</span>
+    <span class="breadcrumb-current">Evaluación de Crédito B2B</span>
+  </nav>
+
   <section class="hero">
     <h1>Decide a quién vender a crédito, cuánto y a qué plazo</h1>
     <p>Modelo para empresas medianas y grandes. Combina liquidez, flujo de caja, endeudamiento, comportamiento de pago y calidad de la información. Elige entre evaluación manual gratuita o evaluación automatizada mediante carga y extracción documental.</p>

@@ -78,15 +78,21 @@ button {
   position: sticky;
   top: 0;
   z-index: 20;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
   padding: calc(10px + env(safe-area-inset-top, 0px)) 16px 10px;
   background: var(--bg);
   background: color-mix(in srgb, var(--bg) 86%, transparent);
   border-bottom: 1px solid var(--bd);
   backdrop-filter: blur(12px);
+}
+
+.topbar-container {
+  max-width: 980px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
 }
 
 .brand {
@@ -125,17 +131,47 @@ button {
   margin-top: 2px;
 }
 
+/* Breadcrumb estándar alineado */
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--mut);
+  margin-bottom: 14px;
+}
+
+.breadcrumb a {
+  color: var(--ac);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.breadcrumb a:hover {
+  text-decoration: underline;
+}
+
+.breadcrumb-separator {
+  color: var(--mut);
+  opacity: 0.6;
+}
+
+.breadcrumb-current {
+  color: var(--tx);
+  font-weight: 600;
+}
+
 .app {
   width: 100%;
   max-width: 980px;
   margin: 0 auto;
-  padding: 18px 14px 120px;
+  padding: 20px 16px 120px;
 }
 
 .hero {
   position: relative;
   overflow: hidden;
-  padding: 22px 20px;
+  padding: 24px 20px;
   border: 1px solid var(--bd);
   border-radius: var(--radius);
   background: var(--card);
@@ -180,7 +216,7 @@ button {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 15px 16px;
+  padding: 16px 20px;
   cursor: pointer;
   list-style: none;
   user-select: none;
@@ -236,7 +272,7 @@ button {
 }
 
 .card-body {
-  padding: 16px;
+  padding: 20px;
 }
 
 .grid {
@@ -652,7 +688,7 @@ button {
   border: 1px solid var(--bd);
   border-radius: var(--radius);
   background: var(--card);
-  padding: 18px;
+  padding: 20px;
   margin-bottom: 14px;
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
   scroll-margin-top: 78px;
@@ -1069,8 +1105,8 @@ tr.total td {
 
 @media (max-width: 620px) {
   .app {
-    padding-left: 12px;
-    padding-right: 12px;
+    padding-left: 14px;
+    padding-right: 14px;
   }
 
   .grid,
@@ -1098,9 +1134,12 @@ tr.total td {
     font-size: 28px;
   }
 
+  .hero,
+  .card > summary,
+  .card-body,
   .result-hero,
   .result-section {
-    padding: 15px;
+    padding: 16px 14px;
   }
 
   .metric b {
