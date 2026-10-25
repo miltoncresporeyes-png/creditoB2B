@@ -70,13 +70,14 @@ def send_purchase_confirmation_email(order_record, pdf_bytes=None):
 
             server.login(cfg['user'], cfg['password'])
 
-            # 1. Enviar correo al cliente (si tiene email válido)
-            if recipient_email and '@' in recipient_email:
+            # 1. Enviar correo a los clientes/usuarios (soporta múltiples separados por coma)
+            client_list = [e.strip() for e in recipient_email.split(',') if e.strip() and '@' in e]
+            for c_mail in client_list:
                 try:
                     msg_user = MIMEMultipart('mixed')
                     msg_user['Subject'] = f"Confirmación de Compra y Clave de Acceso - Orden {order_id}"
                     msg_user['From'] = f"{cfg['from_name']} <{cfg['user']}>"
-                    msg_user['To'] = recipient_email
+                    msg_user['To'] = c_mail
 
                     html_user = f"""
                     <!DOCTYPE html>
@@ -155,18 +156,19 @@ def send_purchase_confirmation_email(order_record, pdf_bytes=None):
                         part.add_header('Content-Disposition', 'attachment', filename=f"Comprobante_Pago_{order_id}.pdf")
                         msg_user.attach(part)
 
-                    server.sendmail(cfg['user'], [recipient_email], msg_user.as_string())
-                    print(f"[SMTP Success] Notificación enviada al cliente {recipient_email} para orden {order_id}")
+                    server.sendmail(cfg['user'], [c_mail], msg_user.as_string())
+                    print(f"[SMTP Success] Notificación enviada al cliente {c_mail} para orden {order_id}")
                 except Exception as user_err:
-                    print(f"[SMTP Error] Falló envío al cliente {recipient_email}: {str(user_err)}")
+                    print(f"[SMTP Error] Falló envío al cliente {c_mail}: {str(user_err)}")
 
-            # 2. Enviar notificación interna a administración (contacto@creditob2b.cl)
-            if admin_email and '@' in admin_email:
+            # 2. Enviar notificación interna a administración (soporta múltiples separados por coma)
+            admin_list = [a.strip() for a in admin_email.split(',') if a.strip() and '@' in a]
+            for a_mail in admin_list:
                 try:
                     msg_admin = MIMEMultipart('mixed')
                     msg_admin['Subject'] = f"🔔 [Nueva Suscripción/Compra] {receptor_nombre} - Orden {order_id} ({monto_fmt} CLP)"
                     msg_admin['From'] = f"{cfg['from_name']} <{cfg['user']}>"
-                    msg_admin['To'] = admin_email
+                    msg_admin['To'] = a_mail
 
                     html_admin = f"""
                     <!DOCTYPE html>
@@ -195,7 +197,7 @@ def send_purchase_confirmation_email(order_record, pdf_bytes=None):
                           <tr><td class="lbl">RUT Comprador</td><td class="txt">{receptor_rut}</td></tr>
                           <tr><td class="lbl">Giro</td><td class="txt">{receptor_giro}</td></tr>
                           <tr><td class="lbl">Dirección</td><td class="txt">{receptor_direccion}</td></tr>
-                          <tr><td class="lbl">Email Comprador</td><td class="txt"><a href="mailto:{recipient_email}">{recipient_email}</a></td></tr>
+                          <tr><td class="lbl">Email Comprador</td><td class="txt">{recipient_email}</td></tr>
                           <tr><td class="lbl">Token Asignado</td><td class="txt"><code>{token_acceso}</code></td></tr>
                         </table>
                         <p style="font-size: 12px; color: #64748b; margin-top: 18px;">
@@ -212,10 +214,10 @@ def send_purchase_confirmation_email(order_record, pdf_bytes=None):
                         part_admin.add_header('Content-Disposition', 'attachment', filename=f"Comprobante_Pago_{order_id}.pdf")
                         msg_admin.attach(part_admin)
 
-                    server.sendmail(cfg['user'], [admin_email], msg_admin.as_string())
-                    print(f"[SMTP Success] Notificación administrativa enviada a {admin_email} para orden {order_id}")
+                    server.sendmail(cfg['user'], [a_mail], msg_admin.as_string())
+                    print(f"[SMTP Success] Notificación administrativa enviada a {a_mail} para orden {order_id}")
                 except Exception as admin_err:
-                    print(f"[SMTP Error] Falló envío a administración {admin_email}: {str(admin_err)}")
+                    print(f"[SMTP Error] Falló envío a administración {a_mail}: {str(admin_err)}")
 
         except Exception as e:
             print(f"[SMTP Error] Falló conexión con servidor SMTP: {str(e)}")
