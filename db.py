@@ -10,7 +10,10 @@ def get_database_url():
     url = os.environ.get('DATABASE_URL') or os.environ.get('POSTGRES_URL') or ''
     return url.strip()
 
+LAST_PG_ERROR = None
+
 def get_db():
+    global LAST_PG_ERROR
     pg_url = get_database_url()
     if pg_url and (pg_url.startswith('postgres://') or pg_url.startswith('postgresql://')):
         try:
@@ -18,10 +21,12 @@ def get_db():
             from psycopg2.extras import RealDictCursor
             if pg_url.startswith('postgres://'):
                 pg_url = pg_url.replace('postgres://', 'postgresql://', 1)
-            conn = psycopg2.connect(pg_url, cursor_factory=RealDictCursor)
+            conn = psycopg2.connect(pg_url, cursor_factory=RealDictCursor, connect_timeout=5)
             conn.autocommit = False
+            LAST_PG_ERROR = None
             return conn
         except Exception as e:
+            LAST_PG_ERROR = str(e)
             print(f"[DB Warning] Error al conectar a PostgreSQL ({e}). Usando fallback SQLite.")
     
     # Fallback SQLite local
@@ -363,12 +368,15 @@ def get_db_status():
             "engine": engine,
             "is_postgres": pg,
             "url_configured": is_configured,
+            "url_preview": f"{pg_url[:15]}...@{pg_url.split('@')[-1]}" if '@' in pg_url else (pg_url[:20] if pg_url else ""),
+            "pg_error": LAST_PG_ERROR,
             "transacciones_count": count
         }
     except Exception as e:
         return {
             "status": "error",
             "error": str(e),
+            "pg_error": LAST_PG_ERROR,
             "url_configured": is_configured
         }
 
