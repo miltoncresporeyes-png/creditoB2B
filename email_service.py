@@ -59,25 +59,40 @@ class EmailApiClient:
     def sendmail(self, from_addr, recipients, raw_message):
         import email.utils
         import unicodedata
+        import re
         message = BytesParser(policy=policy.default).parsebytes(raw_message.encode("utf-8") if isinstance(raw_message, str) else raw_message)
         
-        # Extraer y normalizar 'from' a formato estándar estricto aceptado por la API de Resend
-        header_from = message.get("From") or from_addr
-        real_name, email_addr = email.utils.parseaddr(header_from)
-        if not email_addr and '@' in from_addr:
-            email_addr = from_addr.strip()
-        
-        # Quitar acentos o caracteres especiales del nombre para evitar rechazo en el encabezado HTTP
-        if real_name:
-            norm_name = unicodedata.normalize('NFKD', real_name).encode('ascii', 'ignore').decode('ascii').strip()
-            clean_from = f"{norm_name} <{email_addr}>" if norm_name else email_addr
+        # Extraer dirección pura de correo
+        target_addr = from_addr.strip().strip('"').strip("'")
+        if '@' not in target_addr:
+            found = re.findall(r'[\w\.-]+@[\w\.-]+', str(message.get("From") or ""))
+            if found:
+                target_addr = found[0]
+
+        # Extraer nombre si existe en from_addr
+        r_name, r_email = email.utils.parseaddr(target_addr)
+        if r_email:
+            email_only = r_email
+            display_name = r_name
         else:
-            clean_from = email_addr
+            email_only = target_addr
+            display_name = ""
+
+        if not display_name:
+            display_name = os.environ.get("EMAIL_FROM_NAME", "CreditoB2B Chile").strip()
+
+        # Normalizar display_name a ASCII limpio (sin comillas)
+        if display_name:
+            clean_name = unicodedata.normalize('NFKD', display_name).encode('ascii', 'ignore').decode('ascii')
+            clean_name = clean_name.replace('"', '').replace("'", "").strip()
+            clean_from = f"{clean_name} <{email_only}>" if clean_name else email_only
+        else:
+            clean_from = email_only
 
         payload = {
             "from": clean_from,
             "to": recipients,
-            "subject": message.get("Subject", ""),
+            "subject": str(message.get("Subject", "")).strip(),
         }
         attachments = []
         for part in message.walk():
