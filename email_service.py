@@ -133,7 +133,8 @@ class EmailApiClient:
                 return response_body
         except urllib.error.HTTPError as exc:
             body = exc.read().decode("utf-8", errors="replace")
-            raise RuntimeError(f"API de correo respondió HTTP {exc.code}: {body}") from exc
+            sent_from = payload.get('from', '')
+            raise RuntimeError(f"API respondió HTTP {exc.code} (from='{sent_from}'): {body}") from exc
         except urllib.error.URLError as exc:
             raise RuntimeError(f"No se pudo conectar con la API de correo por HTTPS: {exc.reason}") from exc
 
