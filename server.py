@@ -1093,6 +1093,9 @@ def trigger_test_email():
 def check_db_status():
     """Diagnóstico en vivo de la conexión con PostgreSQL / SQLite."""
     status = db.get_db_status()
+    # Listar nombres de variables disponibles que tengan que ver con DB o PG
+    db_keys = [k for k in os.environ.keys() if any(sub in k.upper() for sub in ['DATA', 'POST', 'PG', 'SQL', 'DB'])]
+    status['detected_env_keys'] = db_keys
     return jsonify(status)
 
 if __name__ == '__main__':
