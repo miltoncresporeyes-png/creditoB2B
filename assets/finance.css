@@ -46,7 +46,52 @@ body {
 }
 .hero h1, .hero p { color: #fff; }
 .hero p { color: #dce6f7; }
-.hero .btn { background: rgba(255,255,255,0.15); color: #fff; border-color: rgba(255,255,255,0.25); }
+.hero .hero-actions label { color: #e0edff !important; font-weight: 600; text-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+.hero .btn { 
+  background: rgba(255,255,255,0.18); 
+  color: #ffffff !important; 
+  border-color: rgba(255,255,255,0.35); 
+  backdrop-filter: blur(4px);
+  transition: all 0.15s ease;
+}
+.hero .btn:hover {
+  background: rgba(255,255,255,0.28);
+  border-color: #ffffff;
+  color: #ffffff !important;
+}
+.hero select.btn, .hero select#selectExampleProfile {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+}
+.hero select.btn option, .hero select#selectExampleProfile option {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  padding: 6px 10px;
+}
+.hero #btnShowExampleDataGuide {
+  background: #ffffff !important;
+  color: #0b3d91 !important;
+  border-color: #ffffff !important;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+.hero #btnShowExampleDataGuide:hover {
+  background: #f1f5f9 !important;
+  color: #1247a8 !important;
+}
+.hero #btnRedeemCredit {
+  background: #f59e0b !important;
+  color: #ffffff !important;
+  border-color: #d97706 !important;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+}
+.hero #btnRedeemCredit:hover {
+  background: #d97706 !important;
+}
 
 .card { border: 1px solid var(--bd); box-shadow: 0 4px 14px rgba(11,31,51,0.05); }
 .card > summary { background: #f7f9fc; }
