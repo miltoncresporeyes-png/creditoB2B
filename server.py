@@ -232,6 +232,7 @@ def extract_pdf():
 import db
 import report_generator
 import invoice_generator
+import email_service
 from flask import Response
 
 @app.route('/api/evaluations', methods=['POST'])
@@ -570,7 +571,14 @@ def mp_webhook():
                 expected_amount = float(order_record.get('monto', 0))
                 if status == 'approved' and currency == 'CLP' and float(paid_amount) >= expected_amount:
                     access_token = f"tok_{secrets.token_urlsafe(24)}"
-                    db.verify_and_complete_payment(order_id, access_token)
+                    updated_order, status_msg = db.verify_and_complete_payment(order_id, access_token)
+                    if updated_order and status_msg != "Pago previamente confirmado":
+                        try:
+                            # Generar comprobante comercial PDF para adjuntarlo al correo
+                            invoice_pdf = invoice_generator.generate_invoice_pdf(updated_order, updated_order.get('billing_data', {}))
+                            email_service.send_purchase_confirmation_email(updated_order, invoice_pdf)
+                        except Exception as em_err:
+                            print(f"[Email Dispatch Error] {str(em_err)}")
                     return jsonify({'status': 'approved_and_verified', 'order_id': order_id}), 200
                 else:
                     return jsonify({'status': 'payment_not_approved_or_amount_mismatch', 'payment_status': status}), 200
@@ -614,7 +622,15 @@ def pago_exito():
 
                 if mp_status == 'approved' and mp_order_id == order_id and currency == 'CLP' and float(paid_amount) >= expected_amount:
                     access_token = f"tok_{secrets.token_urlsafe(24)}"
-                    order_record, _ = db.verify_and_complete_payment(order_id, access_token)
+                    updated_order, status_msg = db.verify_and_complete_payment(order_id, access_token)
+                    if updated_order:
+                        order_record = updated_order
+                        if status_msg != "Pago previamente confirmado":
+                            try:
+                                invoice_pdf = invoice_generator.generate_invoice_pdf(order_record, order_record.get('billing_data', {}))
+                                email_service.send_purchase_confirmation_email(order_record, invoice_pdf)
+                            except Exception as em_err:
+                                print(f"[Email Dispatch Error] {str(em_err)}")
         except Exception:
             pass
 
