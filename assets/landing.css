@@ -68,22 +68,22 @@ body {
 
 .brand-emblem {
   position: relative;
-  width: 42px;
-  height: 42px;
-  background: linear-gradient(135deg, #0a2540 0%, #0066cc 100%);
-  border-radius: 10px;
+  width: 44px;
+  height: 44px;
+  background: linear-gradient(145deg, #071b30 0%, #0284c7 100%);
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(0, 102, 204, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.28), inset 0 1px 1px rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   flex-shrink: 0;
 }
 
 .brand-logo:hover .brand-emblem {
-  transform: translateY(-1px) scale(1.02);
-  box-shadow: 0 6px 16px rgba(0, 102, 204, 0.35);
+  transform: translateY(-1px) scale(1.03);
+  box-shadow: 0 6px 18px rgba(2, 132, 199, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.4);
 }
 
 .brand-emblem svg {
@@ -97,38 +97,39 @@ body {
 }
 
 .brand-name {
-  font-size: 1.2rem;
+  font-size: 1.25rem;
   font-weight: 800;
-  color: var(--color-primary);
+  color: #0a2540;
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  letter-spacing: -0.02em;
+  gap: 0.45rem;
+  letter-spacing: -0.025em;
 }
 
 .brand-name span.b2b {
-  color: var(--color-accent);
+  color: #0284c7;
+  font-weight: 900;
 }
 
 .brand-tagline {
   font-size: 0.68rem;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--color-text-muted);
+  color: #64748b;
   margin-top: 2px;
 }
 
 .brand-badge {
-  background: #eef4ff;
-  color: var(--color-accent);
-  font-size: 0.68rem;
-  padding: 0.15rem 0.45rem;
-  border-radius: var(--radius-sm);
-  font-weight: 700;
-  border: 1px solid #d0e1fd;
+  background: #f0fdf4;
+  color: #166534;
+  font-size: 0.65rem;
+  padding: 0.12rem 0.45rem;
+  border-radius: 6px;
+  font-weight: 800;
+  border: 1px solid #bbf7d0;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
 }
 
 /* Nav Menu Estructurado y Alineado */
