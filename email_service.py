@@ -52,12 +52,11 @@ def _connect_smtp_robust(host, port, user, password, log_callback=None):
         _log(f"Advertencia en resolución IPv4 ({host}): {dns_err}, usando hostname directo.")
         resolved_ip = host
 
-    # Estrategia de puertos a probar
+    # Estrategia de puertos a probar (2525 es el puerto alternativo estándar no bloqueado)
     ports_to_try = [port]
-    if port == 465:
-        ports_to_try.append(587)
-    elif port == 587:
-        ports_to_try.append(465)
+    for alt in [2525, 587, 465]:
+        if alt not in ports_to_try:
+            ports_to_try.append(alt)
 
     last_error = None
     for target_port in ports_to_try:
