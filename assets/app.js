@@ -38,67 +38,193 @@
   var STORAGE_KEY = "credit-eval-draft-v1";
   var REQUIRED_DOCS = M.REQUIRED_DOCS;
 
-  var EXAMPLE = {
-    razonSocial: "Andes Tecnología SpA",
-    rut: "76.543.210-3",
-    rutERut: "76.543.210-3",
-    rutSolicitante: "12.345.678-5",
-    representantes: "12.345.678-5\n9.876.543-3",
-    sector: "servicios_ti",
-    antiguedad: 8,
-    ventas12m: 1200000000,
-    montoSolicitado: 50000000,
-    plazo: "60",
-    exposicionActual: 12000000,
-    concentracionTopCliente: 25,
-    activoCorriente: 320000000,
-    pasivoCorriente: 180000000,
-    inventarios: 30000000,
-    caja: 40000000,
-    cuentasPorCobrar: 180000000,
-    ebitda: 150000000,
-    flujoCajaOperacional: 110000000,
-    gastosFinancieros: 18000000,
-    servicioDeuda: 35000000,
-    pasivoTotal: 380000000,
-    patrimonio: 300000000,
-    deudaFinanciera: 120000000,
-    deudaFinancieraCP: 30000000,
-    maxDiasMora: 0,
-    deudaVencida: 0,
-    deudaCastigada: 0,
-    instituciones: 2,
-    protestos: 0,
-    morosidades: 0,
-    montoMorosidades: 0,
-    pagoHistorico: "puntual",
-    facturasVencidas: 0,
-    situacionTributaria: "ok",
-    deudaTGR: 0,
-    f29SinDeclarar: 0,
-    tendenciaVentas: "sube",
-    docTribOk: true,
-    docERutOk: true,
-    docCMFOk: true,
-    docEscrituraOk: true,
-    docEEFFOk: true,
-    docDicomOk: true,
-    inicioVigente: "1",
-    sociedadVigente: true,
-    facultades: true,
-    eeccVerificados: true,
-    aval: false,
-    garantia: false,
-    seguroCredito: true,
-    limitePoliticaRiesgo: 80000000,
-    factorComercial: 0.9,
-    multiplicadorFlujo: 1,
-    validacionLegal: true,
-    autorizacion90: false,
-    justificacion90: false,
-    analista: "Analista de crédito",
-    observaciones: "Ejemplo demostrativo. Empresa con liquidez, flujo positivo y buen comportamiento de pago."
+  var EXAMPLE_PROFILES = {
+    aprobado: {
+      razonSocial: "Andes Tecnología SpA",
+      rut: "76.543.210-3",
+      rutERut: "76.543.210-3",
+      rutSolicitante: "12.345.678-5",
+      representantes: "12.345.678-5\n9.876.543-3",
+      sector: "servicios_ti",
+      antiguedad: 8,
+      ventas12m: 1200000000,
+      montoSolicitado: 50000000,
+      plazo: "60",
+      exposicionActual: 12000000,
+      concentracionTopCliente: 25,
+      activoCorriente: 320000000,
+      pasivoCorriente: 180000000,
+      inventarios: 30000000,
+      caja: 40000000,
+      cuentasPorCobrar: 180000000,
+      ebitda: 150000000,
+      flujoCajaOperacional: 110000000,
+      gastosFinancieros: 18000000,
+      servicioDeuda: 35000000,
+      pasivoTotal: 380000000,
+      patrimonio: 300000000,
+      deudaFinanciera: 120000000,
+      deudaFinancieraCP: 30000000,
+      maxDiasMora: 0,
+      deudaVencida: 0,
+      deudaCastigada: 0,
+      instituciones: 2,
+      protestos: 0,
+      morosidades: 0,
+      montoMorosidades: 0,
+      pagoHistorico: "puntual",
+      facturasVencidas: 0,
+      situacionTributaria: "ok",
+      deudaTGR: 0,
+      f29SinDeclarar: 0,
+      tendenciaVentas: "sube",
+      docTribOk: true,
+      docERutOk: true,
+      docCMFOk: true,
+      docEscrituraOk: true,
+      docEEFFOk: true,
+      docDicomOk: true,
+      inicioVigente: "1",
+      sociedadVigente: true,
+      facultades: true,
+      eeccVerificados: true,
+      aval: false,
+      garantia: false,
+      seguroCredito: true,
+      limitePoliticaRiesgo: 80000000,
+      factorComercial: 0.9,
+      multiplicadorFlujo: 1,
+      validacionLegal: true,
+      autorizacion90: false,
+      justificacion90: false,
+      analista: "Milton Crespo (Analista Senior)",
+      observaciones: "Ejemplo demostrativo: Empresa TI con liquidez sólida (Razón Corriente 1.78x), flujo operacional positivo, CMF sin moras y cobertura de intereses holgada."
+    },
+    industrial: {
+      razonSocial: "Manufacturas & Metales del Sur S.A.",
+      rut: "96.812.440-K",
+      rutERut: "96.812.440-K",
+      rutSolicitante: "14.220.518-2",
+      representantes: "14.220.518-2\n11.903.415-9\n8.751.203-1",
+      sector: "manufactura",
+      antiguedad: 14,
+      ventas12m: 3400000000,
+      montoSolicitado: 120000000,
+      plazo: "90",
+      exposicionActual: 35000000,
+      concentracionTopCliente: 18,
+      activoCorriente: 1100000000,
+      pasivoCorriente: 620000000,
+      inventarios: 380000000,
+      caja: 95000000,
+      cuentasPorCobrar: 540000000,
+      ebitda: 420000000,
+      flujoCajaOperacional: 310000000,
+      gastosFinancieros: 45000000,
+      servicioDeuda: 92000000,
+      pasivoTotal: 1250000000,
+      patrimonio: 1180000000,
+      deudaFinanciera: 480000000,
+      deudaFinancieraCP: 110000000,
+      maxDiasMora: 0,
+      deudaVencida: 0,
+      deudaCastigada: 0,
+      instituciones: 4,
+      protestos: 0,
+      morosidades: 0,
+      montoMorosidades: 0,
+      pagoHistorico: "puntual",
+      facturasVencidas: 0,
+      situacionTributaria: "ok",
+      deudaTGR: 0,
+      f29SinDeclarar: 0,
+      tendenciaVentas: "sube",
+      docTribOk: true,
+      docERutOk: true,
+      docCMFOk: true,
+      docEscrituraOk: true,
+      docEEFFOk: true,
+      docDicomOk: true,
+      inicioVigente: "1",
+      sociedadVigente: true,
+      facultades: true,
+      eeccVerificados: true,
+      aval: true,
+      garantia: true,
+      seguroCredito: true,
+      limitePoliticaRiesgo: 150000000,
+      factorComercial: 0.95,
+      multiplicadorFlujo: 1.2,
+      validacionLegal: true,
+      autorizacion90: true,
+      justificacion90: true,
+      analista: "Comité de Riesgo Industrial",
+      observaciones: "Ejemplo demostrativo: Empresa manufacturera con 14 años en el mercado, rotación de inventarios periódica, plazo 90 días respaldado con garantías reales y fianza solidaria."
+    },
+    observado: {
+      razonSocial: "Distribuidora Comercial Horizonte Ltda.",
+      rut: "77.340.910-4",
+      rutERut: "77.340.910-4",
+      rutSolicitante: "15.840.119-7",
+      representantes: "15.840.119-7",
+      sector: "distribucion_mayorista",
+      antiguedad: 3.5,
+      ventas12m: 650000000,
+      montoSolicitado: 45000000,
+      plazo: "60",
+      exposicionActual: 18000000,
+      concentracionTopCliente: 42,
+      activoCorriente: 130000000,
+      pasivoCorriente: 115000000,
+      inventarios: 55000000,
+      caja: 8000000,
+      cuentasPorCobrar: 62000000,
+      ebitda: 32000000,
+      flujoCajaOperacional: 14000000,
+      gastosFinancieros: 12000000,
+      servicioDeuda: 21000000,
+      pasivoTotal: 185000000,
+      patrimonio: 45000000,
+      deudaFinanciera: 75000000,
+      deudaFinancieraCP: 35000000,
+      maxDiasMora: 22,
+      deudaVencida: 3200000,
+      deudaCastigada: 0,
+      instituciones: 2,
+      protestos: 1,
+      morosidades: 1,
+      montoMorosidades: 2100000,
+      pagoHistorico: "atraso_leve",
+      facturasVencidas: 1800000,
+      situacionTributaria: "esp",
+      deudaTGR: 1450000,
+      f29SinDeclarar: 1,
+      tendenciaVentas: "estable",
+      docTribOk: true,
+      docERutOk: true,
+      docCMFOk: true,
+      docEscrituraOk: true,
+      docEEFFOk: true,
+      docDicomOk: true,
+      inicioVigente: "1",
+      sociedadVigente: true,
+      facultades: true,
+      eeccVerificados: false,
+      aval: true,
+      garantia: false,
+      seguroCredito: false,
+      limitePoliticaRiesgo: 20000000,
+      factorComercial: 0.75,
+      multiplicadorFlujo: 0.8,
+      validacionLegal: true,
+      autorizacion90: false,
+      justificacion90: false,
+      analista: "Unidad de Control Crediticio",
+      observaciones: "Ejemplo demostrativo: Perfil con mora bancaria CMF de 22 días, 1 protesto pendiente en boletín comercial y deuda en TGR. Permite observar cómo el modelo calcula advertencias y acota el monto recomendado."
+    }
   };
+
+  var EXAMPLE = EXAMPLE_PROFILES.aprobado;
 
   function esc(value) {
     return String(value === null || value === undefined ? "" : value).replace(/[&<>"']/g, function (character) {
@@ -666,14 +792,27 @@
     updateLiveMetrics();
   }
 
-  function loadExample() {
+  function loadExample(profileKey) {
+    var key = profileKey;
+    if (!key) {
+      var sel = $("selectExampleProfile");
+      key = (sel && sel.value) ? sel.value : "aprobado";
+    }
+    var selectedProfile = EXAMPLE_PROFILES[key] || EXAMPLE_PROFILES.aprobado;
+
     form.reset();
-    setForm(EXAMPLE);
+    setForm(selectedProfile);
     clearResults();
     resetFileLabels();
+
+    // Abrir las cards para que el usuario pueda ver los datos cargados en cada paso
+    document.querySelectorAll("#creditForm details.card").forEach(function(card) {
+      card.open = true;
+    });
+
     if (draftNotice) draftNotice.classList.add("hidden");
     saveDraft();
-    showToast("Ejemplo cargado. Revisa los datos y presiona Evaluar crédito.");
+    showToast("Ejemplo cargado (" + selectedProfile.razonSocial + "). Presiona 'Evaluar crédito' para ver los resultados.");
   }
 
   function metric(label, value, hint) {
@@ -1119,7 +1258,43 @@
 
   $("btnEvaluate").addEventListener("click", runEvaluation);
   btnPrint.addEventListener("click", function () { window.print(); });
-  $("btnExample").addEventListener("click", loadExample);
+  $("btnExample").addEventListener("click", function () { loadExample(); });
+
+  if ($("selectExampleProfile")) {
+    $("selectExampleProfile").addEventListener("change", function () {
+      loadExample(this.value);
+    });
+  }
+
+  // Guía de datos de ejemplo
+  var guideModal = $("exampleGuideModal");
+  function openExampleGuide() {
+    if (guideModal) {
+      guideModal.style.display = "flex";
+      guideModal.classList.remove("hidden");
+    }
+  }
+  function closeExampleGuide() {
+    if (guideModal) {
+      guideModal.style.display = "none";
+      guideModal.classList.add("hidden");
+    }
+  }
+
+  if ($("btnShowExampleDataGuide")) $("btnShowExampleDataGuide").addEventListener("click", openExampleGuide);
+  if ($("btnCloseExampleGuide")) $("btnCloseExampleGuide").addEventListener("click", closeExampleGuide);
+  if (guideModal) {
+    guideModal.addEventListener("click", function (e) {
+      if (e.target === guideModal) closeExampleGuide();
+    });
+  }
+  if ($("btnApplyGuideExample")) {
+    $("btnApplyGuideExample").addEventListener("click", function () {
+      closeExampleGuide();
+      loadExample("aprobado");
+    });
+  }
+
   $("btnReset").addEventListener("click", function () {
     if (window.confirm("¿Limpiar todos los datos y el borrador guardado?")) resetForm();
   });
