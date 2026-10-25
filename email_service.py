@@ -52,9 +52,9 @@ def _connect_smtp_robust(host, port, user, password, log_callback=None):
         _log(f"Advertencia en resolución IPv4 ({host}): {dns_err}, usando hostname directo.")
         resolved_ip = host
 
-    # Estrategia de puertos a probar (2525 es el puerto alternativo estándar no bloqueado)
+    # Estrategia de puertos a probar
     ports_to_try = [port]
-    for alt in [2525, 587, 465]:
+    for alt in [587, 465, 2525]:
         if alt not in ports_to_try:
             ports_to_try.append(alt)
 
@@ -66,12 +66,11 @@ def _connect_smtp_robust(host, port, user, password, log_callback=None):
             if target_port == 465:
                 # SSL Directo
                 context = ssl.create_default_context()
-                server = smtplib.SMTP_SSL(resolved_ip, target_port, timeout=12, context=context)
-                # Enviar EHLO con el hostname original
+                server = smtplib.SMTP_SSL(resolved_ip, target_port, timeout=4, context=context)
                 server.ehlo(host)
             else:
-                # STARTTLS (puerto 587 o similar)
-                server = smtplib.SMTP(resolved_ip, target_port, timeout=12)
+                # STARTTLS
+                server = smtplib.SMTP(resolved_ip, target_port, timeout=4)
                 server.ehlo(host)
                 context = ssl.create_default_context()
                 server.starttls(context=context)
