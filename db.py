@@ -73,6 +73,7 @@ def init_db():
     ''')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_eval_rut ON evaluaciones(rut);')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_eval_date ON evaluaciones(created_at);')
+    conn.commit()
 
     # 2. Tabla de transacciones de pago desacoplada
     cur.execute(f'''
@@ -94,19 +95,6 @@ def init_db():
         FOREIGN KEY (evaluacion_id) REFERENCES evaluaciones(id)
     );
     ''')
-
-    # Migraciones livianas de columnas complementarias
-    for col_def in [
-        ("billing_data", "TEXT"),
-        ("creditos_totales", "INTEGER DEFAULT 1"),
-        ("creditos_restantes", "INTEGER DEFAULT 1")
-    ]:
-        try:
-            cur.execute(f"ALTER TABLE transacciones_pago ADD COLUMN {col_def[0]} {col_def[1]};")
-        except Exception:
-            if pg:
-                conn.rollback()
-
     cur.execute('CREATE INDEX IF NOT EXISTS idx_trans_order ON transacciones_pago(order_id);')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_trans_token ON transacciones_pago(token_acceso);')
     conn.commit()
