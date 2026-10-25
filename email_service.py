@@ -1,9 +1,31 @@
 import os
-import smtplib
 import threading
+import base64
+import json
+import urllib.request
+import urllib.error
+import socket
+import ssl
+import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
+from email import policy
+from email.parser import BytesParser
+
+def get_email_api_config():
+    """Obtiene la configuración del proveedor de correo mediante API HTTPS."""
+    api_key = os.environ.get("EMAIL_API_KEY", "").strip() or os.environ.get("RESEND_API_KEY", "").strip()
+    from_email = os.environ.get("EMAIL_FROM", "").strip() or os.environ.get("SMTP_USER", "contacto@creditob2b.cl").strip()
+    from_name = os.environ.get("EMAIL_FROM_NAME", "").strip() or os.environ.get("SMTP_FROM_NAME", "CréditoB2B Chile").strip()
+    api_url = os.environ.get("EMAIL_API_URL", "https://api.resend.com/emails").strip()
+    return {
+        "is_configured": bool(api_key and from_email),
+        "api_key": api_key,
+        "from_email": from_email,
+        "from_name": from_name,
+        "api_url": api_url,
+    }
 
 def get_smtp_config():
     """Obtiene y normaliza la configuración SMTP del entorno."""
@@ -28,20 +50,69 @@ def get_smtp_config():
         'from_name': from_name
     }
 
-import socket
-import ssl
+class EmailApiClient:
+    """Cliente para enviar mensajes MIME mediante una API HTTPS compatible con Resend / Hostinger."""
+    def __init__(self, api_url, api_key):
+        self.api_url = api_url
+        self.api_key = api_key
+
+    def sendmail(self, from_addr, recipients, raw_message):
+        message = BytesParser(policy=policy.default).parsebytes(raw_message.encode("utf-8") if isinstance(raw_message, str) else raw_message)
+        payload = {
+            "from": message.get("From") or from_addr,
+            "to": recipients,
+            "subject": message.get("Subject", ""),
+        }
+        attachments = []
+        for part in message.walk():
+            if part.is_multipart():
+                continue
+            disposition = part.get_content_disposition()
+            filename = part.get_filename()
+            content_type = part.get_content_type()
+            if disposition == "attachment" or filename:
+                data = part.get_payload(decode=True) or b""
+                attachments.append({
+                    "filename": filename or "adjunto.pdf",
+                    "content": base64.b64encode(data).decode("ascii"),
+                })
+            elif content_type == "text/html":
+                payload["html"] = part.get_content()
+            elif content_type == "text/plain":
+                payload["text"] = part.get_content()
+
+        if attachments:
+            payload["attachments"] = attachments
+
+        request = urllib.request.Request(
+            self.api_url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+                "User-Agent": "CreditoB2B-email-api/1.0",
+            },
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=20) as response:
+                response_body = response.read().decode("utf-8", errors="replace")
+                if response.status < 200 or response.status >= 300:
+                    raise RuntimeError(f"API de correo respondió HTTP {response.status}: {response_body}")
+                return response_body
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode("utf-8", errors="replace")
+            raise RuntimeError(f"API de correo respondió HTTP {exc.code}: {body}") from exc
+        except urllib.error.URLError as exc:
+            raise RuntimeError(f"No se pudo conectar con la API de correo por HTTPS: {exc.reason}") from exc
 
 def _connect_smtp_robust(host, port, user, password, log_callback=None):
-    """
-    Establece conexión SMTP forzando resolución IPv4 (evita 'Errno 101 Network is unreachable' en Railway/Cloud)
-    y con fallback automático entre SSL (465) y STARTTLS (587).
-    """
+    """Fallback SMTP forzando resolución IPv4 en caso de usar SMTP en lugar de API."""
     def _log(msg):
         if log_callback:
             log_callback(msg)
         print(f"[SMTP Connection] {msg}")
 
-    # Forzar resolución IPv4
     resolved_ip = host
     try:
         addr_infos = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)
@@ -52,7 +123,6 @@ def _connect_smtp_robust(host, port, user, password, log_callback=None):
         _log(f"Advertencia en resolución IPv4 ({host}): {dns_err}, usando hostname directo.")
         resolved_ip = host
 
-    # Estrategia de puertos a probar
     ports_to_try = [port]
     for alt in [587, 465, 2525]:
         if alt not in ports_to_try:
@@ -64,12 +134,10 @@ def _connect_smtp_robust(host, port, user, password, log_callback=None):
         try:
             _log(f"Intentando conexión con {resolved_ip}:{target_port} (SNI: {host})...")
             if target_port == 465:
-                # SSL Directo
                 context = ssl.create_default_context()
                 server = smtplib.SMTP_SSL(resolved_ip, target_port, timeout=4, context=context)
                 server.ehlo(host)
             else:
-                # STARTTLS
                 server = smtplib.SMTP(resolved_ip, target_port, timeout=4)
                 server.ehlo(host)
                 context = ssl.create_default_context()
@@ -94,12 +162,15 @@ def _connect_smtp_robust(host, port, user, password, log_callback=None):
 def send_purchase_confirmation_email(order_record, pdf_bytes=None):
     """
     Despacha en un hilo secundario:
-    1. Notificación al cliente comprador con su clave y comprobante PDF.
-    2. Notificación interna al equipo/administrador (contacto@creditob2b.cl) avisando nueva suscripción/compra.
+    1. Notificación al cliente comprador con su clave y comprobante PDF adjunto.
+    2. Notificación interna a la administración (contacto@creditob2b.cl) avisando nueva compra.
+    Prioriza API HTTPS (EMAIL_API_KEY) sobre SMTP tradicional para evitar bloqueos de firewall en Railway.
     """
-    cfg = get_smtp_config()
-    if not cfg['is_configured']:
-        print("[SMTP Info] SMTP no configurado en variables de entorno. Se omite envío de correo.")
+    api_cfg = get_email_api_config()
+    smtp_cfg = get_smtp_config()
+
+    if not api_cfg["is_configured"] and not smtp_cfg["is_configured"]:
+        print("[Email Service Info] Ni EMAIL_API_KEY ni SMTP configurados. Se omite envío de correo.")
         return False
 
     billing = order_record.get('billing_data', {}) or {}
@@ -122,10 +193,18 @@ def send_purchase_confirmation_email(order_record, pdf_bytes=None):
         base_url = os.environ.get('BASE_PUBLIC_URL', 'https://creditob2b-production.up.railway.app').rstrip('/')
         app_access_url = f"{base_url}/app?credit_token={token_acceso}" if token_acceso else f"{base_url}/app"
 
-        # Conexión SMTP compartida para ambos envíos
-        server = None
+        use_api = api_cfg["is_configured"]
+        dispatcher = None
+        from_email_addr = api_cfg["from_email"] if use_api else smtp_cfg["user"]
+        from_name_str = api_cfg["from_name"] if use_api else smtp_cfg["from_name"]
+
         try:
-            server = _connect_smtp_robust(cfg['host'], cfg['port'], cfg['user'], cfg['password'])
+            if use_api:
+                dispatcher = EmailApiClient(api_cfg["api_url"], api_cfg["api_key"])
+                print(f"[Email Service] Utilizando API HTTPS ({api_cfg['api_url']})")
+            else:
+                dispatcher = _connect_smtp_robust(smtp_cfg['host'], smtp_cfg['port'], smtp_cfg['user'], smtp_cfg['password'])
+                print(f"[Email Service] Utilizando conexión SMTP directa a {smtp_cfg['host']}")
 
             # 1. Enviar correo a los clientes/usuarios (soporta múltiples separados por coma)
             client_list = [e.strip() for e in recipient_email.split(',') if e.strip() and '@' in e]
@@ -133,7 +212,7 @@ def send_purchase_confirmation_email(order_record, pdf_bytes=None):
                 try:
                     msg_user = MIMEMultipart('mixed')
                     msg_user['Subject'] = f"Confirmación de Compra y Clave de Acceso - Orden {order_id}"
-                    msg_user['From'] = f"{cfg['from_name']} <{cfg['user']}>"
+                    msg_user['From'] = f"{from_name_str} <{from_email_addr}>"
                     msg_user['To'] = c_mail
 
                     html_user = f"""
@@ -213,52 +292,50 @@ def send_purchase_confirmation_email(order_record, pdf_bytes=None):
                         part.add_header('Content-Disposition', 'attachment', filename=f"Comprobante_Pago_{order_id}.pdf")
                         msg_user.attach(part)
 
-                    server.sendmail(cfg['user'], [c_mail], msg_user.as_string())
-                    print(f"[SMTP Success] Notificación enviada al cliente {c_mail} para orden {order_id}")
-                except Exception as user_err:
-                    print(f"[SMTP Error] Falló envío al cliente {c_mail}: {str(user_err)}")
+                    dispatcher.sendmail(from_email_addr, [c_mail], msg_user.as_string())
+                    print(f"[Email Success] Notificación enviada al cliente {c_mail} para orden {order_id}")
+                except Exception as client_err:
+                    print(f"[Email Error] Falló envío a cliente {c_mail}: {str(client_err)}")
 
-            # 2. Enviar notificación interna a administración (soporta múltiples separados por coma)
+            # 2. Notificación a Administración (contacto@creditob2b.cl)
             admin_list = [a.strip() for a in admin_email.split(',') if a.strip() and '@' in a]
             for a_mail in admin_list:
                 try:
                     msg_admin = MIMEMultipart('mixed')
-                    msg_admin['Subject'] = f"🔔 [Nueva Suscripción/Compra] {receptor_nombre} - Orden {order_id} ({monto_fmt} CLP)"
-                    msg_admin['From'] = f"{cfg['from_name']} <{cfg['user']}>"
+                    msg_admin['Subject'] = f"🔔 [Nueva Suscripción/Compra] {receptor_nombre} - Orden {order_id}"
+                    msg_admin['From'] = f"{from_name_str} <{from_email_addr}>"
                     msg_admin['To'] = a_mail
 
                     html_admin = f"""
                     <!DOCTYPE html>
                     <html lang="es">
-                    <head>
-                      <meta charset="utf-8">
-                      <style>
-                        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f1f5f9; color: #0f172a; padding: 20px; }}
-                        .box {{ max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #cbd5e1; padding: 24px; }}
-                        h2 {{ margin-top: 0; color: #0b3d91; font-size: 18px; }}
-                        table {{ width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13px; }}
-                        td {{ padding: 8px 10px; border-bottom: 1px solid #e2e8f0; }}
-                        td.lbl {{ font-weight: 700; color: #475569; width: 35%; }}
-                        td.txt {{ color: #0f172a; }}
-                      </style>
+                    <head><meta charset="utf-8">
+                    <style>
+                      body {{ font-family: sans-serif; background: #f1f5f9; padding: 20px; }}
+                      .box {{ background: #ffffff; max-width: 550px; margin: 0 auto; border-radius: 10px; border: 1px solid #cbd5e1; padding: 24px; }}
+                      h2 {{ color: #0f172a; margin-top: 0; }}
+                      table {{ width: 100%; border-collapse: collapse; margin-top: 16px; }}
+                      td {{ padding: 8px; border-bottom: 1px solid #e2e8f0; font-size: 13px; }}
+                      td.label {{ font-weight: bold; color: #475569; width: 40%; }}
+                    </style>
                     </head>
                     <body>
                       <div class="box">
-                        <h2>🎉 Nueva Compra Aprobada en CréditoB2B</h2>
-                        <p style="font-size: 13px; color: #334155;">Se ha registrado y validado una nueva suscripción/compra de paquetes de informes:</p>
+                        <h2>🎉 Nueva Compra Realizada en CréditoB2B</h2>
+                        <p>Se ha registrado y confirmado un nuevo pago mediante pasarela bancaria:</p>
                         <table>
-                          <tr><td class="lbl">N° Orden</td><td class="txt"><strong>{order_id}</strong></td></tr>
-                          <tr><td class="lbl">Plan</td><td class="txt">{plan_tipo.upper()} ({creditos_totales} informes)</td></tr>
-                          <tr><td class="lbl">Monto Pagado</td><td class="txt"><strong>{monto_fmt} CLP</strong></td></tr>
-                          <tr><td class="lbl">Cliente / Razón Social</td><td class="txt"><strong>{receptor_nombre}</strong></td></tr>
-                          <tr><td class="lbl">RUT Comprador</td><td class="txt">{receptor_rut}</td></tr>
-                          <tr><td class="lbl">Giro</td><td class="txt">{receptor_giro}</td></tr>
-                          <tr><td class="lbl">Dirección</td><td class="txt">{receptor_direccion}</td></tr>
-                          <tr><td class="lbl">Email Comprador</td><td class="txt">{recipient_email}</td></tr>
-                          <tr><td class="lbl">Token Asignado</td><td class="txt"><code>{token_acceso}</code></td></tr>
+                          <tr><td class="label">N° de Orden:</td><td><strong>{order_id}</strong></td></tr>
+                          <tr><td class="label">Razón Social / Nombre:</td><td>{receptor_nombre}</td></tr>
+                          <tr><td class="label">RUT:</td><td>{receptor_rut}</td></tr>
+                          <tr><td class="label">Giro:</td><td>{receptor_giro}</td></tr>
+                          <tr><td class="label">Dirección:</td><td>{receptor_direccion}</td></tr>
+                          <tr><td class="label">Correo Comprador:</td><td>{recipient_email}</td></tr>
+                          <tr><td class="label">Plan:</td><td>{plan_tipo.upper()} ({creditos_totales} Informes)</td></tr>
+                          <tr><td class="label">Monto Pagado:</td><td><strong>{monto_fmt} CLP</strong></td></tr>
+                          <tr><td class="label">Token Asignado:</td><td><code>{token_acceso}</code></td></tr>
                         </table>
-                        <p style="font-size: 12px; color: #64748b; margin-top: 18px;">
-                          Se adjunta el Comprobante Comercial PDF para respaldo administrativo.
+                        <p style="font-size: 12px; color: #64748b; margin-top: 20px;">
+                          Se adjunta el comprobante de compra emitido al cliente para el respaldo contable y emisión de factura SII correspondiente.
                         </p>
                       </div>
                     </body>
@@ -271,30 +348,32 @@ def send_purchase_confirmation_email(order_record, pdf_bytes=None):
                         part_admin.add_header('Content-Disposition', 'attachment', filename=f"Comprobante_Pago_{order_id}.pdf")
                         msg_admin.attach(part_admin)
 
-                    server.sendmail(cfg['user'], [a_mail], msg_admin.as_string())
-                    print(f"[SMTP Success] Notificación administrativa enviada a {a_mail} para orden {order_id}")
+                    dispatcher.sendmail(from_email_addr, [a_mail], msg_admin.as_string())
+                    print(f"[Email Success] Notificación administrativa enviada a {a_mail} para orden {order_id}")
                 except Exception as admin_err:
-                    print(f"[SMTP Error] Falló envío a administración {a_mail}: {str(admin_err)}")
+                    print(f"[Email Error] Falló envío a administración {a_mail}: {str(admin_err)}")
 
         except Exception as e:
-            print(f"[SMTP Error] Falló conexión con servidor SMTP: {str(e)}")
+            print(f"[Email Error] Falló conexión/despacho con servicio de correo: {str(e)}")
         finally:
-            if server:
+            if dispatcher and not use_api:
                 try:
-                    server.quit()
+                    dispatcher.quit()
                 except Exception:
                     pass
 
-    # Ejecutar en segundo plano
     threading.Thread(target=_worker, daemon=True).start()
     return True
 
 def send_purchase_confirmation_sync(order_record, pdf_bytes=None):
     """Ejecución síncrona que retorna logs detallados y errores explícitos para diagnóstico."""
-    cfg = get_smtp_config()
+    api_cfg = get_email_api_config()
+    smtp_cfg = get_smtp_config()
     logs = []
-    if not cfg['is_configured']:
-        return {'success': False, 'error': 'SMTP_HOST, SMTP_USER o SMTP_PASSWORD no configurados en entorno.'}
+
+    use_api = api_cfg["is_configured"]
+    if not use_api and not smtp_cfg["is_configured"]:
+        return {'success': False, 'error': 'Ni EMAIL_API_KEY ni configuración SMTP presentes en entorno.'}
 
     billing = order_record.get('billing_data', {}) or {}
     recipient_email = billing.get('email') or billing.get('correo') or ''
@@ -310,25 +389,33 @@ def send_purchase_confirmation_sync(order_record, pdf_bytes=None):
     base_url = os.environ.get('BASE_PUBLIC_URL', 'https://creditob2b-production.up.railway.app').rstrip('/')
     app_access_url = f"{base_url}/app?credit_token={token_acceso}" if token_acceso else f"{base_url}/app"
 
-    server = None
+    dispatcher = None
+    from_email_addr = api_cfg["from_email"] if use_api else smtp_cfg["user"]
+    from_name_str = api_cfg["from_name"] if use_api else smtp_cfg["from_name"]
+
     try:
-        def log_cb(m):
-            logs.append(m)
-        server = _connect_smtp_robust(cfg['host'], cfg['port'], cfg['user'], cfg['password'], log_callback=log_cb)
+        if use_api:
+            logs.append(f"Iniciando despacho mediante API HTTPS ({api_cfg['api_url']})...")
+            dispatcher = EmailApiClient(api_cfg["api_url"], api_cfg["api_key"])
+            logs.append("Cliente API HTTPS inicializado correctamente.")
+        else:
+            def log_cb(m):
+                logs.append(m)
+            dispatcher = _connect_smtp_robust(smtp_cfg['host'], smtp_cfg['port'], smtp_cfg['user'], smtp_cfg['password'], log_callback=log_cb)
 
         # Enviar a clientes
         client_list = [e.strip() for e in recipient_email.split(',') if e.strip() and '@' in e]
         for c_mail in client_list:
             msg_user = MIMEMultipart('mixed')
             msg_user['Subject'] = f"Confirmación de Compra y Clave de Acceso - Orden {order_id}"
-            msg_user['From'] = f"{cfg['from_name']} <{cfg['user']}>"
+            msg_user['From'] = f"{from_name_str} <{from_email_addr}>"
             msg_user['To'] = c_mail
             msg_user.attach(MIMEText(f"<p>Hola {receptor_nombre}, tu clave es <b>{token_acceso}</b></p><p><a href='{app_access_url}'>Ingresar</a></p>", 'html', 'utf-8'))
             if pdf_bytes:
                 part = MIMEApplication(pdf_bytes, _subtype="pdf")
                 part.add_header('Content-Disposition', 'attachment', filename=f"Comprobante_Pago_{order_id}.pdf")
                 msg_user.attach(part)
-            server.sendmail(cfg['user'], [c_mail], msg_user.as_string())
+            dispatcher.sendmail(from_email_addr, [c_mail], msg_user.as_string())
             logs.append(f"Despachado a cliente: {c_mail}")
 
         # Enviar a admin
@@ -336,21 +423,19 @@ def send_purchase_confirmation_sync(order_record, pdf_bytes=None):
         for a_mail in admin_list:
             msg_admin = MIMEMultipart('mixed')
             msg_admin['Subject'] = f"🔔 [Nueva Suscripción] {receptor_nombre} - Orden {order_id}"
-            msg_admin['From'] = f"{cfg['from_name']} <{cfg['user']}>"
+            msg_admin['From'] = f"{from_name_str} <{from_email_addr}>"
             msg_admin['To'] = a_mail
             msg_admin.attach(MIMEText(f"<p>Nueva orden {order_id} por {monto_fmt} CLP para {receptor_nombre}</p>", 'html', 'utf-8'))
-            server.sendmail(cfg['user'], [a_mail], msg_admin.as_string())
+            dispatcher.sendmail(from_email_addr, [a_mail], msg_admin.as_string())
             logs.append(f"Despachado a admin: {a_mail}")
 
-        return {'success': True, 'logs': logs}
+        return {'success': True, 'logs': logs, 'mode': 'API_HTTPS' if use_api else 'SMTP'}
     except Exception as e:
-        logs.append(f"Excepción SMTP: {str(e)}")
+        logs.append(f"Excepción en envío de correo: {str(e)}")
         return {'success': False, 'logs': logs, 'error': str(e)}
     finally:
-        if server:
+        if dispatcher and not use_api:
             try:
-                server.quit()
+                dispatcher.quit()
             except Exception:
                 pass
-
-
