@@ -30,8 +30,11 @@
       <span style="display:inline-block;width:8px;height:8px;background:#22c55e;border-radius:50%;"></span>
       <span id="creditsTopText">Mis Créditos</span>
     </button>
+    <span id="userTypeBadge" style="display:none;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;align-items:center;gap:4px;">
+      <span id="userTypeIcon">💼</span> <span id="userTypeText">Registrado</span>
+    </span>
     <span id="userEmailBadge" style="display:none;background:#eef4ff;color:#1e40af;border:1px solid #cbd5e1;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;align-items:center;gap:4px;">
-      👤 <span id="userEmailText"></span>
+      <span id="userEmailText"></span>
     </span>
     <a href="/" class="btn small" style="text-decoration:none;background:#0a2540;color:#ffffff;border:1px solid #061727;font-weight:600;display:inline-flex;align-items:center;gap:4px;">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -708,33 +711,64 @@
 <script src="assets/app.js"></script>
 <script>
   (function initSession() {
-    // Leer email desde URL o localStorage
+    // Leer email y user_type desde URL o localStorage
     const params = new URLSearchParams(window.location.search);
     let email = params.get('email');
-    if (email && email.includes('@')) {
+    let userType = params.get('user_type');
+
+    if (email) {
       localStorage.setItem('creditob2b_user_email', email);
     } else {
       email = localStorage.getItem('creditob2b_user_email');
     }
 
-    if (!email || !email.includes('@')) {
-      // Si no ha ingresado correo, redirigir a la landing para autenticación
-      window.location.href = '/';
-      return;
+    if (userType) {
+      localStorage.setItem('creditob2b_user_type', userType);
+    } else {
+      userType = localStorage.getItem('creditob2b_user_type') || (email && email.includes('demo') ? 'test' : 'registered');
     }
 
-    // Mostrar insignia de usuario autenticado
-    const badge = document.getElementById('userEmailBadge');
-    const badgeText = document.getElementById('userEmailText');
-    if (badge && badgeText) {
-      badgeText.textContent = email;
-      badge.style.display = 'inline-flex';
+    if (!email) {
+      // Si no hay sesión, ingresar por defecto como usuario de prueba libre
+      email = 'invitado.demo@creditob2b.cl';
+      userType = 'test';
+      localStorage.setItem('creditob2b_user_email', email);
+      localStorage.setItem('creditob2b_user_type', 'test');
+    }
+
+    // Configurar insignias de usuario
+    const typeBadge = document.getElementById('userTypeBadge');
+    const typeIcon = document.getElementById('userTypeIcon');
+    const typeText = document.getElementById('userTypeText');
+    const emailBadge = document.getElementById('userEmailBadge');
+    const emailText = document.getElementById('userEmailText');
+
+    if (typeBadge && typeText) {
+      typeBadge.style.display = 'inline-flex';
+      if (userType === 'test') {
+        typeBadge.style.background = '#fef3c7';
+        typeBadge.style.color = '#92400e';
+        typeBadge.style.border = '1px solid #fde68a';
+        typeIcon.textContent = '🧪';
+        typeText.textContent = 'Usuario de Prueba (Sandbox)';
+      } else {
+        typeBadge.style.background = '#e0f2fe';
+        typeBadge.style.color = '#0369a1';
+        typeBadge.style.border = '1px solid #bae6fd';
+        typeIcon.textContent = '💼';
+        typeText.textContent = 'Usuario Registrado';
+      }
+    }
+
+    if (emailBadge && emailText) {
+      emailText.textContent = email;
+      emailBadge.style.display = 'inline-flex';
     }
 
     // Si el analista está vacío en el formulario, pre-llenar con el email
     const analistaInp = document.getElementById('analista');
     if (analistaInp && !analistaInp.value) {
-      analistaInp.value = email;
+      analistaInp.value = userType === 'test' ? 'Analista de Prueba' : email;
     }
   })();
 </script>
