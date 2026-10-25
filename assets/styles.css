@@ -1307,3 +1307,94 @@ tr.total td {
   transition: width 0.4s ease;
 }
 
+/* Lista interactiva de Representantes Legales */
+.rep-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.rep-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--field);
+  border: 1px solid var(--bd);
+  border-radius: 10px;
+  padding: 4px 6px 4px 12px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.rep-row:focus-within {
+  border-color: var(--ac);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ac) 15%, transparent);
+}
+
+.rep-index-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--mut);
+  min-width: 20px;
+  user-select: none;
+}
+
+.rep-input {
+  flex: 1;
+  border: none !important;
+  background: transparent !important;
+  padding: 8px 4px !important;
+  font-size: 14px !important;
+  font-family: inherit;
+  color: var(--tx) !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.rep-input::placeholder {
+  color: color-mix(in srgb, var(--mut) 60%, transparent);
+}
+
+.btn-rep-del {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: #ef4444;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+  flex: 0 0 auto;
+}
+
+.btn-rep-del:hover {
+  background: rgba(239, 68, 68, 0.12);
+  transform: scale(1.05);
+}
+
+.btn-rep-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--ac) 40%, var(--bd));
+  background: var(--ac-soft);
+  color: var(--ac);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-rep-add:hover {
+  background: var(--ac);
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px -1px rgba(37, 99, 235, 0.35);
+}
+
+

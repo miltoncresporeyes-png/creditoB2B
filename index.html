@@ -252,10 +252,21 @@
             <span>RUT de quien solicita el crédito</span>
             <input id="rutSolicitante" name="rutSolicitante" type="text" placeholder="12.345.678-9" inputmode="text">
           </label>
-          <label class="field span-2">
-            <span>Representantes legales vigentes (un RUT por línea)</span>
-            <textarea id="representantes" name="representantes" rows="3" placeholder="12.345.678-9&#10;9.876.543-2"></textarea>
-          </label>
+          <div class="field span-2">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <span style="font-size:13px; font-weight:600; color:var(--tx);">Representantes legales vigentes</span>
+              <button type="button" id="btnAddRep" class="btn-rep-add" title="Agregar representante legal">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                <span>Agregar RUT (+)</span>
+              </button>
+            </div>
+            <div id="repListContainer" class="rep-list-container">
+              <!-- Filas dinámicas generadas por JS -->
+            </div>
+            <!-- Campo textarea oculto para mantener total compatibilidad con model.js, borradores y backend -->
+            <textarea id="representantes" name="representantes" style="display:none;"></textarea>
+            <small style="display:block; margin-top:5px; color:var(--mut); font-size:12px;">Ingresa el RUT de cada apoderado con poder vigente. Presiona <strong>(+)</strong> para añadir representantes adicionales.</small>
+          </div>
         </div>
         <div class="check-grid">
           <label class="check"><input id="sociedadVigente" name="sociedadVigente" type="checkbox" checked>Sociedad vigente según certificado</label>

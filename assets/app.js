@@ -203,6 +203,147 @@
     $("pagoHistorico").value = "sin_historial";
   }
 
+  // --- Gestión interactiva de lista de Representantes Legales ---
+  function getRepList() {
+    var raw = String($("representantes").value || "").trim();
+    if (!raw) return [];
+    return raw.split(/\r?\n/).map(function(s) { return s.trim(); }).filter(Boolean);
+  }
+
+  function renderRepList(ruts) {
+    var container = $("repListContainer");
+    if (!container) return;
+    container.innerHTML = "";
+
+    // Si no hay ninguno, mostrar al menos 1 campo vacío para facilitar la entrada
+    var list = (ruts && ruts.length) ? ruts : [""];
+
+    list.forEach(function(rutVal, idx) {
+      var row = document.createElement("div");
+      row.className = "rep-row";
+
+      var badge = document.createElement("span");
+      badge.className = "rep-index-badge";
+      badge.textContent = "#" + (idx + 1);
+
+      var input = document.createElement("input");
+      input.type = "text";
+      input.className = "rep-input";
+      input.placeholder = "Ej: 12.345.678-9";
+      input.value = rutVal;
+
+      input.addEventListener("input", function() {
+        syncRepTextarea();
+        scheduleSave();
+      });
+
+      var btnDel = document.createElement("button");
+      btnDel.type = "button";
+      btnDel.className = "btn-rep-del";
+      btnDel.title = "Eliminar este representante";
+      btnDel.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+
+      btnDel.addEventListener("click", function() {
+        var allRows = container.querySelectorAll(".rep-row");
+        if (allRows.length <= 1) {
+          // Si es el único, solo limpiar el valor
+          input.value = "";
+        } else {
+          row.remove();
+        }
+        syncRepTextarea();
+        reindexRepBadges();
+        scheduleSave();
+      });
+
+      row.appendChild(badge);
+      row.appendChild(input);
+      row.appendChild(btnDel);
+      container.appendChild(row);
+    });
+
+    syncRepTextarea();
+  }
+
+  function reindexRepBadges() {
+    var container = $("repListContainer");
+    if (!container) return;
+    var rows = container.querySelectorAll(".rep-row");
+    rows.forEach(function(row, idx) {
+      var b = row.querySelector(".rep-index-badge");
+      if (b) b.textContent = "#" + (idx + 1);
+    });
+  }
+
+  function syncRepTextarea() {
+    var container = $("repListContainer");
+    if (!container) return;
+    var inputs = container.querySelectorAll(".rep-input");
+    var values = [];
+    inputs.forEach(function(inp) {
+      var v = inp.value.trim();
+      if (v) values.push(v);
+    });
+    $("representantes").value = values.join("\n");
+  }
+
+  function addRepRow(initialValue) {
+    var container = $("repListContainer");
+    if (!container) return;
+    var count = container.querySelectorAll(".rep-row").length;
+
+    var row = document.createElement("div");
+    row.className = "rep-row";
+
+    var badge = document.createElement("span");
+    badge.className = "rep-index-badge";
+    badge.textContent = "#" + (count + 1);
+
+    var input = document.createElement("input");
+    input.type = "text";
+    input.className = "rep-input";
+    input.placeholder = "Ej: 12.345.678-9";
+    input.value = initialValue || "";
+
+    input.addEventListener("input", function() {
+      syncRepTextarea();
+      scheduleSave();
+    });
+
+    var btnDel = document.createElement("button");
+    btnDel.type = "button";
+    btnDel.className = "btn-rep-del";
+    btnDel.title = "Eliminar este representante";
+    btnDel.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+
+    btnDel.addEventListener("click", function() {
+      var allRows = container.querySelectorAll(".rep-row");
+      if (allRows.length <= 1) {
+        input.value = "";
+      } else {
+        row.remove();
+      }
+      syncRepTextarea();
+      reindexRepBadges();
+      scheduleSave();
+    });
+
+    row.appendChild(badge);
+    row.appendChild(input);
+    row.appendChild(btnDel);
+    container.appendChild(row);
+
+    input.focus();
+    syncRepTextarea();
+    scheduleSave();
+  }
+
+  if ($("btnAddRep")) {
+    $("btnAddRep").addEventListener("click", function() {
+      addRepRow("");
+    });
+  }
+
   function setForm(data) {
     Object.keys(data).forEach(function (id) {
       var field = $(id);
@@ -210,6 +351,10 @@
       if (field.type === "checkbox") field.checked = !!data[id];
       else if (data[id] !== null && data[id] !== undefined) field.value = data[id];
     });
+    // Sincronizar UI de lista de representantes si data contiene representantes
+    if (data.representantes !== undefined) {
+      renderRepList(getRepList());
+    }
     updateMoneyHints();
     updateRutValidation();
     updateLiveMetrics();
@@ -386,6 +531,7 @@
           }
           if (applyReps) {
             $("representantes").value = d.ruts_detectados.join("\n");
+            renderRepList(d.ruts_detectados);
           }
         }
         if (d.facultades_financieras_detectadas) {
@@ -1426,6 +1572,10 @@
   applySelectDefaults();
   bindFileLabels();
   loadDraft();
+  // Si no se cargó un borrador que haya renderizado la lista, renderizarla desde el valor inicial
+  if (!$("repListContainer").children.length) {
+    renderRepList(getRepList());
+  }
   updateMoneyHints();
   updateRutValidation();
   updateLiveMetrics();
