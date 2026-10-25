@@ -57,9 +57,25 @@ class EmailApiClient:
         self.api_key = api_key
 
     def sendmail(self, from_addr, recipients, raw_message):
+        import email.utils
+        import unicodedata
         message = BytesParser(policy=policy.default).parsebytes(raw_message.encode("utf-8") if isinstance(raw_message, str) else raw_message)
+        
+        # Extraer y normalizar 'from' a formato estándar estricto aceptado por la API de Resend
+        header_from = message.get("From") or from_addr
+        real_name, email_addr = email.utils.parseaddr(header_from)
+        if not email_addr and '@' in from_addr:
+            email_addr = from_addr.strip()
+        
+        # Quitar acentos o caracteres especiales del nombre para evitar rechazo en el encabezado HTTP
+        if real_name:
+            norm_name = unicodedata.normalize('NFKD', real_name).encode('ascii', 'ignore').decode('ascii').strip()
+            clean_from = f"{norm_name} <{email_addr}>" if norm_name else email_addr
+        else:
+            clean_from = email_addr
+
         payload = {
-            "from": message.get("From") or from_addr,
+            "from": clean_from,
             "to": recipients,
             "subject": message.get("Subject", ""),
         }
