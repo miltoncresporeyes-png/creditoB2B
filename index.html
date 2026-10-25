@@ -45,20 +45,20 @@
     
     <!-- Selector de Modelo Comercial Híbrido -->
     <div id="evalModeSelector" style="margin: 20px 0; background: var(--card); border: 2px solid var(--bd); border-radius: 14px; padding: 6px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; box-shadow: var(--shadow);">
-      <button type="button" id="btnModeManual" class="mode-tab active" style="padding: 12px 14px; border-radius: 10px; border: none; background: var(--ac); color: #fff; font-weight: 700; font-size: 14px; text-align: left; cursor: pointer; transition: all 0.2s ease;">
+      <button type="button" id="btnModeManual" class="mode-tab active" style="padding: 12px 14px; border-radius: 10px; border: none; background: var(--ac); color: #ffffff; font-weight: 700; font-size: 14px; text-align: left; cursor: pointer; transition: all 0.2s ease;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span>✍️ Evaluación Manual</span>
-          <span style="font-size: 11px; background: rgba(255,255,255,0.25); padding: 2px 8px; border-radius: 20px;">Gratuita</span>
+          <span style="color:#ffffff;">✍️ Evaluación Manual</span>
+          <span id="badgeModeManual" style="font-size: 11px; background: rgba(255,255,255,0.25); color: #ffffff; padding: 2px 8px; border-radius: 20px; font-weight:600;">Gratuita</span>
         </div>
-        <small style="display:block; font-weight:400; opacity:0.9; font-size: 11.5px; margin-top: 3px;">Ingreso manual de cifras · Scoring preliminar en pantalla</small>
+        <small id="subModeManual" style="display:block; font-weight:400; color: #e2e8f0; font-size: 11.5px; margin-top: 4px;">Ingreso manual de cifras · Scoring preliminar en pantalla</small>
       </button>
 
       <button type="button" id="btnModeAuto" class="mode-tab" style="padding: 12px 14px; border-radius: 10px; border: none; background: transparent; color: var(--tx); font-weight: 700; font-size: 14px; text-align: left; cursor: pointer; transition: all 0.2s ease;">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span>⚡ Automatizada con PDFs</span>
-          <span style="font-size: 11px; background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 20px;">Con Informe Oficial</span>
+          <span id="titleModeAuto">⚡ Automatizada con PDFs</span>
+          <span id="badgeModeAuto" style="font-size: 11px; background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 20px; font-weight:600;">Con Informe Oficial</span>
         </div>
-        <small style="display:block; font-weight:400; color: var(--mut); font-size: 11.5px; margin-top: 3px;">Carpeta SII, CMF y e-RUT · Parser automático y dictamen formal</small>
+        <small id="subModeAuto" style="display:block; font-weight:400; color: var(--mut); font-size: 11.5px; margin-top: 4px;">Carpeta SII, CMF y e-RUT · Parser automático y dictamen formal</small>
       </button>
     </div>
 

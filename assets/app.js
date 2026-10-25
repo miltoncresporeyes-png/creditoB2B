@@ -1352,11 +1352,19 @@
     if (mode === "manual") {
       if (btnMan) {
         btnMan.style.background = "var(--ac)";
-        btnMan.style.color = "#fff";
+        btnMan.style.color = "#ffffff";
+        var subMan = $("subModeManual");
+        if (subMan) subMan.style.color = "#e2e8f0";
+        var bMan = $("badgeModeManual");
+        if (bMan) { bMan.style.background = "rgba(255,255,255,0.25)"; bMan.style.color = "#ffffff"; }
       }
       if (btnAut) {
         btnAut.style.background = "transparent";
         btnAut.style.color = "var(--tx)";
+        var subAut = $("subModeAuto");
+        if (subAut) subAut.style.color = "var(--mut)";
+        var bAut = $("badgeModeAuto");
+        if (bAut) { bAut.style.background = "#dcfce7"; bAut.style.color = "#166534"; }
       }
       if (noteMan) noteMan.style.display = "block";
       if (noteAut) noteAut.style.display = "none";
@@ -1368,12 +1376,20 @@
       showToast("Modo activo: Evaluación Manual Gratuita");
     } else {
       if (btnAut) {
-        btnAut.style.background = "#10b981";
-        btnAut.style.color = "#fff";
+        btnAut.style.background = "#059669"; // Verde esmeralda profesional con alto contraste
+        btnAut.style.color = "#ffffff";
+        var subAut2 = $("subModeAuto");
+        if (subAut2) subAut2.style.color = "#ecfdf5"; // Blanco menta muy legible y claro
+        var bAut2 = $("badgeModeAuto");
+        if (bAut2) { bAut2.style.background = "rgba(255,255,255,0.25)"; bAut2.style.color = "#ffffff"; }
       }
       if (btnMan) {
         btnMan.style.background = "transparent";
         btnMan.style.color = "var(--tx)";
+        var subMan2 = $("subModeManual");
+        if (subMan2) subMan2.style.color = "var(--mut)";
+        var bMan2 = $("badgeModeManual");
+        if (bMan2) { bMan2.style.background = "#e2e8f0"; bMan2.style.color = "#475569"; }
       }
       if (noteMan) noteMan.style.display = "none";
       if (noteAut) noteAut.style.display = "block";
