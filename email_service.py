@@ -28,6 +28,71 @@ def get_smtp_config():
         'from_name': from_name
     }
 
+import socket
+import ssl
+
+def _connect_smtp_robust(host, port, user, password, log_callback=None):
+    """
+    Establece conexión SMTP forzando resolución IPv4 (evita 'Errno 101 Network is unreachable' en Railway/Cloud)
+    y con fallback automático entre SSL (465) y STARTTLS (587).
+    """
+    def _log(msg):
+        if log_callback:
+            log_callback(msg)
+        print(f"[SMTP Connection] {msg}")
+
+    # Forzar resolución IPv4
+    resolved_ip = host
+    try:
+        addr_infos = socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM)
+        if addr_infos:
+            resolved_ip = addr_infos[0][4][0]
+            _log(f"Resolución IPv4 para {host}: {resolved_ip}")
+    except Exception as dns_err:
+        _log(f"Advertencia en resolución IPv4 ({host}): {dns_err}, usando hostname directo.")
+        resolved_ip = host
+
+    # Estrategia de puertos a probar
+    ports_to_try = [port]
+    if port == 465:
+        ports_to_try.append(587)
+    elif port == 587:
+        ports_to_try.append(465)
+
+    last_error = None
+    for target_port in ports_to_try:
+        server = None
+        try:
+            _log(f"Intentando conexión con {resolved_ip}:{target_port} (SNI: {host})...")
+            if target_port == 465:
+                # SSL Directo
+                context = ssl.create_default_context()
+                server = smtplib.SMTP_SSL(resolved_ip, target_port, timeout=12, context=context)
+                # Enviar EHLO con el hostname original
+                server.ehlo(host)
+            else:
+                # STARTTLS (puerto 587 o similar)
+                server = smtplib.SMTP(resolved_ip, target_port, timeout=12)
+                server.ehlo(host)
+                context = ssl.create_default_context()
+                server.starttls(context=context)
+                server.ehlo(host)
+
+            _log(f"Autenticando usuario {user}...")
+            server.login(user, password)
+            _log(f"¡Autenticación SMTP exitosa en puerto {target_port}!")
+            return server
+        except Exception as conn_err:
+            last_error = conn_err
+            _log(f"Fallo en puerto {target_port}: {conn_err}")
+            if server:
+                try:
+                    server.quit()
+                except Exception:
+                    pass
+
+    raise last_error or Exception(f"No fue posible conectar a {host} en los puertos {ports_to_try}")
+
 def send_purchase_confirmation_email(order_record, pdf_bytes=None):
     """
     Despacha en un hilo secundario:
@@ -62,13 +127,7 @@ def send_purchase_confirmation_email(order_record, pdf_bytes=None):
         # Conexión SMTP compartida para ambos envíos
         server = None
         try:
-            if cfg['port'] == 465:
-                server = smtplib.SMTP_SSL(cfg['host'], cfg['port'], timeout=15)
-            else:
-                server = smtplib.SMTP(cfg['host'], cfg['port'], timeout=15)
-                server.starttls()
-
-            server.login(cfg['user'], cfg['password'])
+            server = _connect_smtp_robust(cfg['host'], cfg['port'], cfg['user'], cfg['password'])
 
             # 1. Enviar correo a los clientes/usuarios (soporta múltiples separados por coma)
             client_list = [e.strip() for e in recipient_email.split(',') if e.strip() and '@' in e]
@@ -255,17 +314,9 @@ def send_purchase_confirmation_sync(order_record, pdf_bytes=None):
 
     server = None
     try:
-        logs.append(f"Iniciando conexión con {cfg['host']}:{cfg['port']}...")
-        if cfg['port'] == 465:
-            server = smtplib.SMTP_SSL(cfg['host'], cfg['port'], timeout=15)
-        else:
-            server = smtplib.SMTP(cfg['host'], cfg['port'], timeout=15)
-            logs.append("Ejecutando STARTTLS...")
-            server.starttls()
-
-        logs.append(f"Autenticando usuario {cfg['user']}...")
-        server.login(cfg['user'], cfg['password'])
-        logs.append("Autenticación SMTP exitosa.")
+        def log_cb(m):
+            logs.append(m)
+        server = _connect_smtp_robust(cfg['host'], cfg['port'], cfg['user'], cfg['password'], log_callback=log_cb)
 
         # Enviar a clientes
         client_list = [e.strip() for e in recipient_email.split(',') if e.strip() and '@' in e]
