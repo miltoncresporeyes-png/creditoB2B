@@ -7,8 +7,23 @@ from datetime import datetime
 DB_PATH = os.path.join(os.path.dirname(__file__), 'credit_evaluations.db')
 
 def get_database_url():
-    url = os.environ.get('DATABASE_URL') or os.environ.get('POSTGRES_URL') or ''
-    return url.strip()
+    # 1. URL directa
+    for var_name in ['DATABASE_URL', 'POSTGRES_URL', 'DATABASE_PUBLIC_URL', 'PGURL']:
+        val = os.environ.get(var_name, '').strip()
+        if val and (val.startswith('postgres://') or val.startswith('postgresql://')):
+            return val
+    
+    # 2. Reconstruir desde componentes de Railway si están separados
+    host = os.environ.get('PGHOST') or os.environ.get('POSTGRES_HOST')
+    user = os.environ.get('PGUSER') or os.environ.get('POSTGRES_USER')
+    pwd = os.environ.get('PGPASSWORD') or os.environ.get('POSTGRES_PASSWORD')
+    port = os.environ.get('PGPORT') or os.environ.get('POSTGRES_PORT') or '5432'
+    dbname = os.environ.get('PGDATABASE') or os.environ.get('POSTGRES_DB') or 'railway'
+    
+    if host and user and pwd:
+        return f"postgresql://{user}:{pwd}@{host}:{port}/{dbname}"
+        
+    return ''
 
 LAST_PG_ERROR = None
 
