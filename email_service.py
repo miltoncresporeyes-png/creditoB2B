@@ -232,3 +232,76 @@ def send_purchase_confirmation_email(order_record, pdf_bytes=None):
     threading.Thread(target=_worker, daemon=True).start()
     return True
 
+def send_purchase_confirmation_sync(order_record, pdf_bytes=None):
+    """Ejecución síncrona que retorna logs detallados y errores explícitos para diagnóstico."""
+    cfg = get_smtp_config()
+    logs = []
+    if not cfg['is_configured']:
+        return {'success': False, 'error': 'SMTP_HOST, SMTP_USER o SMTP_PASSWORD no configurados en entorno.'}
+
+    billing = order_record.get('billing_data', {}) or {}
+    recipient_email = billing.get('email') or billing.get('correo') or ''
+    admin_email = os.environ.get('ADMIN_NOTIFICATION_EMAIL', 'contacto@creditob2b.cl').strip()
+
+    order_id = order_record.get('order_id', '')
+    token_acceso = order_record.get('token_acceso', '')
+    plan_tipo = order_record.get('plan_tipo', 'pack_3')
+    creditos_totales = order_record.get('creditos_totales', 1)
+    monto = int(order_record.get('monto', 0))
+    monto_fmt = f"${monto:,}".replace(',', '.')
+    receptor_nombre = billing.get('razon_social') or billing.get('nombre') or 'Cliente'
+    base_url = os.environ.get('BASE_PUBLIC_URL', 'https://creditob2b-production.up.railway.app').rstrip('/')
+    app_access_url = f"{base_url}/app?credit_token={token_acceso}" if token_acceso else f"{base_url}/app"
+
+    server = None
+    try:
+        logs.append(f"Iniciando conexión con {cfg['host']}:{cfg['port']}...")
+        if cfg['port'] == 465:
+            server = smtplib.SMTP_SSL(cfg['host'], cfg['port'], timeout=15)
+        else:
+            server = smtplib.SMTP(cfg['host'], cfg['port'], timeout=15)
+            logs.append("Ejecutando STARTTLS...")
+            server.starttls()
+
+        logs.append(f"Autenticando usuario {cfg['user']}...")
+        server.login(cfg['user'], cfg['password'])
+        logs.append("Autenticación SMTP exitosa.")
+
+        # Enviar a clientes
+        client_list = [e.strip() for e in recipient_email.split(',') if e.strip() and '@' in e]
+        for c_mail in client_list:
+            msg_user = MIMEMultipart('mixed')
+            msg_user['Subject'] = f"Confirmación de Compra y Clave de Acceso - Orden {order_id}"
+            msg_user['From'] = f"{cfg['from_name']} <{cfg['user']}>"
+            msg_user['To'] = c_mail
+            msg_user.attach(MIMEText(f"<p>Hola {receptor_nombre}, tu clave es <b>{token_acceso}</b></p><p><a href='{app_access_url}'>Ingresar</a></p>", 'html', 'utf-8'))
+            if pdf_bytes:
+                part = MIMEApplication(pdf_bytes, _subtype="pdf")
+                part.add_header('Content-Disposition', 'attachment', filename=f"Comprobante_Pago_{order_id}.pdf")
+                msg_user.attach(part)
+            server.sendmail(cfg['user'], [c_mail], msg_user.as_string())
+            logs.append(f"Despachado a cliente: {c_mail}")
+
+        # Enviar a admin
+        admin_list = [a.strip() for a in admin_email.split(',') if a.strip() and '@' in a]
+        for a_mail in admin_list:
+            msg_admin = MIMEMultipart('mixed')
+            msg_admin['Subject'] = f"🔔 [Nueva Suscripción] {receptor_nombre} - Orden {order_id}"
+            msg_admin['From'] = f"{cfg['from_name']} <{cfg['user']}>"
+            msg_admin['To'] = a_mail
+            msg_admin.attach(MIMEText(f"<p>Nueva orden {order_id} por {monto_fmt} CLP para {receptor_nombre}</p>", 'html', 'utf-8'))
+            server.sendmail(cfg['user'], [a_mail], msg_admin.as_string())
+            logs.append(f"Despachado a admin: {a_mail}")
+
+        return {'success': True, 'logs': logs}
+    except Exception as e:
+        logs.append(f"Excepción SMTP: {str(e)}")
+        return {'success': False, 'logs': logs, 'error': str(e)}
+    finally:
+        if server:
+            try:
+                server.quit()
+            except Exception:
+                pass
+
+

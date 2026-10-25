@@ -1033,6 +1033,7 @@ def trigger_test_email():
     """Endpoint de diagnóstico para emitir correos de prueba reales hacia cliente y administración."""
     client_email = request.args.get('client_email', 'pedropablomeromero@gmail.com').strip()
     admin_email = request.args.get('admin_email', 'contacto@creditob2b.cl').strip()
+    sync = request.args.get('sync', '1').strip() == '1'
 
     fake_order = {
         'order_id': f'TEST-{int(time.time())}',
@@ -1051,25 +1052,35 @@ def trigger_test_email():
         }
     }
 
-    # Temporalmente configurar ADMIN_NOTIFICATION_EMAIL si se especifica
     if admin_email:
         os.environ['ADMIN_NOTIFICATION_EMAIL'] = admin_email
 
     try:
-        # Generar comprobante PDF de prueba para adjuntarlo
         sample_pdf = invoice_generator.generate_invoice_pdf(fake_order, fake_order['billing_data'])
-        ok = email_service.send_purchase_confirmation_email(fake_order, sample_pdf)
         cfg = email_service.get_smtp_config()
-        return jsonify({
-            'success': True,
-            'message': 'Prueba de correo iniciada en segundo plano.',
-            'smtp_configured': cfg['is_configured'],
-            'smtp_host': cfg['host'],
-            'smtp_user': cfg['user'],
-            'enviado_a_cliente': client_email,
-            'enviado_a_admin': admin_email,
-            'nota': 'Si las variables SMTP no están configuradas en .env o Railway, el servicio registrará la simulación sin error.'
-        })
+
+        if sync:
+            # Ejecución síncrona para capturar inmediatamente cualquier error SMTP (auth, puerto, tls)
+            debug_result = email_service.send_purchase_confirmation_sync(fake_order, sample_pdf)
+            return jsonify({
+                'success': debug_result.get('success', False),
+                'sync_execution': True,
+                'smtp_configured': cfg['is_configured'],
+                'smtp_host': cfg['host'],
+                'smtp_port': cfg['port'],
+                'smtp_user': cfg['user'],
+                'logs': debug_result.get('logs', []),
+                'error': debug_result.get('error')
+            })
+        else:
+            ok = email_service.send_purchase_confirmation_email(fake_order, sample_pdf)
+            return jsonify({
+                'success': True,
+                'message': 'Prueba iniciada en segundo plano.',
+                'smtp_configured': cfg['is_configured'],
+                'smtp_host': cfg['host'],
+                'smtp_user': cfg['user']
+            })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
