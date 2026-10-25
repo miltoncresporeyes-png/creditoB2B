@@ -1,0 +1,10 @@
+# Reglas de enrutamiento automáticas para Hostinger
+DirectoryIndex landing.html index.html
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Redirigir /app a index.html (manteniendo query params como ?credit_token=... o ?email=...)
+  RewriteRule ^app/?$ index.html [L,QSA]
+</IfModule>
