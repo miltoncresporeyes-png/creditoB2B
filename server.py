@@ -1089,5 +1089,11 @@ def trigger_test_email():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/db-status')
+def check_db_status():
+    """Diagnóstico en vivo de la conexión con PostgreSQL / SQLite."""
+    status = db.get_db_status()
+    return jsonify(status)
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000, debug=False)

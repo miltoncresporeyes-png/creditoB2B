@@ -5,22 +5,25 @@ from datetime import datetime
 
 # Conector con soporte dual PostgreSQL (DATABASE_URL) y fallback SQLite
 DB_PATH = os.path.join(os.path.dirname(__file__), 'credit_evaluations.db')
-DATABASE_URL = os.environ.get('DATABASE_URL')
+
+def get_database_url():
+    url = os.environ.get('DATABASE_URL') or os.environ.get('POSTGRES_URL') or ''
+    return url.strip()
 
 def get_db():
-    if DATABASE_URL and (DATABASE_URL.startswith('postgres://') or DATABASE_URL.startswith('postgresql://')):
+    pg_url = get_database_url()
+    if pg_url and (pg_url.startswith('postgres://') or pg_url.startswith('postgresql://')):
         try:
             import psycopg2
             from psycopg2.extras import RealDictCursor
-            # Adaptar prefijo antiguo de postgres:// a postgresql:// si es necesario
-            pg_url = DATABASE_URL
             if pg_url.startswith('postgres://'):
                 pg_url = pg_url.replace('postgres://', 'postgresql://', 1)
             conn = psycopg2.connect(pg_url, cursor_factory=RealDictCursor)
             conn.autocommit = False
             return conn
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[DB Warning] Error al conectar a PostgreSQL ({e}). Usando fallback SQLite.")
+    
     # Fallback SQLite local
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -29,13 +32,25 @@ def get_db():
 def is_postgres(conn):
     return hasattr(conn, 'pgconn') or 'psycopg2' in str(type(conn))
 
+def _adapt_sql(sql, is_pg):
+    """Adapta sintaxis SQL según el motor de base de datos."""
+    if is_pg:
+        # Reemplazar '?' por '%s' para parámetros en PostgreSQL
+        return sql.replace('?', '%s')
+    return sql
+
 def init_db():
     conn = get_db()
     cur = conn.cursor()
-    # Tabla de evaluaciones
-    cur.execute('''
+    pg = is_postgres(conn)
+    
+    # Tipos de clave primaria e incrementos según motor
+    id_type = "SERIAL PRIMARY KEY" if pg else "INTEGER PRIMARY KEY AUTOINCREMENT"
+
+    # 1. Tabla de evaluaciones crediticias
+    cur.execute(f'''
     CREATE TABLE IF NOT EXISTS evaluaciones (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id {id_type},
         rut TEXT NOT NULL,
         razon_social TEXT,
         sector TEXT,
@@ -54,10 +69,10 @@ def init_db():
     cur.execute('CREATE INDEX IF NOT EXISTS idx_eval_rut ON evaluaciones(rut);')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_eval_date ON evaluaciones(created_at);')
 
-    # Tabla de transacciones de pago desacoplada de datos financieros
-    cur.execute('''
+    # 2. Tabla de transacciones de pago desacoplada
+    cur.execute(f'''
     CREATE TABLE IF NOT EXISTS transacciones_pago (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id {id_type},
         order_id TEXT UNIQUE NOT NULL,
         plan_tipo TEXT NOT NULL,
         monto REAL NOT NULL,
@@ -74,19 +89,18 @@ def init_db():
         FOREIGN KEY (evaluacion_id) REFERENCES evaluaciones(id)
     );
     ''')
-    # Migraciones livianas
-    try:
-        cur.execute("ALTER TABLE transacciones_pago ADD COLUMN billing_data TEXT;")
-    except Exception:
-        pass
-    try:
-        cur.execute("ALTER TABLE transacciones_pago ADD COLUMN creditos_totales INTEGER DEFAULT 1;")
-    except Exception:
-        pass
-    try:
-        cur.execute("ALTER TABLE transacciones_pago ADD COLUMN creditos_restantes INTEGER DEFAULT 1;")
-    except Exception:
-        pass
+
+    # Migraciones livianas de columnas complementarias
+    for col_def in [
+        ("billing_data", "TEXT"),
+        ("creditos_totales", "INTEGER DEFAULT 1"),
+        ("creditos_restantes", "INTEGER DEFAULT 1")
+    ]:
+        try:
+            cur.execute(f"ALTER TABLE transacciones_pago ADD COLUMN {col_def[0]} {col_def[1]};")
+        except Exception:
+            if pg:
+                conn.rollback()
 
     cur.execute('CREATE INDEX IF NOT EXISTS idx_trans_order ON transacciones_pago(order_id);')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_trans_token ON transacciones_pago(token_acceso);')
@@ -96,11 +110,15 @@ def init_db():
 def create_payment_order(order_id, plan_tipo, monto, evaluacion_id=None, billing_data=None, creditos=1):
     conn = get_db()
     cur = conn.cursor()
+    pg = is_postgres(conn)
     b_json = json.dumps(billing_data or {}, ensure_ascii=False)
-    cur.execute('''
+    
+    sql = _adapt_sql('''
     INSERT INTO transacciones_pago (order_id, plan_tipo, monto, estado, evaluacion_id, billing_data, creditos_totales, creditos_restantes)
     VALUES (?, ?, ?, 'PENDING', ?, ?, ?, ?)
-    ''', (order_id, plan_tipo, monto, evaluacion_id, b_json, creditos, creditos))
+    ''', pg)
+    
+    cur.execute(sql, (order_id, plan_tipo, monto, evaluacion_id, b_json, creditos, creditos))
     conn.commit()
     conn.close()
     return order_id
@@ -108,7 +126,9 @@ def create_payment_order(order_id, plan_tipo, monto, evaluacion_id=None, billing
 def get_payment_order(order_id):
     conn = get_db()
     cur = conn.cursor()
-    cur.execute('SELECT * FROM transacciones_pago WHERE order_id = ?', (order_id,))
+    pg = is_postgres(conn)
+    sql = _adapt_sql('SELECT * FROM transacciones_pago WHERE order_id = ?', pg)
+    cur.execute(sql, (order_id,))
     row = cur.fetchone()
     conn.close()
     if not row:
@@ -126,15 +146,20 @@ def get_payment_order(order_id):
 def update_payment_billing_data(order_id, billing_data):
     conn = get_db()
     cur = conn.cursor()
+    pg = is_postgres(conn)
     b_json = json.dumps(billing_data or {}, ensure_ascii=False)
-    cur.execute('UPDATE transacciones_pago SET billing_data = ? WHERE order_id = ?', (b_json, order_id))
+    sql = _adapt_sql('UPDATE transacciones_pago SET billing_data = ? WHERE order_id = ?', pg)
+    cur.execute(sql, (b_json, order_id))
     conn.commit()
     conn.close()
 
 def verify_and_complete_payment(order_id, token_acceso):
     conn = get_db()
     cur = conn.cursor()
-    cur.execute('SELECT * FROM transacciones_pago WHERE order_id = ?', (order_id,))
+    pg = is_postgres(conn)
+    
+    sql_check = _adapt_sql('SELECT * FROM transacciones_pago WHERE order_id = ?', pg)
+    cur.execute(sql_check, (order_id,))
     row = cur.fetchone()
     if not row:
         conn.close()
@@ -148,13 +173,15 @@ def verify_and_complete_payment(order_id, token_acceso):
             d['billing_data'] = {}
         return d, "Pago previamente confirmado"
     
-    cur.execute('''
+    sql_upd = _adapt_sql('''
     UPDATE transacciones_pago
     SET estado = 'APPROVED', token_acceso = ?, paid_at = CURRENT_TIMESTAMP
     WHERE order_id = ?
-    ''', (token_acceso, order_id))
+    ''', pg)
+    cur.execute(sql_upd, (token_acceso, order_id))
     conn.commit()
-    cur.execute('SELECT * FROM transacciones_pago WHERE order_id = ?', (order_id,))
+    
+    cur.execute(sql_check, (order_id,))
     updated_row = dict(cur.fetchone())
     conn.close()
     try:
@@ -166,7 +193,9 @@ def verify_and_complete_payment(order_id, token_acceso):
 def check_payment_access(token_acceso):
     conn = get_db()
     cur = conn.cursor()
-    cur.execute('SELECT * FROM transacciones_pago WHERE token_acceso = ? AND estado = "APPROVED"', (token_acceso,))
+    pg = is_postgres(conn)
+    sql = _adapt_sql("SELECT * FROM transacciones_pago WHERE token_acceso = ? AND estado = 'APPROVED'", pg)
+    cur.execute(sql, (token_acceso,))
     row = cur.fetchone()
     conn.close()
     return dict(row) if row else None
@@ -178,10 +207,12 @@ def get_order_by_token(token):
     tok = str(token).strip()
     conn = get_db()
     cur = conn.cursor()
-    cur.execute('''
+    pg = is_postgres(conn)
+    sql = _adapt_sql('''
     SELECT * FROM transacciones_pago 
-    WHERE token_acceso = ? AND estado = "APPROVED"
-    ''', (tok,))
+    WHERE token_acceso = ? AND estado = 'APPROVED'
+    ''', pg)
+    cur.execute(sql, (tok,))
     row = cur.fetchone()
     conn.close()
     if not row:
@@ -198,24 +229,25 @@ def get_order_by_token_or_order_id(identifier):
     return get_order_by_token(identifier)
 
 def consume_credit(token, eval_id=None):
-    """Consume 1 crédito de forma atómica e idempotente validando estrictamente el token_acceso.
-    Si la orden ya fue vinculada a este eval_id, no vuelve a descontar créditos por recargas."""
+    """Consume 1 crédito de forma atómica e idempotente validando estrictamente el token_acceso."""
     if not token:
         return False, "Token de acceso requerido"
     tok = str(token).strip()
     conn = get_db()
     cur = conn.cursor()
-    cur.execute('''
+    pg = is_postgres(conn)
+    
+    sql_sel = _adapt_sql('''
     SELECT * FROM transacciones_pago 
-    WHERE token_acceso = ? AND estado = "APPROVED"
-    ''', (tok,))
+    WHERE token_acceso = ? AND estado = 'APPROVED'
+    ''', pg)
+    cur.execute(sql_sel, (tok,))
     row = cur.fetchone()
     if not row:
         conn.close()
         return False, "Token de acceso inválido o transacción no aprobada"
     
     row_dict = dict(row)
-    # Idempotencia: si ya evaluó este mismo eval_id, permitir acceso sin descontar crédito adicional
     if eval_id and row_dict.get('evaluacion_id') == eval_id:
         conn.close()
         return True, "Acceso autorizado para este expediente"
@@ -225,13 +257,13 @@ def consume_credit(token, eval_id=None):
         conn.close()
         return False, "No quedan créditos disponibles en este paquete"
         
-    # Descontar crédito de forma atómica
-    cur.execute('''
+    sql_upd = _adapt_sql('''
     UPDATE transacciones_pago
     SET creditos_restantes = creditos_restantes - 1,
         evaluacion_id = COALESCE(?, evaluacion_id)
     WHERE id = ? AND creditos_restantes > 0
-    ''', (eval_id, row_dict['id']))
+    ''', pg)
+    cur.execute(sql_upd, (eval_id, row_dict['id']))
     conn.commit()
     conn.close()
     return True, "Crédito consumido exitosamente"
@@ -239,6 +271,7 @@ def consume_credit(token, eval_id=None):
 def save_evaluation(input_data, result_data):
     conn = get_db()
     cur = conn.cursor()
+    pg = is_postgres(conn)
     rut = input_data.get('rut', '')
     razon = input_data.get('razonSocial', '')
     sector = input_data.get('sector', '')
@@ -250,18 +283,36 @@ def save_evaluation(input_data, result_data):
     lim_aprobado = float(result_data.get('limits', {}).get('approved', 0) or 0)
     plazo_aprobado = int(result_data.get('term', {}).get('approved', 0) or 0)
     
-    cur.execute('''
-    INSERT INTO evaluaciones (
-        rut, razon_social, sector, analista, monto_solicitado, plazo_solicitado,
-        score, decision, limite_aprobado, plazo_aprobado, input_data, result_data
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (
-        rut, razon, sector, analista, monto_sol, plazo_sol,
-        score, decision, lim_aprobado, plazo_aprobado,
-        json.dumps(input_data, ensure_ascii=False),
-        json.dumps(result_data, ensure_ascii=False)
-    ))
-    eval_id = cur.lastrowid
+    if pg:
+        sql = '''
+        INSERT INTO evaluaciones (
+            rut, razon_social, sector, analista, monto_solicitado, plazo_solicitado,
+            score, decision, limite_aprobado, plazo_aprobado, input_data, result_data
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        RETURNING id
+        '''
+        cur.execute(sql, (
+            rut, razon, sector, analista, monto_sol, plazo_sol,
+            score, decision, lim_aprobado, plazo_aprobado,
+            json.dumps(input_data, ensure_ascii=False),
+            json.dumps(result_data, ensure_ascii=False)
+        ))
+        eval_id = cur.fetchone()['id']
+    else:
+        sql = '''
+        INSERT INTO evaluaciones (
+            rut, razon_social, sector, analista, monto_solicitado, plazo_solicitado,
+            score, decision, limite_aprobado, plazo_aprobado, input_data, result_data
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        '''
+        cur.execute(sql, (
+            rut, razon, sector, analista, monto_sol, plazo_sol,
+            score, decision, lim_aprobado, plazo_aprobado,
+            json.dumps(input_data, ensure_ascii=False),
+            json.dumps(result_data, ensure_ascii=False)
+        ))
+        eval_id = cur.lastrowid
+        
     conn.commit()
     conn.close()
     return eval_id
@@ -269,10 +320,12 @@ def save_evaluation(input_data, result_data):
 def list_evaluations(limit=50):
     conn = get_db()
     cur = conn.cursor()
-    cur.execute('''
+    pg = is_postgres(conn)
+    sql = _adapt_sql('''
     SELECT id, rut, razon_social, analista, monto_solicitado, score, decision, limite_aprobado, plazo_aprobado, created_at
     FROM evaluaciones ORDER BY id DESC LIMIT ?
-    ''', (limit,))
+    ''', pg)
+    cur.execute(sql, (limit,))
     rows = [dict(r) for r in cur.fetchall()]
     conn.close()
     return rows
@@ -280,7 +333,9 @@ def list_evaluations(limit=50):
 def get_evaluation(eval_id):
     conn = get_db()
     cur = conn.cursor()
-    cur.execute('SELECT * FROM evaluaciones WHERE id = ?', (eval_id,))
+    pg = is_postgres(conn)
+    sql = _adapt_sql('SELECT * FROM evaluaciones WHERE id = ?', pg)
+    cur.execute(sql, (eval_id,))
     row = cur.fetchone()
     conn.close()
     if not row:
@@ -289,5 +344,32 @@ def get_evaluation(eval_id):
     d['input_data'] = json.loads(d['input_data'])
     d['result_data'] = json.loads(d['result_data'])
     return d
+
+def get_db_status():
+    """Retorna información de diagnóstico sobre la base de datos activa."""
+    pg_url = get_database_url()
+    is_configured = bool(pg_url)
+    try:
+        conn = get_db()
+        pg = is_postgres(conn)
+        engine = "PostgreSQL" if pg else "SQLite (Fallback Local)"
+        cur = conn.cursor()
+        cur.execute("SELECT count(*) as total FROM transacciones_pago" if pg else "SELECT count(*) as total FROM transacciones_pago")
+        res = cur.fetchone()
+        count = res['total'] if isinstance(res, dict) else res[0]
+        conn.close()
+        return {
+            "status": "connected",
+            "engine": engine,
+            "is_postgres": pg,
+            "url_configured": is_configured,
+            "transacciones_count": count
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "url_configured": is_configured
+        }
 
 init_db()
