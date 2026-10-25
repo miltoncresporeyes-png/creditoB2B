@@ -618,29 +618,93 @@
     </div>
   </section>
 
-  <!-- Site Footer -->
+  <!-- Site Footer Refinado y con Navegación CTA -->
   <footer class="site-footer">
     <div class="footer-container">
-      <div style="display:flex;flex-direction:column;gap:0.75rem;">
-        <div style="display:flex;align-items:center;gap:0.75rem;">
-          <div class="brand-emblem" style="width:36px;height:36px;">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 2.5L4 5.5V11C4 16.5 7.5 21 12 22.5C16.5 21 20 16.5 20 11V5.5L12 2.5Z" stroke="#ffffff" stroke-width="1.8" stroke-linejoin="round" opacity="0.35"/>
-              <path d="M7.2 14.5A6.5 6.5 0 1 1 16.8 14.5" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round"/>
-              <path d="M12 13.5L15 8.5" stroke="#38bdf8" stroke-width="2.4" stroke-linecap="round"/>
-              <circle cx="12" cy="13.5" r="1.6" fill="#38bdf8"/>
-            </svg>
+      <div class="footer-grid">
+        <!-- Columna 1: Marca y Propuesta de Valor -->
+        <div class="footer-col">
+          <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem;">
+            <div class="brand-emblem" style="width:38px;height:38px;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2.5L4 5.5V11C4 16.5 7.5 21 12 22.5C16.5 21 20 16.5 20 11V5.5L12 2.5Z" stroke="#ffffff" stroke-width="1.8" stroke-linejoin="round" opacity="0.35"/>
+                <path d="M7.2 14.5A6.5 6.5 0 1 1 16.8 14.5" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M12 13.5L15 8.5" stroke="#38bdf8" stroke-width="2.4" stroke-linecap="round"/>
+                <circle cx="12" cy="13.5" r="1.6" fill="#38bdf8"/>
+              </svg>
+            </div>
+            <div style="font-weight: 800; color: #ffffff; font-size: 1.15rem; letter-spacing: -0.02em;">
+              Crédito<span style="color:#38bdf8;">B2B</span> <span style="font-size:0.75rem;padding:0.15rem 0.45rem;background:rgba(255,255,255,0.1);border-radius:4px;margin-left:4px;">Chile</span>
+            </div>
           </div>
-          <div style="font-weight: 800; color: #ffffff; font-size: 1.1rem; letter-spacing: -0.02em;">
-            Crédito<span style="color:#38bdf8;">B2B</span> <span style="font-size:0.75rem;padding:0.15rem 0.4rem;background:rgba(255,255,255,0.1);border-radius:4px;margin-left:4px;">Chile</span>
+          <p style="line-height: 1.55; color: #94a3b8; font-size: 0.85rem; margin-bottom: 1.25rem;">
+            Plataforma especializada en estimación técnica de límites comerciales, análisis de solvencia y scoring financiero adaptado al mercado chileno.
+          </p>
+          <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+            <span style="display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;background:rgba(56,189,248,0.12);color:#38bdf8;padding:4px 8px;border-radius:6px;font-weight:600;">🛡️ Ley 19.983 Facturas</span>
+            <span style="display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;background:rgba(16,185,129,0.12);color:#34d399;padding:4px 8px;border-radius:6px;font-weight:600;">⚡ Parser SII/CMF</span>
           </div>
         </div>
-        <p style="max-width: 340px; line-height: 1.5; color: #94a3b8;">Plataforma especializada en estimación de límites comerciales y capacidad de pago para empresas.</p>
+
+        <!-- Columna 2: Navegación Rápida a Secciones -->
+        <div class="footer-col">
+          <h4>Explorar Secciones</h4>
+          <ul class="footer-links">
+            <li><a href="#problema"><span>→</span> Desafíos Habituales</a></li>
+            <li><a href="#solucion"><span>→</span> Solución & Metodología</a></li>
+            <li><a href="#como-funciona"><span>→</span> Cómo Funciona (4 Pasos)</a></li>
+            <li><a href="#informe"><span>→</span> Estructura del Informe</a></li>
+            <li><a href="#precios"><span>→</span> Planes & Precios</a></li>
+            <li><a href="#seguridad"><span>→</span> Seguridad & Cumplimiento</a></li>
+            <li><a href="#faq"><span>→</span> Preguntas Frecuentes</a></li>
+          </ul>
+        </div>
+
+        <!-- Columna 3: Herramientas y Acceso -->
+        <div class="footer-col">
+          <h4>Herramientas & Cuenta</h4>
+          <ul class="footer-links">
+            <li><a href="javascript:void(0)" onclick="openAccessModal()"><span>🔑</span> Ingresar / Iniciar Sesión</a></li>
+            <li><a href="javascript:void(0)" onclick="openRecoverPasswordModal()"><span>🔓</span> Recuperar Clave de Acceso</a></li>
+            <li><a href="https://creditob2b-production.up.railway.app/api/sample-report" target="_blank"><span>📄</span> Descargar Informe de Muestra (PDF)</a></li>
+            <li><a href="index.html"><span>⚡</span> Ir al Evaluador Directo</a></li>
+            <li><a href="#contacto"><span>🏢</span> Facturación Empresarial</a></li>
+          </ul>
+        </div>
+
+        <!-- Columna 4: CTA de Acción Inmediata y Soporte -->
+        <div class="footer-col">
+          <h4>Acceso Directo</h4>
+          <div class="footer-cta-box">
+            <p style="color:#ffffff;font-weight:600;font-size:0.875rem;margin:0 0 0.5rem;">¿Listo para evaluar a un cliente?</p>
+            <p style="color:#94a3b8;font-size:0.775rem;margin:0 0 1rem;line-height:1.4;">Genera tu primer informe o prueba el evaluador sin costo.</p>
+            <button type="button" class="btn btn-accent" style="width:100%;font-size:0.85rem;padding:0.65rem 1rem;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px;" onclick="openAccessModal()">
+              <span>Ingresar al Evaluador</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+            <div style="margin-top:0.85rem;padding-top:0.75rem;border-top:1px dashed rgba(255,255,255,0.1);font-size:0.75rem;color:#cbd5e1;">
+              <span>💬 Asistencia: </span>
+              <a href="https://wa.me/56983414730?text=Hola,%20necesito%20asistencia%20en%20Cr%C3%A9ditoB2B" target="_blank" style="color:#38bdf8;text-decoration:none;font-weight:600;">+56 9 8341 4730</a>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div class="footer-disclaimer">
-        <strong>Aviso Legal y Limitación de Responsabilidad:</strong><br>
-        Esta plataforma es un instrumento técnico de análisis y gestión del riesgo. No provee servicios de asesoría financiera personalizada ni garantiza el cumplimiento de obligaciones entre privados. Las consultas tributarias y análisis de documentos se ejecutan bajo estricta observancia de los términos de acceso a información pública y consentimiento de las partes involucradas.
+      <!-- Pie Inferior: Aviso Legal y Botón Scroll Arriba -->
+      <div class="footer-bottom">
+        <div class="footer-disclaimer">
+          <strong style="color:#94a3b8;">Aviso Legal y Marco Regulatorio:</strong><br>
+          Esta plataforma es un instrumento técnico de apoyo paramétrico a la gestión y análisis de riesgo empresarial. No provee servicios de asesoría financiera personalizada ni garantiza el pago futuro por parte de terceros. Las consultas tributarias y lectura de antecedentes se ejecutan bajo estricto resguardo de la confidencialidad, procesando los PDFs en memoria volátil conforme a la Ley N° 19.983 y normativas chilenas vigentes.
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.75rem;">
+          <a href="#" class="footer-scroll-top" title="Volver al inicio de la página">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+            <span>Volver arriba</span>
+          </a>
+          <div style="font-size:0.75rem;color:#64748b;">
+            © 2026 CréditoB2B Chile. Todos los derechos reservados.
+          </div>
+        </div>
       </div>
     </div>
   </footer>
