@@ -1146,6 +1146,15 @@ tr.total td {
     font-size: 18px;
   }
 
+  .topbar-container {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .brand small {
+    display: none;
+  }
+
   .actions {
     gap: 8px;
   }
