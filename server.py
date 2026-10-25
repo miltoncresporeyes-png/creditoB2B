@@ -5,10 +5,13 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException
 
+from flask_cors import CORS
+
 ROOT = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(ROOT, '.env'))
 
 app = Flask(__name__, static_folder='assets', static_url_path='/assets')
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 CACHE = {}
 LOCK = threading.Lock()
 

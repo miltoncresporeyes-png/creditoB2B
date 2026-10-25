@@ -774,7 +774,11 @@
       });
 
       try {
-        const res = await fetch('/api/payments/mp-preference', {
+        const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.endsWith('railway.app'))
+          ? ''
+          : 'https://creditob2b-production.up.railway.app';
+
+        const res = await fetch(API_BASE + '/api/payments/mp-preference', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 

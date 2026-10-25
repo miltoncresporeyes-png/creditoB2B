@@ -4,6 +4,11 @@
   var M = window.CreditModel;
   if (!M) return;
 
+  // Si corre en Hostinger o dominio externo, apuntar a Railway; si corre en local o mismo host, usar ruta relativa
+  var API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.endsWith('railway.app'))
+    ? ''
+    : 'https://creditob2b-production.up.railway.app';
+
   var $ = function (id) { return document.getElementById(id); };
   var form = $("creditForm");
   var results = $("results");
@@ -288,7 +293,7 @@
     }
 
     showToast("Extrayendo datos de " + file.name + "...");
-    fetch("/api/extract-pdf", {
+    fetch(API_BASE + "/api/extract-pdf", {
       method: "POST",
       body: formData
     })
@@ -853,7 +858,7 @@
       saveDraft();
 
       // Guardar en base de datos ACID relacional
-      fetch("/api/evaluations", {
+      fetch(API_BASE + "/api/evaluations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ input: input, result: result })
@@ -1012,7 +1017,7 @@
       }, 700);
     }
 
-    fetch("/api/sii?rut=" + encodeURIComponent(rutValue))
+    fetch(API_BASE + "/api/sii?rut=" + encodeURIComponent(rutValue))
       .then(function (response) { return response.json(); })
       .then(function (data) {
         clearInterval(progressTimer);
@@ -1135,7 +1140,7 @@
     if (target.hasAttribute("data-export-pdf")) {
       if (!LAST_RESULT) return;
       showToast("Generando Dictamen PDF oficial...");
-      fetch("/api/report-pdf", {
+      fetch(API_BASE + "/api/report-pdf", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ input: LAST_RESULT.input, result: LAST_RESULT })
@@ -1241,7 +1246,7 @@
     var useToken = isForcePreliminary ? "" : ACTIVE_CREDIT_TOKEN;
     showToast(useToken ? "Generando Dictamen Oficial..." : "Generando informe...");
     
-    fetch("/api/report-pdf", {
+    fetch(API_BASE + "/api/report-pdf", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1303,7 +1308,7 @@
       if (banner) banner.style.display = "none";
       return;
     }
-    fetch("/api/payments/credit-status?token=" + encodeURIComponent(ACTIVE_CREDIT_TOKEN))
+    fetch(API_BASE + "/api/payments/credit-status?token=" + encodeURIComponent(ACTIVE_CREDIT_TOKEN))
       .then(function(res) { return res.json(); })
       .then(function(data) {
         if (data.valid && data.creditos_restantes > 0) {
@@ -1374,7 +1379,7 @@
     btn.disabled = true;
     btn.textContent = "Verificando...";
 
-    fetch("/api/payments/credit-status?token=" + encodeURIComponent(code))
+    fetch(API_BASE + "/api/payments/credit-status?token=" + encodeURIComponent(code))
       .then(function(res) { return res.json(); })
       .then(function(data) {
         btn.disabled = false;
