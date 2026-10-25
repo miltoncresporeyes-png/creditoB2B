@@ -14,7 +14,7 @@ def format_clp(val):
     except Exception:
         return str(val)
 
-def generate_credit_report(input_data, result_data):
+def generate_credit_report(input_data, result_data, is_preliminary=False):
     """Genera un dictamen formal en PDF listo para comités de crédito."""
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -294,6 +294,18 @@ def generate_credit_report(input_data, result_data):
     ]))
     story.append(t_firmas)
 
-    doc.build(story)
+    def draw_watermark(canvas, document):
+        if is_preliminary:
+            canvas.saveState()
+            canvas.setFont('Helvetica-Bold', 46)
+            canvas.setFillColor(colors.HexColor('#94a3b8'), alpha=0.18)
+            canvas.translate(letter[0]/2.0, letter[1]/2.0)
+            canvas.rotate(45)
+            canvas.drawCentredString(0, 0, "EVALUACIÓN MANUAL - PRELIMINAR")
+            canvas.setFont('Helvetica', 12)
+            canvas.drawCentredString(0, -35, "NO VÁLIDO COMO DICTAMEN OFICIAL CERTIFICADO")
+            canvas.restoreState()
+
+    doc.build(story, onFirstPage=draw_watermark, onLaterPages=draw_watermark)
     buf.seek(0)
     return buf.getvalue()

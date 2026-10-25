@@ -243,18 +243,37 @@ def export_report_pdf():
     body = request.get_json() or {}
     input_data = body.get('input', {})
     result_data = body.get('result', {})
+    mode = body.get('mode', 'manual') # 'manual' (gratuita) o 'automated' (documental de pago)
+    token = body.get('token') or request.args.get('token')
+    eval_id = body.get('eval_id')
     
     if not input_data or not result_data:
         return jsonify({'error': 'Faltan datos para generar el dictamen'}), 400
         
+    # Si solicita informe oficial sin marcas de agua, requiere validar crédito mediante token secreto
+    is_preliminary = True
+    credito_valido = False
+    
+    if token:
+        order = db.get_order_by_token(token)
+        if order and order.get('estado') == 'APPROVED':
+            # Verificar o consumir crédito atómicamente
+            ok, msg = db.consume_credit(token, eval_id=eval_id)
+            if ok:
+                credito_valido = True
+                is_preliminary = False
+
     try:
-        pdf_bytes = report_generator.generate_credit_report(input_data, result_data)
-        filename = f"Dictamen_Credito_{input_data.get('rut', 'Comercial')}.pdf"
-        return Response(
+        pdf_bytes = report_generator.generate_credit_report(input_data, result_data, is_preliminary=is_preliminary)
+        prefix = "Dictamen_Credito_Oficial_" if not is_preliminary else "Dictamen_Preliminar_"
+        filename = f"{prefix}{input_data.get('rut', 'Comercial')}.pdf"
+        resp = Response(
             pdf_bytes,
             mimetype="application/pdf",
             headers={"Content-Disposition": f"attachment; filename={filename}"}
         )
+        resp.headers['X-Report-Type'] = 'official' if not is_preliminary else 'preliminary'
+        return resp
     except Exception as e:
         return jsonify({'error': f'Error al generar dictamen PDF: {str(e)}'}), 500
 
@@ -346,9 +365,10 @@ def create_payment():
     
     plan_info = PRICES_CONFIG.get(plan, PRICES_CONFIG['pack_3'])
     monto = plan_info['monto']
+    informes = plan_info['informes']
     order_id = f"ORD-{int(time.time())}-{uuid.uuid4().hex[:6].upper()}"
     try:
-        db.create_payment_order(order_id, plan, monto, eval_id)
+        db.create_payment_order(order_id, plan, monto, eval_id, creditos=informes)
         return jsonify({
             'success': True,
             'order_id': order_id,
@@ -364,6 +384,42 @@ def create_payment():
 # Variables Mercado Pago exclusivamente desde entorno (.env)
 MP_ACCESS_TOKEN = os.environ.get('MERCADO_PAGO_ACCESS_TOKEN')
 MP_PUBLIC_KEY = os.environ.get('MERCADO_PAGO_PUBLIC_KEY')
+MP_WEBHOOK_SECRET = os.environ.get('MERCADO_PAGO_WEBHOOK_SECRET')
+
+def verify_mp_webhook_signature(x_signature, x_request_id, data_id):
+    """Valida la firma HMAC-SHA256 enviada por Mercado Pago en el header x-signature."""
+    if not x_signature:
+        if not MP_WEBHOOK_SECRET:
+            return True, "No secret configured"
+        return False, "Cabecera x-signature requerida"
+
+    if not x_request_id:
+        return False, "Cabecera x-request-id requerida"
+        
+    ts = None
+    v1 = None
+    for part in x_signature.split(','):
+        if '=' in part:
+            k, v = part.strip().split('=', 1)
+            if k == 'ts': ts = v
+            elif k == 'v1': v1 = v
+            
+    if not ts or not v1:
+        return False, "Formato de x-signature inválido"
+        
+    secret_key = MP_WEBHOOK_SECRET or 'creditob2b_default_webhook_secret'
+    manifest = f"id:{data_id};request-id:{x_request_id};ts:{ts};"
+    import hmac, hashlib
+    expected_hash = hmac.new(
+        secret_key.encode('utf-8'),
+        manifest.encode('utf-8'),
+        hashlib.sha256
+    ).hexdigest()
+    
+    if not hmac.compare_digest(expected_hash, v1):
+        return False, "Firma digital de webhook inválida"
+        
+    return True, "Firma verificada"
 
 @app.route('/api/payments/mp-preference', methods=['POST'])
 def create_mp_preference():
@@ -381,11 +437,12 @@ def create_mp_preference():
     
     plan_info = PRICES_CONFIG.get(plan, PRICES_CONFIG['pack_3'])
     monto = int(plan_info['monto'])
+    informes = plan_info['informes']
     order_id = f"MP-{int(time.time())}-{uuid.uuid4().hex[:6].upper()}"
     
     try:
-        # Registrar orden en BD local con datos de facturación
-        db.create_payment_order(order_id, plan, monto, eval_id, billing_data)
+        # Registrar orden en BD local con datos de facturación y cantidad de créditos
+        db.create_payment_order(order_id, plan, monto, eval_id, billing_data, creditos=informes)
         
         # Crear preferencia en API de Mercado Pago
         headers = {
@@ -393,6 +450,12 @@ def create_mp_preference():
             'Content-Type': 'application/json'
         }
         host = request.host_url.rstrip('/')
+        # Mercado Pago requiere URLs https válidas para habilitar auto_return
+        if not host.startswith('https://'):
+            base_url = os.environ.get('BASE_PUBLIC_URL', 'https://creditob2b.cl')
+        else:
+            base_url = host
+            
         preference_payload = {
             'items': [
                 {
@@ -406,9 +469,9 @@ def create_mp_preference():
             ],
             'external_reference': order_id,
             'back_urls': {
-                'success': f"{host}/pago/exito?order_id={order_id}",
-                'failure': f"{host}/pago/fallo?order_id={order_id}",
-                'pending': f"{host}/pago/pendiente?order_id={order_id}"
+                'success': f"{base_url}/pago/exito?order_id={order_id}",
+                'failure': f"{base_url}/pago/fallo?order_id={order_id}",
+                'pending': f"{base_url}/pago/pendiente?order_id={order_id}"
             },
             'auto_return': 'approved',
             'statement_descriptor': 'CREDITOB2B'
@@ -431,7 +494,7 @@ def create_mp_preference():
 
 @app.route('/api/payments/mp-webhook', methods=['POST'])
 def mp_webhook():
-    """Webhook oficial de Mercado Pago: confirma transacciones directamente desde el servidor verificando orden, monto y moneda."""
+    """Webhook oficial de Mercado Pago: valida firma criptográfica y confirma transacciones consultando el estado real."""
     import requests as req
     data = request.get_json() or {}
     topic = data.get('type') or request.args.get('topic') or data.get('topic')
@@ -440,9 +503,21 @@ def mp_webhook():
     if topic == 'payment':
         payment_id = data.get('data', {}).get('id') or request.args.get('id')
     
+    if not payment_id:
+        return jsonify({'status': 'ignored', 'reason': 'not a payment event'}), 200
+
+    # 1. Validación estricta de la firma oficial de Mercado Pago si está presente o configurada
+    x_signature = request.headers.get('x-signature')
+    x_request_id = request.headers.get('x-request-id')
+    
+    if MP_WEBHOOK_SECRET or x_signature:
+        sig_ok, sig_msg = verify_mp_webhook_signature(x_signature, x_request_id, payment_id)
+        if not sig_ok:
+            return jsonify({'error': 'Firma de webhook rechazada', 'detail': sig_msg}), 401
+
     if payment_id and MP_ACCESS_TOKEN:
         try:
-            # Consultar estado real a la API de Mercado Pago
+            # 2. Consultar estado real a la API de Mercado Pago (control server-to-server definitivo)
             headers = {'Authorization': f'Bearer {MP_ACCESS_TOKEN}'}
             chk_res = req.get(f'https://api.mercadopago.com/v1/payments/{payment_id}', headers=headers, timeout=10)
             if chk_res.status_code == 200:
@@ -463,7 +538,9 @@ def mp_webhook():
                     access_token = f"tok_{secrets.token_urlsafe(24)}"
                     db.verify_and_complete_payment(order_id, access_token)
                     return jsonify({'status': 'approved_and_verified', 'order_id': order_id}), 200
-        except Exception:
+                else:
+                    return jsonify({'status': 'payment_not_approved_or_amount_mismatch', 'payment_status': status}), 200
+        except Exception as e:
             return jsonify({'error': 'Error procesando notificación'}), 500
 
     return jsonify({'status': 'received'}), 200
@@ -525,12 +602,23 @@ def pago_exito():
     <p style="color: #f59e0b; font-size: 13px;">⏳ La descarga se habilitará una vez recibido el comprobante bancario.</p>
     """
 
+    tok = order_record.get('token_acceso', '') if is_approved else ''
+    app_url = f"/app?credit_token={tok}" if tok else "/app"
+    token_display = f"""
+    <div class="order-row" style="background: rgba(37,99,235,0.1); padding: 8px; border-radius: 8px; margin-top: 8px;">
+      <span class="order-label" style="color: #60a5fa;">Token Secreto de Acceso:</span>
+      <span class="order-value" style="font-family: monospace; font-size: 13px; color: #93c5fd;">{tok}</span>
+    </div>
+    """ if tok else ""
+
     return f"""
     <!DOCTYPE html>
     <html lang="es">
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="referrer" content="no-referrer">
+      <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
       <title>Confirmación de Compra - CréditoB2B</title>
       <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
       <style>
@@ -694,11 +782,12 @@ def pago_exito():
             <span class="order-label">Estado Orden:</span>
             <span class="order-value" style="color: {'#34d399' if is_approved else '#f59e0b'};">{'Aprobada' if is_approved else 'En Verificación'}</span>
           </div>
+          {token_display}
         </div>
 
         <div class="actions">
           {download_button}
-          <a href="/app" class="btn btn-app">
+          <a href="{app_url}" class="btn btn-app">
             🚀 Comenzar a Evaluar en la Plataforma
           </a>
           <a href="/" class="btn btn-home">
@@ -820,12 +909,43 @@ def verify_payment():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/payments/credit-status', methods=['GET'])
+def get_credit_status():
+    """Consulta el saldo de créditos disponible exclusivamente mediante token de acceso secreto."""
+    token = request.args.get('token', '').strip() or request.args.get('identifier', '').strip()
+    if not token:
+        return jsonify({'error': 'Token de acceso requerido'}), 400
+        
+    # Rechazar explícitamente si se intenta usar un número de orden público en lugar de un token secreto
+    if token.startswith('ORD-') or token.startswith('MP-') or token.startswith('TEST-'):
+        return jsonify({'valid': False, 'message': 'Acceso no autorizado: la consulta de saldo requiere el token secreto de acceso asignado al pagar.'}), 403
+
+    # Si coincide con un order_id registrado en la base de datos, rechazar con 403
+    order_by_id = db.get_payment_order(token)
+    if order_by_id:
+        return jsonify({'valid': False, 'message': 'Acceso no autorizado: la consulta de saldo requiere el token secreto de acceso, no el identificador de orden.'}), 403
+
+    order = db.get_order_by_token(token)
+    if not order:
+        return jsonify({'valid': False, 'message': 'Token no encontrado o compra no aprobada'}), 404
+    
+    plan_info = PRICES_CONFIG.get(order.get('plan_tipo'), {})
+    # No exponer token secreto en la respuesta ni datos sensibles
+    return jsonify({
+        'valid': True,
+        'plan_tipo': order.get('plan_tipo'),
+        'plan_nombre': plan_info.get('nombre', 'Paquete de Informes'),
+        'creditos_totales': order.get('creditos_totales', 1),
+        'creditos_restantes': order.get('creditos_restantes', 0),
+        'evaluacion_id': order.get('evaluacion_id')
+    })
+
 @app.route('/api/report-pdf-paid', methods=['GET'])
 def export_paid_report():
     token = request.args.get('token', '').strip()
     if not token:
         return jsonify({'error': 'Token de acceso requerido'}), 401
-    tx = db.check_payment_access(token)
+    tx = db.get_order_by_token_or_order_id(token)
     if not tx:
         return jsonify({'error': 'Token de pago inválido o transacción no aprobada'}), 403
     eval_id = tx.get('evaluacion_id')
@@ -837,7 +957,8 @@ def export_paid_report():
     try:
         pdf_bytes = report_generator.generate_credit_report(
             eval_record['input_data'], 
-            eval_record['result_data']
+            eval_record['result_data'],
+            is_preliminary=False
         )
         rut = eval_record['input_data'].get('rut', 'Comercial')
         filename = f"Dictamen_Credito_Oficial_{rut}.pdf"

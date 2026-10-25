@@ -13,6 +13,21 @@
   var draftText = $("draftText");
   var toast = $("toast");
   var LAST_RESULT = null;
+  var CURRENT_EVAL_ID = null;
+  var CURRENT_MODE = "manual"; // 'manual' (gratuita) o 'automated' (documental de pago)
+  var urlParams = new URLSearchParams(window.location.search);
+  var urlCreditToken = urlParams.get("credit_token");
+  if (urlCreditToken) {
+    localStorage.setItem("creditob2b_active_token", urlCreditToken.trim());
+    // Limpiar inmediatamente el token de la URL visible para evitar fugas en historial, bookmarks o Referer
+    urlParams.delete("credit_token");
+    var cleanSearch = urlParams.toString();
+    var cleanUrl = window.location.pathname + (cleanSearch ? "?" + cleanSearch : "");
+    if (window.history && window.history.replaceState) {
+      window.history.replaceState(null, "", cleanUrl);
+    }
+  }
+  var ACTIVE_CREDIT_TOKEN = localStorage.getItem("creditob2b_active_token") || "";
   var saveTimer = null;
   var toastTimer = null;
   var STORAGE_KEY = "credit-eval-draft-v1";
@@ -845,6 +860,7 @@
       }).then(function(res) { return res.json(); })
         .then(function(data) {
           if (data.success) {
+            CURRENT_EVAL_ID = data.id;
             showToast("Evaluación guardada en base de datos (Expediente #" + data.id + ")");
           }
         }).catch(function() {});
@@ -1172,6 +1188,235 @@
     }
   });
 
+  // --- Lógica del Modelo Comercial Híbrido ---
+  function setCommercialMode(mode) {
+    CURRENT_MODE = mode;
+    var btnMan = $("btnModeManual");
+    var btnAut = $("btnModeAuto");
+    var stepDocs = $("stepDocsCard");
+    var noteMan = $("stepDocsManualNote");
+    var noteAut = $("stepDocsAutoNote");
+    var badgeDocs = $("stepDocsModeBadge");
+
+    if (mode === "manual") {
+      if (btnMan) {
+        btnMan.style.background = "var(--ac)";
+        btnMan.style.color = "#fff";
+      }
+      if (btnAut) {
+        btnAut.style.background = "transparent";
+        btnAut.style.color = "var(--tx)";
+      }
+      if (noteMan) noteMan.style.display = "block";
+      if (noteAut) noteAut.style.display = "none";
+      if (badgeDocs) {
+        badgeDocs.textContent = "Opcional en modo manual";
+        badgeDocs.style.background = "#e2e8f0";
+        badgeDocs.style.color = "#475569";
+      }
+      showToast("Modo activo: Evaluación Manual Gratuita");
+    } else {
+      if (btnAut) {
+        btnAut.style.background = "#10b981";
+        btnAut.style.color = "#fff";
+      }
+      if (btnMan) {
+        btnMan.style.background = "transparent";
+        btnMan.style.color = "var(--tx)";
+      }
+      if (noteMan) noteMan.style.display = "none";
+      if (noteAut) noteAut.style.display = "block";
+      if (badgeDocs) {
+        badgeDocs.textContent = "Recomendado: Adjunta tus PDFs";
+        badgeDocs.style.background = "#dcfce7";
+        badgeDocs.style.color = "#166534";
+      }
+      if (stepDocs) stepDocs.open = true;
+      showToast("Modo activo: Evaluación Documental Automatizada");
+    }
+  }
+
+  function downloadReportPdf(isForcePreliminary) {
+    if (!LAST_RESULT) return;
+    var useToken = isForcePreliminary ? "" : ACTIVE_CREDIT_TOKEN;
+    showToast(useToken ? "Generando Dictamen Oficial..." : "Generando informe...");
+    
+    fetch("/api/report-pdf", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        input: LAST_RESULT.input,
+        result: LAST_RESULT,
+        mode: CURRENT_MODE,
+        token: useToken,
+        order_id: useToken,
+        eval_id: CURRENT_EVAL_ID
+      })
+    })
+    .then(function(res) {
+      if (!res.ok) throw new Error("Error en servidor");
+      var repType = res.headers.get("X-Report-Type");
+      return res.blob().then(function(blob) { return { blob: blob, type: repType }; });
+    })
+    .then(function(data) {
+      var url = window.URL.createObjectURL(data.blob);
+      var a = document.createElement("a");
+      a.href = url;
+      var rut = (LAST_RESULT.input.rut || "Comercial");
+      a.download = (data.type === "official" ? "Dictamen_Credito_Oficial_" : "Dictamen_Preliminar_") + rut + ".pdf";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      if (data.type === "official") {
+        showToast("Dictamen Oficial descargado con éxito.");
+        refreshCreditStatus();
+      } else {
+        showToast("Copia preliminar descargada.");
+      }
+    })
+    .catch(function(err) {
+      showToast("No se pudo generar el PDF");
+    });
+  }
+
+  function handleExportPdfClick() {
+    if (!LAST_RESULT) return;
+    // Si ya cuenta con token de pago o crédito activo, descarga el dictamen oficial directamente
+    if (ACTIVE_CREDIT_TOKEN) {
+      downloadReportPdf(false);
+      return;
+    }
+    // Si está en modo manual gratuito y no tiene crédito, abre el modal de actualización comercial
+    var upModal = $("upgradeModal");
+    if (upModal) {
+      upModal.style.display = "flex";
+      upModal.classList.remove("hidden");
+    } else {
+      downloadReportPdf(true);
+    }
+  }
+
+  function refreshCreditStatus() {
+    if (!ACTIVE_CREDIT_TOKEN) {
+      var banner = $("creditStatusBanner");
+      if (banner) banner.style.display = "none";
+      return;
+    }
+    fetch("/api/payments/credit-status?token=" + encodeURIComponent(ACTIVE_CREDIT_TOKEN))
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (data.valid && data.creditos_restantes > 0) {
+          var banner = $("creditStatusBanner");
+          if (banner) {
+            banner.style.display = "block";
+            if ($("creditPlanName")) $("creditPlanName").textContent = data.plan_nombre || "Paquete de Informes";
+            if ($("creditAvailableCount")) $("creditAvailableCount").textContent = data.creditos_restantes;
+          }
+        } else {
+          var banner2 = $("creditStatusBanner");
+          if (banner2) banner2.style.display = "none";
+          if (data.valid && data.creditos_restantes === 0) {
+            showToast("Se han consumido todos los créditos asignados");
+            ACTIVE_CREDIT_TOKEN = "";
+            localStorage.removeItem("creditob2b_active_token");
+          }
+        }
+      })
+      .catch(function() {});
+  }
+
+  // Event Listeners de Modo Comercial y Modales
+  if ($("btnModeManual")) $("btnModeManual").addEventListener("click", function() { setCommercialMode("manual"); });
+  if ($("btnModeAuto")) $("btnModeAuto").addEventListener("click", function() { setCommercialMode("automated"); });
+
+  if ($("btnRedeemCredit")) $("btnRedeemCredit").addEventListener("click", function() {
+    var rModal = $("redeemModal");
+    if (rModal) {
+      rModal.style.display = "flex";
+      rModal.classList.remove("hidden");
+      setTimeout(function() { if ($("inputRedeemCode")) $("inputRedeemCode").focus(); }, 80);
+    }
+  });
+
+  if ($("btnCloseRedeemModal")) $("btnCloseRedeemModal").addEventListener("click", function() {
+    var rModal = $("redeemModal");
+    if (rModal) { rModal.style.display = "none"; rModal.classList.add("hidden"); }
+  });
+
+  if ($("btnCloseUpgradeModal")) $("btnCloseUpgradeModal").addEventListener("click", function() {
+    var upModal = $("upgradeModal");
+    if (upModal) { upModal.style.display = "none"; upModal.classList.add("hidden"); }
+  });
+
+  if ($("btnDownloadPreliminary")) $("btnDownloadPreliminary").addEventListener("click", function() {
+    var upModal = $("upgradeModal");
+    if (upModal) { upModal.style.display = "none"; upModal.classList.add("hidden"); }
+    downloadReportPdf(true);
+  });
+
+  if ($("btnHaveCodeLink")) $("btnHaveCodeLink").addEventListener("click", function() {
+    var upModal = $("upgradeModal");
+    if (upModal) { upModal.style.display = "none"; upModal.classList.add("hidden"); }
+    var rModal = $("redeemModal");
+    if (rModal) {
+      rModal.style.display = "flex";
+      rModal.classList.remove("hidden");
+      setTimeout(function() { if ($("inputRedeemCode")) $("inputRedeemCode").focus(); }, 80);
+    }
+  });
+
+  if ($("btnValidateRedeem")) $("btnValidateRedeem").addEventListener("click", function() {
+    var code = ($("inputRedeemCode") ? $("inputRedeemCode").value : "").trim();
+    if (!code) { showToast("Ingresa tu token de acceso secreto"); return; }
+    
+    var btn = $("btnValidateRedeem");
+    btn.disabled = true;
+    btn.textContent = "Verificando...";
+
+    fetch("/api/payments/credit-status?token=" + encodeURIComponent(code))
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        btn.disabled = false;
+        btn.textContent = "Verificar y Activar Créditos";
+        if (data.valid && data.creditos_restantes > 0) {
+          ACTIVE_CREDIT_TOKEN = code;
+          localStorage.setItem("creditob2b_active_token", code);
+          var rModal = $("redeemModal");
+          if (rModal) { rModal.style.display = "none"; rModal.classList.add("hidden"); }
+          showToast("¡Créditos activados! Dispones de " + data.creditos_restantes + " informe(s) oficial(es).");
+          refreshCreditStatus();
+        } else if (data.valid && data.creditos_restantes <= 0) {
+          showToast("Este token ya no tiene créditos disponibles.");
+        } else {
+          showToast(data.message || "Token de acceso no válido");
+        }
+      })
+      .catch(function() {
+        btn.disabled = false;
+        btn.textContent = "Verificar y Activar Créditos";
+        showToast("Error de conexión al validar token");
+      });
+  });
+
+  if ($("btnClearCreditToken")) $("btnClearCreditToken").addEventListener("click", function() {
+    ACTIVE_CREDIT_TOKEN = "";
+    localStorage.removeItem("creditob2b_active_token");
+    refreshCreditStatus();
+    showToast("Código de créditos desvinculado.");
+  });
+
+  // Reemplazar llamada directa de descarga de PDF por el gestor de modo comercial
+  results.removeEventListener("click", function() {}); // evitar duplicidad
+  results.addEventListener("click", function (event) {
+    var target = event.target.closest("[data-export-pdf]");
+    if (target) {
+      event.preventDefault();
+      event.stopPropagation();
+      handleExportPdfClick();
+    }
+  }, true);
+
   populateSelects();
   applySelectDefaults();
   bindFileLabels();
@@ -1179,4 +1424,5 @@
   updateMoneyHints();
   updateRutValidation();
   updateLiveMetrics();
+  refreshCreditStatus();
   })();

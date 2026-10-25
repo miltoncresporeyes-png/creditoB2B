@@ -41,10 +41,42 @@
 <main class="app">
   <section class="hero">
     <h1>Decide a quién vender a crédito, cuánto y a qué plazo</h1>
-    <p>Modelo para empresas medianas y grandes. Combina liquidez, flujo de caja, endeudamiento, comportamiento de pago y calidad de la información. El motor de scoring opera en tu navegador; los archivos PDF adjuntos y consultas RUT son procesados por el backend local de la aplicación para extraer datos tributarios y financieros, almacenando el expediente en la base de datos de auditoría.</p>
+    <p>Modelo para empresas medianas y grandes. Combina liquidez, flujo de caja, endeudamiento, comportamiento de pago y calidad de la información. Elige entre evaluación manual gratuita o evaluación automatizada mediante carga y extracción documental.</p>
+    
+    <!-- Selector de Modelo Comercial Híbrido -->
+    <div id="evalModeSelector" style="margin: 20px 0; background: var(--card); border: 2px solid var(--bd); border-radius: 14px; padding: 6px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; box-shadow: var(--shadow);">
+      <button type="button" id="btnModeManual" class="mode-tab active" style="padding: 12px 14px; border-radius: 10px; border: none; background: var(--ac); color: #fff; font-weight: 700; font-size: 14px; text-align: left; cursor: pointer; transition: all 0.2s ease;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span>✍️ Evaluación Manual</span>
+          <span style="font-size: 11px; background: rgba(255,255,255,0.25); padding: 2px 8px; border-radius: 20px;">Gratuita</span>
+        </div>
+        <small style="display:block; font-weight:400; opacity:0.9; font-size: 11.5px; margin-top: 3px;">Ingreso manual de cifras · Scoring preliminar en pantalla</small>
+      </button>
+
+      <button type="button" id="btnModeAuto" class="mode-tab" style="padding: 12px 14px; border-radius: 10px; border: none; background: transparent; color: var(--tx); font-weight: 700; font-size: 14px; text-align: left; cursor: pointer; transition: all 0.2s ease;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span>⚡ Automatizada con PDFs</span>
+          <span style="font-size: 11px; background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 20px;">Con Informe Oficial</span>
+        </div>
+        <small style="display:block; font-weight:400; color: var(--mut); font-size: 11.5px; margin-top: 3px;">Carpeta SII, CMF y e-RUT · Parser automático y dictamen formal</small>
+      </button>
+    </div>
+
+    <!-- Banner informativo de créditos disponibles o paquete activo -->
+    <div id="creditStatusBanner" class="notice" style="display:none; background: #f0fdf4; border-color: #86efac; color: #166534; margin-bottom: 14px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+        <div>
+          <strong>💼 Paquete de Informes Activo:</strong> <span id="creditPlanName">Pack 3</span> ·
+          <strong><span id="creditAvailableCount">3</span> informe(s) disponible(s)</strong>
+        </div>
+        <button type="button" id="btnClearCreditToken" class="btn ghost small" style="color:#166534; border-color:#86efac;">Cambiar código</button>
+      </div>
+    </div>
+
     <div class="hero-actions">
       <button id="btnExample" class="btn ghost small" type="button">Cargar ejemplo</button>
       <button id="btnReset" class="btn ghost small" type="button">Limpiar</button>
+      <button id="btnRedeemCredit" class="btn ghost small" type="button" style="margin-left:auto;">🔑 Tengo código / orden de pago</button>
     </div>
   </section>
 
@@ -143,17 +175,23 @@
       </div>
     </details>
 
-    <details class="card">
+    <details id="stepDocsCard" class="card">
       <summary>
         <span class="step">2</span>
         <div>
-          <strong>Documentos y antecedentes societarios</strong>
-          <small>Control de existencia, representación y expediente</small>
+          <strong style="display:flex;align-items:center;gap:6px;">
+            Documentos y antecedentes societarios
+            <span id="stepDocsModeBadge" style="font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:12px;background:#e2e8f0;color:#475569;">Opcional en modo manual</span>
+          </strong>
+          <small id="stepDocsDesc">Control de existencia, representación y expediente</small>
         </div>
       </summary>
       <div class="card-body">
-        <div class="inline-note" style="border-left: 4px solid #16a34a; background: #f0fdf4;">
-          <span style="color:#166534; font-weight:600;">⚡ Extracción Automática Activa: Al adjuntar tus archivos PDF (Carpeta Tributaria SII, e-RUT, Deudas CMF o Estatutos), el sistema extraerá automáticamente las ventas, deuda financiera, atrasos, representantes y datos societarios.</span>
+        <div id="stepDocsManualNote" class="inline-note" style="border-left: 4px solid var(--ac); background: var(--ac-soft); margin-bottom: 14px;">
+          <span>✍️ <strong>Modo Manual:</strong> Puedes ingresar los ratios y cifras directamente en los pasos 3 y 4 sin adjuntar archivos. Si deseas que el sistema lea y extraiga automáticamente los balances, ventas y deudas desde tus PDFs, activa el modo <strong>"⚡ Automatizada con PDFs"</strong> en la parte superior.</span>
+        </div>
+        <div id="stepDocsAutoNote" class="inline-note" style="display:none; border-left: 4px solid #16a34a; background: #f0fdf4; margin-bottom: 14px;">
+          <span style="color:#166534; font-weight:600;">⚡ Modo Automatizado Activo: Adjunta tus archivos PDF (Carpeta Tributaria SII con F29, Informe CMF o e-RUT). El sistema extraerá las cifras a la memoria volátil y prellenará el formulario marcando los campos extraídos.</span>
         </div>
         <!-- Barra de progreso para lectura y extracción de PDFs -->
         <div id="docProgressBox" class="task-progress-box hidden" style="margin-bottom: 14px;">
@@ -503,6 +541,68 @@
     <p>La Ley N.º 19.983, modificada por la Ley N.º 21.131, establece como regla general el pago de facturas dentro de 30 días corridos desde su recepción. Los plazos superiores requieren cumplir las condiciones legales, incluyendo acuerdo escrito e inscripción cuando proceda. La evaluación crediticia no sustituye la validación jurídica de la operación.</p>
 
     <p class="muted small">Los rangos y ponderaciones son ilustrativos y deben calibrarse con datos históricos de pago e impago. La herramienta no genera una probabilidad estadística de incumplimiento.</p>
+  </div>
+</div>
+
+<!-- Modal para Canjear Token Secreto de Compra -->
+<div id="redeemModal" class="modal-backdrop hidden" style="position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:999;display:none;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:var(--card);max-width:440px;width:100%;border-radius:16px;padding:28px 24px;border:1px solid var(--bd);box-shadow:var(--shadow);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <h3 style="margin:0;font-size:17px;font-weight:700;">🔑 Ingresar Token Secreto de Compra</h3>
+      <button type="button" id="btnCloseRedeemModal" class="btn ghost small" style="padding:4px 8px;">✕</button>
+    </div>
+    <p style="font-size:13px;color:var(--mut);line-height:1.5;margin-bottom:16px;">
+      Si adquiriste un <strong>Informe Individual</strong> o un <strong>Pack de Informes (3 o 10)</strong>, ingresa tu <strong>token secreto de acceso</strong> (entregado en tu comprobante de compra comercial) para habilitar tus créditos oficiales.
+    </p>
+    <div style="margin-bottom:16px;">
+      <label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px;">Token Secreto de Acceso (tok_...)</label>
+      <input type="text" id="inputRedeemCode" placeholder="Ej: tok_abcdef1234567890..." style="width:100%;padding:10px 12px;border:1px solid var(--bd);border-radius:8px;font-family:monospace;font-size:13px;">
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button type="button" id="btnValidateRedeem" class="btn primary" style="flex:1;">Verificar y Activar Créditos</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Paywall / Actualización a Modo Oficial -->
+<div id="upgradeModal" class="modal-backdrop hidden" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:999;display:none;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:var(--card);max-width:540px;width:100%;border-radius:18px;padding:32px 28px;border:1px solid var(--bd);box-shadow:var(--shadow);">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;">
+      <div>
+        <span style="font-size:11px;font-weight:700;color:var(--ac);text-transform:uppercase;letter-spacing:0.04em;">Modelo Comercial CréditoB2B</span>
+        <h2 style="margin:4px 0 0;font-size:20px;font-weight:800;">Dictamen Oficial Certificado</h2>
+      </div>
+      <button type="button" id="btnCloseUpgradeModal" class="btn ghost small" style="padding:4px 8px;">✕</button>
+    </div>
+    <p style="font-size:13.5px;color:var(--mut);line-height:1.5;margin-bottom:20px;">
+      Has evaluado en <strong>Modalidad Manual Gratuita</strong>. En pantalla tienes el resultado preliminar y scoring. Para descargar el <strong>Dictamen Formal en PDF con firmas, timbres del comité y sin marcas de agua preliminares</strong>, puedes adquirir un informe individual o paquete:
+    </p>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
+      <div style="border:1px solid var(--bd);border-radius:12px;padding:16px;text-align:center;background:var(--field);">
+        <div style="font-weight:700;font-size:14px;margin-bottom:4px;">1 Informe Individual</div>
+        <div style="font-size:20px;font-weight:800;color:var(--ac);">$9.990 <small style="font-size:12px;font-weight:500;">CLP</small></div>
+        <div style="font-size:11px;color:var(--mut);margin:6px 0 12px;">Descarga inmediata de este dictamen oficial</div>
+        <a href="/#precios" class="btn primary small" style="width:100%;text-decoration:none;display:inline-block;">Comprar Informe</a>
+      </div>
+
+      <div style="border:2px solid var(--ac);border-radius:12px;padding:16px;text-align:center;background:var(--ac-soft);position:relative;">
+        <span style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:var(--ac);color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;">Más Conveniente</span>
+        <div style="font-weight:700;font-size:14px;margin-bottom:4px;">Pack 3 Informes</div>
+        <div style="font-size:20px;font-weight:800;color:var(--ac);">$24.990 <small style="font-size:12px;font-weight:500;">CLP</small></div>
+        <div style="font-size:11px;color:var(--mut);margin:6px 0 12px;">$8.330 CLP por informe (17% de ahorro)</div>
+        <a href="/#precios" class="btn primary small" style="width:100%;text-decoration:none;display:inline-block;">Elegir Pack 3</a>
+      </div>
+    </div>
+
+    <div style="border-top:1px dashed var(--bd);padding-top:14px;display:flex;justify-content:space-between;align-items:center;">
+      <button type="button" id="btnDownloadPreliminary" class="btn ghost small" style="font-size:12px;">
+        📄 Descargar copia preliminar (con marca de agua)
+      </button>
+      <button type="button" id="btnHaveCodeLink" class="btn ghost small" style="color:var(--ac);font-size:12px;font-weight:600;">
+        Ya tengo un código de orden
+      </button>
+    </div>
   </div>
 </div>
 

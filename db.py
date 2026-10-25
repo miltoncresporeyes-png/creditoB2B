@@ -49,14 +49,24 @@ def init_db():
         token_acceso TEXT UNIQUE,
         proveedor TEXT DEFAULT 'SIMULATED_GATEWAY',
         billing_data TEXT,
+        creditos_totales INTEGER DEFAULT 1,
+        creditos_restantes INTEGER DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         paid_at TIMESTAMP,
         FOREIGN KEY (evaluacion_id) REFERENCES evaluaciones(id)
     );
     ''')
-    # Migración liviana para agregar billing_data si ya existe la tabla
+    # Migraciones livianas
     try:
         cur.execute("ALTER TABLE transacciones_pago ADD COLUMN billing_data TEXT;")
+    except Exception:
+        pass
+    try:
+        cur.execute("ALTER TABLE transacciones_pago ADD COLUMN creditos_totales INTEGER DEFAULT 1;")
+    except Exception:
+        pass
+    try:
+        cur.execute("ALTER TABLE transacciones_pago ADD COLUMN creditos_restantes INTEGER DEFAULT 1;")
     except Exception:
         pass
 
@@ -65,14 +75,14 @@ def init_db():
     conn.commit()
     conn.close()
 
-def create_payment_order(order_id, plan_tipo, monto, evaluacion_id=None, billing_data=None):
+def create_payment_order(order_id, plan_tipo, monto, evaluacion_id=None, billing_data=None, creditos=1):
     conn = get_db()
     cur = conn.cursor()
     b_json = json.dumps(billing_data or {}, ensure_ascii=False)
     cur.execute('''
-    INSERT INTO transacciones_pago (order_id, plan_tipo, monto, estado, evaluacion_id, billing_data)
-    VALUES (?, ?, ?, 'PENDING', ?, ?)
-    ''', (order_id, plan_tipo, monto, evaluacion_id, b_json))
+    INSERT INTO transacciones_pago (order_id, plan_tipo, monto, estado, evaluacion_id, billing_data, creditos_totales, creditos_restantes)
+    VALUES (?, ?, ?, 'PENDING', ?, ?, ?, ?)
+    ''', (order_id, plan_tipo, monto, evaluacion_id, b_json, creditos, creditos))
     conn.commit()
     conn.close()
     return order_id
@@ -142,6 +152,71 @@ def check_payment_access(token_acceso):
     row = cur.fetchone()
     conn.close()
     return dict(row) if row else None
+
+def get_order_by_token(token):
+    """Busca una orden aprobada exclusivamente mediante su token de acceso secreto."""
+    if not token:
+        return None
+    tok = str(token).strip()
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('''
+    SELECT * FROM transacciones_pago 
+    WHERE token_acceso = ? AND estado = "APPROVED"
+    ''', (tok,))
+    row = cur.fetchone()
+    conn.close()
+    if not row:
+        return None
+    d = dict(row)
+    try:
+        d['billing_data'] = json.loads(d.get('billing_data') or '{}')
+    except Exception:
+        d['billing_data'] = {}
+    return d
+
+def get_order_by_token_or_order_id(identifier):
+    """Búsqueda compatible que solo admite token_acceso válido para autorizaciones."""
+    return get_order_by_token(identifier)
+
+def consume_credit(token, eval_id=None):
+    """Consume 1 crédito de forma atómica e idempotente validando estrictamente el token_acceso.
+    Si la orden ya fue vinculada a este eval_id, no vuelve a descontar créditos por recargas."""
+    if not token:
+        return False, "Token de acceso requerido"
+    tok = str(token).strip()
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('''
+    SELECT * FROM transacciones_pago 
+    WHERE token_acceso = ? AND estado = "APPROVED"
+    ''', (tok,))
+    row = cur.fetchone()
+    if not row:
+        conn.close()
+        return False, "Token de acceso inválido o transacción no aprobada"
+    
+    row_dict = dict(row)
+    # Idempotencia: si ya evaluó este mismo eval_id, permitir acceso sin descontar crédito adicional
+    if eval_id and row_dict.get('evaluacion_id') == eval_id:
+        conn.close()
+        return True, "Acceso autorizado para este expediente"
+        
+    creditos = row_dict.get('creditos_restantes', 0)
+    if creditos <= 0:
+        conn.close()
+        return False, "No quedan créditos disponibles en este paquete"
+        
+    # Descontar crédito de forma atómica
+    cur.execute('''
+    UPDATE transacciones_pago
+    SET creditos_restantes = creditos_restantes - 1,
+        evaluacion_id = COALESCE(?, evaluacion_id)
+    WHERE id = ? AND creditos_restantes > 0
+    ''', (eval_id, row_dict['id']))
+    conn.commit()
+    conn.close()
+    return True, "Crédito consumido exitosamente"
 
 def save_evaluation(input_data, result_data):
     conn = get_db()
