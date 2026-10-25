@@ -1060,15 +1060,20 @@ def trigger_test_email():
         cfg = email_service.get_smtp_config()
 
         if sync:
-            # Ejecución síncrona para capturar inmediatamente cualquier error SMTP (auth, puerto, tls)
+            # Ejecución síncrona para capturar inmediatamente cualquier error (auth, payload, etc.)
             debug_result = email_service.send_purchase_confirmation_sync(fake_order, sample_pdf)
+            api_cfg = email_service.get_email_api_config()
+            raw_key = api_cfg.get('api_key', '')
+            masked_key = f"{raw_key[:5]}...{raw_key[-4:]}" if len(raw_key) > 9 else ("SET" if raw_key else "EMPTY")
             return jsonify({
                 'success': debug_result.get('success', False),
                 'sync_execution': True,
-                'smtp_configured': cfg['is_configured'],
-                'smtp_host': cfg['host'],
-                'smtp_port': cfg['port'],
-                'smtp_user': cfg['user'],
+                'mode': debug_result.get('mode'),
+                'api_configured': api_cfg['is_configured'],
+                'api_url': api_cfg['api_url'],
+                'api_from': api_cfg['from_email'],
+                'api_key_masked': masked_key,
+                'api_key_len': len(raw_key),
                 'logs': debug_result.get('logs', []),
                 'error': debug_result.get('error')
             })
