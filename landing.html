@@ -808,22 +808,23 @@
 
       <!-- Panel 2: Usuario de Prueba (Sandbox / Demo Inmediata) -->
       <div id="tabTestContent" style="display:none;">
-        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:14px;margin-bottom:1.25rem;">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-            <span style="font-size:18px;">⚡</span>
-            <strong style="font-size:0.9rem;color:#166534;">Modo Sandbox / Prueba Libre</strong>
+        <div style="background:var(--color-bg);border:1px solid var(--color-border);border-radius:12px;padding:16px;margin-bottom:1.25rem;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+            <span style="font-size:16px;opacity:0.75;">🧪</span>
+            <strong style="font-size:0.875rem;color:var(--color-primary);">Modo Evaluación Demostrativa</strong>
           </div>
-          <p style="font-size:0.825rem;color:#166534;margin:0;line-height:1.45;">
-            Accede inmediatamente al evaluador comercial con una sesión de demostración. Podrás realizar evaluaciones manuales gratuitas, simular scoring de riesgo y explorar el sistema sin requisitos comerciales.
+          <p style="font-size:0.8rem;color:var(--color-text-muted);margin:0;line-height:1.5;">
+            Acceso libre de prueba para simular análisis financiero, cálculo de límites y explorar las funcionalidades del sistema sin requerir credenciales comerciales.
           </p>
         </div>
 
-        <button type="button" onclick="loginAsTestUser()" class="btn" style="width:100%;padding:0.85rem;background:linear-gradient(135deg, #059669, #10b981);color:#ffffff;font-size:0.95rem;font-weight:700;border:none;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 12px rgba(16,185,129,0.25);">
-          🚀 Ingresar como Usuario de Prueba (Test Demo)
+        <button type="button" onclick="loginAsTestUser()" class="btn" style="width:100%;padding:0.85rem;background:#0f172a;color:#ffffff;font-size:0.925rem;font-weight:700;border:none;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity 0.15s ease;">
+          <span>Ingresar en modo de prueba</span>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
 
-        <p style="font-size:0.75rem;color:#94a3b8;margin-top:1rem;text-align:center;">
-          * En modo de prueba los dictámenes generados son preliminares y no consumen créditos oficiales.
+        <p style="font-size:0.725rem;color:#94a3b8;margin-top:0.85rem;text-align:center;line-height:1.4;">
+          Sesión de prueba preliminar · No descuenta créditos oficiales
         </p>
       </div>
 
@@ -904,7 +905,7 @@
         }, 50);
       } else {
         btnTest.style.background = '#ffffff';
-        btnTest.style.color = '#059669';
+        btnTest.style.color = '#0a2540';
         btnTest.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
         btnReg.style.background = 'transparent';
         btnReg.style.color = '#64748b';
@@ -922,7 +923,12 @@
         const inp = document.getElementById('userEmail');
         if (inp) {
           const savedEmail = localStorage.getItem('creditob2b_user_email');
-          if (savedEmail && !savedEmail.includes('demo.test')) inp.value = savedEmail;
+          // No mostrar correos de prueba, invitados o sandbox en el input
+          if (savedEmail && !savedEmail.includes('demo') && !savedEmail.includes('invitado') && !savedEmail.includes('test')) {
+            inp.value = savedEmail;
+          } else {
+            inp.value = '';
+          }
           inp.focus();
         }
       }, 50);

@@ -3,13 +3,31 @@ import json
 import sqlite3
 from datetime import datetime
 
-# Conector compatible PostgreSQL / SQLite fallback para consistencia ACID
+# Conector con soporte dual PostgreSQL (DATABASE_URL) y fallback SQLite
 DB_PATH = os.path.join(os.path.dirname(__file__), 'credit_evaluations.db')
+DATABASE_URL = os.environ.get('DATABASE_URL')
 
 def get_db():
+    if DATABASE_URL and (DATABASE_URL.startswith('postgres://') or DATABASE_URL.startswith('postgresql://')):
+        try:
+            import psycopg2
+            from psycopg2.extras import RealDictCursor
+            # Adaptar prefijo antiguo de postgres:// a postgresql:// si es necesario
+            pg_url = DATABASE_URL
+            if pg_url.startswith('postgres://'):
+                pg_url = pg_url.replace('postgres://', 'postgresql://', 1)
+            conn = psycopg2.connect(pg_url, cursor_factory=RealDictCursor)
+            conn.autocommit = False
+            return conn
+        except Exception:
+            pass
+    # Fallback SQLite local
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
+def is_postgres(conn):
+    return hasattr(conn, 'pgconn') or 'psycopg2' in str(type(conn))
 
 def init_db():
     conn = get_db()
