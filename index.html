@@ -564,19 +564,22 @@
   </div>
 </div>
 
-<!-- Modal para Canjear Token Secreto de Compra -->
+<!-- Modal para Canjear Clave / Password de Compra -->
 <div id="redeemModal" class="modal-backdrop hidden" style="position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:999;display:none;align-items:center;justify-content:center;padding:16px;">
   <div style="background:var(--card);max-width:440px;width:100%;border-radius:16px;padding:28px 24px;border:1px solid var(--bd);box-shadow:var(--shadow);">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-      <h3 style="margin:0;font-size:17px;font-weight:700;">🔑 Ingresar Token Secreto de Compra</h3>
+      <h3 style="margin:0;font-size:17px;font-weight:700;">🔑 Ingresar Clave de Acceso / Créditos</h3>
       <button type="button" id="btnCloseRedeemModal" class="btn ghost small" style="padding:4px 8px;">✕</button>
     </div>
     <p style="font-size:13px;color:var(--mut);line-height:1.5;margin-bottom:16px;">
-      Si adquiriste un <strong>Informe Individual</strong> o un <strong>Pack de Informes (3 o 10)</strong>, ingresa tu <strong>token secreto de acceso</strong> (entregado en tu comprobante de compra comercial) para habilitar tus créditos oficiales.
+      Si adquiriste un <strong>Informe Individual</strong> o un <strong>Pack de Informes (3 o 10)</strong>, ingresa tu <strong>clave o contraseña de acceso</strong> (entregada en tu comprobante de compra) para activar tus créditos.
     </p>
     <div style="margin-bottom:16px;">
-      <label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px;">Token Secreto de Acceso (tok_...)</label>
-      <input type="text" id="inputRedeemCode" placeholder="Ej: tok_abcdef1234567890..." style="width:100%;padding:10px 12px;border:1px solid var(--bd);border-radius:8px;font-family:monospace;font-size:13px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <label style="font-size:12px;font-weight:600;">Clave o Password de Acceso</label>
+        <a href="https://wa.me/56983414730?text=Hola,%20olvid%C3%A9%20mi%20clave%20de%20cr%C3%A9ditos%20en%20Cr%C3%A9ditoB2B" target="_blank" rel="noopener noreferrer" style="font-size:11px;color:var(--ac);text-decoration:underline;">¿Olvidaste tu clave?</a>
+      </div>
+      <input type="text" id="inputRedeemCode" placeholder="Ej: Ingresa tu clave o tok_..." style="width:100%;padding:10px 12px;border:1px solid var(--bd);border-radius:8px;font-family:monospace;font-size:13px;">
     </div>
     <div style="display:flex;gap:8px;">
       <button type="button" id="btnValidateRedeem" class="btn primary" style="flex:1;">Verificar y Activar Créditos</button>
