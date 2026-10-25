@@ -1028,5 +1028,50 @@ def export_paid_report():
     except Exception as e:
         return jsonify({'error': f'Error al generar dictamen PDF: {str(e)}'}), 500
 
+@app.route('/api/test-email', methods=['GET', 'POST'])
+def trigger_test_email():
+    """Endpoint de diagnóstico para emitir correos de prueba reales hacia cliente y administración."""
+    client_email = request.args.get('client_email', 'pedropablomeromero@gmail.com').strip()
+    admin_email = request.args.get('admin_email', 'contacto@creditob2b.cl').strip()
+
+    fake_order = {
+        'order_id': f'TEST-{int(time.time())}',
+        'plan_tipo': 'pack_3',
+        'monto': 24990,
+        'creditos_totales': 3,
+        'creditos_restantes': 3,
+        'token_acceso': f'tok_test_{secrets.token_urlsafe(16)}',
+        'billing_data': {
+            'nombre': 'Pedro Pablo Romero',
+            'razon_social': 'Comercializadora Pedro Romero SpA',
+            'rut': '76.123.456-7',
+            'giro': 'Distribución & Servicios Comerciales',
+            'direccion': 'Santiago, Chile',
+            'email': client_email
+        }
+    }
+
+    # Temporalmente configurar ADMIN_NOTIFICATION_EMAIL si se especifica
+    if admin_email:
+        os.environ['ADMIN_NOTIFICATION_EMAIL'] = admin_email
+
+    try:
+        # Generar comprobante PDF de prueba para adjuntarlo
+        sample_pdf = invoice_generator.generate_invoice_pdf(fake_order, fake_order['billing_data'])
+        ok = email_service.send_purchase_confirmation_email(fake_order, sample_pdf)
+        cfg = email_service.get_smtp_config()
+        return jsonify({
+            'success': True,
+            'message': 'Prueba de correo iniciada en segundo plano.',
+            'smtp_configured': cfg['is_configured'],
+            'smtp_host': cfg['host'],
+            'smtp_user': cfg['user'],
+            'enviado_a_cliente': client_email,
+            'enviado_a_admin': admin_email,
+            'nota': 'Si las variables SMTP no están configuradas en .env o Railway, el servicio registrará la simulación sin error.'
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000, debug=False)

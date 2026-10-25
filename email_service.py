@@ -30,118 +30,38 @@ def get_smtp_config():
 
 def send_purchase_confirmation_email(order_record, pdf_bytes=None):
     """
-    Despacha en un hilo secundario (sin bloquear la respuesta HTTP) el correo de
-    confirmación con token/clave de acceso y comprobante PDF adjunto.
+    Despacha en un hilo secundario:
+    1. Notificación al cliente comprador con su clave y comprobante PDF.
+    2. Notificación interna al equipo/administrador (contacto@creditob2b.cl) avisando nueva suscripción/compra.
     """
     cfg = get_smtp_config()
     if not cfg['is_configured']:
-        print("[SMTP Info] SMTP_HOST, SMTP_USER o SMTP_PASSWORD no configurados. Se omite envío de correo automático.")
+        print("[SMTP Info] SMTP no configurado en variables de entorno. Se omite envío de correo.")
         return False
 
     billing = order_record.get('billing_data', {}) or {}
     recipient_email = billing.get('email') or billing.get('correo') or ''
     recipient_email = recipient_email.strip()
     
-    if not recipient_email or '@' not in recipient_email:
-        print(f"[SMTP Warning] Orden {order_record.get('order_id')} no posee un correo electrónico válido para notificación.")
-        return False
+    admin_email = os.environ.get('ADMIN_NOTIFICATION_EMAIL', 'contacto@creditob2b.cl').strip()
 
     def _worker():
+        order_id = order_record.get('order_id', '')
+        token_acceso = order_record.get('token_acceso', '')
+        plan_tipo = order_record.get('plan_tipo', 'pack_3')
+        creditos_totales = order_record.get('creditos_totales', 1)
+        monto = int(order_record.get('monto', 0))
+        monto_fmt = f"${monto:,}".replace(',', '.')
+        receptor_nombre = billing.get('razon_social') or billing.get('nombre') or 'Cliente'
+        receptor_rut = billing.get('rut') or 'N/A'
+        receptor_giro = billing.get('giro') or 'No especificado'
+        receptor_direccion = billing.get('direccion') or 'No especificada'
+        base_url = os.environ.get('BASE_PUBLIC_URL', 'https://creditob2b-production.up.railway.app').rstrip('/')
+        app_access_url = f"{base_url}/app?credit_token={token_acceso}" if token_acceso else f"{base_url}/app"
+
+        # Conexión SMTP compartida para ambos envíos
+        server = None
         try:
-            order_id = order_record.get('order_id', '')
-            token_acceso = order_record.get('token_acceso', '')
-            plan_tipo = order_record.get('plan_tipo', 'pack_3')
-            creditos_totales = order_record.get('creditos_totales', 1)
-            monto = int(order_record.get('monto', 0))
-            monto_fmt = f"${monto:,}".replace(',', '.')
-            receptor_nombre = billing.get('razon_social') or billing.get('nombre') or 'Cliente'
-            base_url = os.environ.get('BASE_PUBLIC_URL', 'https://creditob2b-production.up.railway.app').rstrip('/')
-            app_access_url = f"{base_url}/app?credit_token={token_acceso}" if token_acceso else f"{base_url}/app"
-
-            msg = MIMEMultipart('mixed')
-            msg['Subject'] = f"Confirmación de Compra y Clave de Acceso - Orden {order_id}"
-            msg['From'] = f"{cfg['from_name']} <{cfg['user']}>"
-            msg['To'] = recipient_email
-
-            html_content = f"""
-            <!DOCTYPE html>
-            <html lang="es">
-            <head>
-              <meta charset="utf-8">
-              <style>
-                body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #1e293b; margin: 0; padding: 24px; }}
-                .card {{ max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 14px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 14px rgba(0,0,0,0.06); }}
-                .header {{ background: linear-gradient(135deg, #0a2540 0%, #0284c7 100%); color: #ffffff; padding: 24px 28px; text-align: left; }}
-                .header h1 {{ margin: 0; font-size: 20px; font-weight: 800; }}
-                .header p {{ margin: 4px 0 0; font-size: 13px; color: #bae6fd; }}
-                .content {{ padding: 28px; line-height: 1.6; font-size: 14px; }}
-                .token-box {{ background: #f0fdf4; border: 1px solid #86efac; border-radius: 10px; padding: 18px; margin: 20px 0; text-align: center; }}
-                .token-title {{ font-size: 12px; font-weight: 700; text-transform: uppercase; color: #166534; letter-spacing: 0.05em; }}
-                .token-code {{ font-family: monospace, Courier; font-size: 16px; font-weight: 800; color: #0f172a; background: #ffffff; padding: 8px 14px; border-radius: 6px; border: 1px dashed #22c55e; display: inline-block; margin-top: 6px; word-break: break-all; }}
-                .btn {{ display: inline-block; background: #0066cc; color: #ffffff !important; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 700; font-size: 14px; margin-top: 14px; text-align: center; }}
-                .footer {{ background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px 28px; font-size: 11px; color: #64748b; text-align: center; }}
-                table {{ width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }}
-                td {{ padding: 6px 0; border-bottom: 1px solid #f1f5f9; }}
-                td.label {{ color: #64748b; font-weight: 600; width: 40%; }}
-                td.val {{ color: #0f172a; font-weight: 700; text-align: right; }}
-              </style>
-            </head>
-            <body>
-              <div class="card">
-                <div class="header">
-                  <h1>CréditoB2B Chile</h1>
-                  <p>Evaluación de Capacidad & Riesgo Comercial · Ley 19.983</p>
-                </div>
-                <div class="content">
-                  <p>Estimado(a) <strong>{receptor_nombre}</strong>,</p>
-                  <p>Confirmamos la recepción exitosa de tu pago por el servicio de evaluación crediticia comercial. Tu cuenta cuenta con <strong>{creditos_totales} crédito(s)</strong> disponibles.</p>
-                  
-                  <table>
-                    <tr>
-                      <td class="label">N° de Orden:</td>
-                      <td class="val">{order_id}</td>
-                    </tr>
-                    <tr>
-                      <td class="label">Paquete Contratado:</td>
-                      <td class="val">{plan_tipo.upper()} ({creditos_totales} Informes)</td>
-                    </tr>
-                    <tr>
-                      <td class="label">Total Pagado:</td>
-                      <td class="val">{monto_fmt} CLP</td>
-                    </tr>
-                  </table>
-
-                  <div class="token-box">
-                    <div class="token-title">Tu Clave Secreta de Acceso</div>
-                    <div class="token-code">{token_acceso}</div>
-                    <p style="font-size: 11px; color: #15803d; margin: 8px 0 0;">Guarda esta clave para ingresar a la plataforma o consultar tus créditos.</p>
-                  </div>
-
-                  <div style="text-align: center;">
-                    <a href="{app_access_url}" class="btn">🚀 Ingresar directamente a la Plataforma</a>
-                  </div>
-
-                  <p style="margin-top: 24px; font-size: 12.5px; color: #64748b;">
-                    Se adjunta a este correo tu <strong>Comprobante de Compra y Pago Comercial en formato PDF</strong>. Si requieres factura formal con DTE del SII, nuestro equipo emitirá el documento con los datos tributarios informados.
-                  </p>
-                </div>
-                <div class="footer">
-                  © 2026 CréditoB2B Chile. Plataforma técnica de apoyo a la gestión de riesgo.<br/>
-                  Soporte comercial: contacto@creditob2b.cl | WhatsApp: +56 9 8341 4730
-                </div>
-              </div>
-            </body>
-            </html>
-            """
-            msg.attach(MIMEText(html_content, 'html', 'utf-8'))
-
-            # Adjuntar comprobante PDF si está disponible
-            if pdf_bytes:
-                part = MIMEApplication(pdf_bytes, _subtype="pdf")
-                part.add_header('Content-Disposition', 'attachment', filename=f"Comprobante_Pago_{order_id}.pdf")
-                msg.attach(part)
-
-            # Conexión SMTP
             if cfg['port'] == 465:
                 server = smtplib.SMTP_SSL(cfg['host'], cfg['port'], timeout=15)
             else:
@@ -149,12 +69,164 @@ def send_purchase_confirmation_email(order_record, pdf_bytes=None):
                 server.starttls()
 
             server.login(cfg['user'], cfg['password'])
-            server.sendmail(cfg['user'], [recipient_email], msg.as_string())
-            server.quit()
-            print(f"[SMTP Success] Correo de confirmación y comprobante enviado exitosamente a {recipient_email} para orden {order_id}")
-        except Exception as e:
-            print(f"[SMTP Error] Falló el despacho de correo para la orden {order_record.get('order_id')}: {str(e)}")
 
-    # Ejecutar en segundo plano para no demorar el webhook ni el redirect de usuario
+            # 1. Enviar correo al cliente (si tiene email válido)
+            if recipient_email and '@' in recipient_email:
+                try:
+                    msg_user = MIMEMultipart('mixed')
+                    msg_user['Subject'] = f"Confirmación de Compra y Clave de Acceso - Orden {order_id}"
+                    msg_user['From'] = f"{cfg['from_name']} <{cfg['user']}>"
+                    msg_user['To'] = recipient_email
+
+                    html_user = f"""
+                    <!DOCTYPE html>
+                    <html lang="es">
+                    <head>
+                      <meta charset="utf-8">
+                      <style>
+                        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f8fafc; color: #1e293b; margin: 0; padding: 24px; }}
+                        .card {{ max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 14px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 14px rgba(0,0,0,0.06); }}
+                        .header {{ background: linear-gradient(135deg, #0a2540 0%, #0284c7 100%); color: #ffffff; padding: 24px 28px; text-align: left; }}
+                        .header h1 {{ margin: 0; font-size: 20px; font-weight: 800; }}
+                        .header p {{ margin: 4px 0 0; font-size: 13px; color: #bae6fd; }}
+                        .content {{ padding: 28px; line-height: 1.6; font-size: 14px; }}
+                        .token-box {{ background: #f0fdf4; border: 1px solid #86efac; border-radius: 10px; padding: 18px; margin: 20px 0; text-align: center; }}
+                        .token-title {{ font-size: 12px; font-weight: 700; text-transform: uppercase; color: #166534; letter-spacing: 0.05em; }}
+                        .token-code {{ font-family: monospace, Courier; font-size: 16px; font-weight: 800; color: #0f172a; background: #ffffff; padding: 8px 14px; border-radius: 6px; border: 1px dashed #22c55e; display: inline-block; margin-top: 6px; word-break: break-all; }}
+                        .btn {{ display: inline-block; background: #0066cc; color: #ffffff !important; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 700; font-size: 14px; margin-top: 14px; text-align: center; }}
+                        .footer {{ background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 16px 28px; font-size: 11px; color: #64748b; text-align: center; }}
+                        table {{ width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }}
+                        td {{ padding: 6px 0; border-bottom: 1px solid #f1f5f9; }}
+                        td.label {{ color: #64748b; font-weight: 600; width: 40%; }}
+                        td.val {{ color: #0f172a; font-weight: 700; text-align: right; }}
+                      </style>
+                    </head>
+                    <body>
+                      <div class="card">
+                        <div class="header">
+                          <h1>CréditoB2B Chile</h1>
+                          <p>Evaluación de Capacidad & Riesgo Comercial · Ley 19.983</p>
+                        </div>
+                        <div class="content">
+                          <p>Estimado(a) <strong>{receptor_nombre}</strong>,</p>
+                          <p>Confirmamos la recepción exitosa de tu pago por el servicio de evaluación crediticia comercial. Tu cuenta cuenta con <strong>{creditos_totales} crédito(s)</strong> disponibles.</p>
+                          
+                          <table>
+                            <tr>
+                              <td class="label">N° de Orden:</td>
+                              <td class="val">{order_id}</td>
+                            </tr>
+                            <tr>
+                              <td class="label">Paquete Contratado:</td>
+                              <td class="val">{plan_tipo.upper()} ({creditos_totales} Informes)</td>
+                            </tr>
+                            <tr>
+                              <td class="label">Total Pagado:</td>
+                              <td class="val">{monto_fmt} CLP</td>
+                            </tr>
+                          </table>
+
+                          <div class="token-box">
+                            <div class="token-title">Tu Clave Secreta de Acceso</div>
+                            <div class="token-code">{token_acceso}</div>
+                            <p style="font-size: 11px; color: #15803d; margin: 8px 0 0;">Guarda esta clave para ingresar a la plataforma o consultar tus créditos.</p>
+                          </div>
+
+                          <div style="text-align: center;">
+                            <a href="{app_access_url}" class="btn">🚀 Ingresar directamente a la Plataforma</a>
+                          </div>
+
+                          <p style="margin-top: 24px; font-size: 12.5px; color: #64748b;">
+                            Se adjunta a este correo tu <strong>Comprobante de Compra y Pago Comercial en formato PDF</strong>. Si requieres factura formal con DTE del SII, nuestro equipo emitirá el documento con los datos tributarios informados.
+                          </p>
+                        </div>
+                        <div class="footer">
+                          © 2026 CréditoB2B Chile. Plataforma técnica de apoyo a la gestión de riesgo.<br/>
+                          Soporte comercial: contacto@creditob2b.cl | WhatsApp: +56 9 8341 4730
+                        </div>
+                      </div>
+                    </body>
+                    </html>
+                    """
+                    msg_user.attach(MIMEText(html_user, 'html', 'utf-8'))
+
+                    if pdf_bytes:
+                        part = MIMEApplication(pdf_bytes, _subtype="pdf")
+                        part.add_header('Content-Disposition', 'attachment', filename=f"Comprobante_Pago_{order_id}.pdf")
+                        msg_user.attach(part)
+
+                    server.sendmail(cfg['user'], [recipient_email], msg_user.as_string())
+                    print(f"[SMTP Success] Notificación enviada al cliente {recipient_email} para orden {order_id}")
+                except Exception as user_err:
+                    print(f"[SMTP Error] Falló envío al cliente {recipient_email}: {str(user_err)}")
+
+            # 2. Enviar notificación interna a administración (contacto@creditob2b.cl)
+            if admin_email and '@' in admin_email:
+                try:
+                    msg_admin = MIMEMultipart('mixed')
+                    msg_admin['Subject'] = f"🔔 [Nueva Suscripción/Compra] {receptor_nombre} - Orden {order_id} ({monto_fmt} CLP)"
+                    msg_admin['From'] = f"{cfg['from_name']} <{cfg['user']}>"
+                    msg_admin['To'] = admin_email
+
+                    html_admin = f"""
+                    <!DOCTYPE html>
+                    <html lang="es">
+                    <head>
+                      <meta charset="utf-8">
+                      <style>
+                        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f1f5f9; color: #0f172a; padding: 20px; }}
+                        .box {{ max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; border: 1px solid #cbd5e1; padding: 24px; }}
+                        h2 {{ margin-top: 0; color: #0b3d91; font-size: 18px; }}
+                        table {{ width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13px; }}
+                        td {{ padding: 8px 10px; border-bottom: 1px solid #e2e8f0; }}
+                        td.lbl {{ font-weight: 700; color: #475569; width: 35%; }}
+                        td.txt {{ color: #0f172a; }}
+                      </style>
+                    </head>
+                    <body>
+                      <div class="box">
+                        <h2>🎉 Nueva Compra Aprobada en CréditoB2B</h2>
+                        <p style="font-size: 13px; color: #334155;">Se ha registrado y validado una nueva suscripción/compra de paquetes de informes:</p>
+                        <table>
+                          <tr><td class="lbl">N° Orden</td><td class="txt"><strong>{order_id}</strong></td></tr>
+                          <tr><td class="lbl">Plan</td><td class="txt">{plan_tipo.upper()} ({creditos_totales} informes)</td></tr>
+                          <tr><td class="lbl">Monto Pagado</td><td class="txt"><strong>{monto_fmt} CLP</strong></td></tr>
+                          <tr><td class="lbl">Cliente / Razón Social</td><td class="txt"><strong>{receptor_nombre}</strong></td></tr>
+                          <tr><td class="lbl">RUT Comprador</td><td class="txt">{receptor_rut}</td></tr>
+                          <tr><td class="lbl">Giro</td><td class="txt">{receptor_giro}</td></tr>
+                          <tr><td class="lbl">Dirección</td><td class="txt">{receptor_direccion}</td></tr>
+                          <tr><td class="lbl">Email Comprador</td><td class="txt"><a href="mailto:{recipient_email}">{recipient_email}</a></td></tr>
+                          <tr><td class="lbl">Token Asignado</td><td class="txt"><code>{token_acceso}</code></td></tr>
+                        </table>
+                        <p style="font-size: 12px; color: #64748b; margin-top: 18px;">
+                          Se adjunta el Comprobante Comercial PDF para respaldo administrativo.
+                        </p>
+                      </div>
+                    </body>
+                    </html>
+                    """
+                    msg_admin.attach(MIMEText(html_admin, 'html', 'utf-8'))
+
+                    if pdf_bytes:
+                        part_admin = MIMEApplication(pdf_bytes, _subtype="pdf")
+                        part_admin.add_header('Content-Disposition', 'attachment', filename=f"Comprobante_Pago_{order_id}.pdf")
+                        msg_admin.attach(part_admin)
+
+                    server.sendmail(cfg['user'], [admin_email], msg_admin.as_string())
+                    print(f"[SMTP Success] Notificación administrativa enviada a {admin_email} para orden {order_id}")
+                except Exception as admin_err:
+                    print(f"[SMTP Error] Falló envío a administración {admin_email}: {str(admin_err)}")
+
+        except Exception as e:
+            print(f"[SMTP Error] Falló conexión con servidor SMTP: {str(e)}")
+        finally:
+            if server:
+                try:
+                    server.quit()
+                except Exception:
+                    pass
+
+    # Ejecutar en segundo plano
     threading.Thread(target=_worker, daemon=True).start()
     return True
+
