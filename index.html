@@ -652,5 +652,60 @@
     }
   })();
 </script>
+
+<!-- Asistente Virtual Flotante WhatsApp en la Aplicación -->
+<div id="waAssistantApp" style="position:fixed;bottom:20px;right:20px;z-index:9999;font-family:inherit;">
+  <div id="waChatBoxApp" style="display:none;position:absolute;bottom:62px;right:0;width:310px;background:#ffffff;border-radius:14px;box-shadow:0 18px 36px -8px rgba(15,23,42,0.3), 0 0 0 1px rgba(15,23,42,0.08);overflow:hidden;flex-direction:column;">
+    <div style="background:linear-gradient(135deg, #075e54, #128c7e);color:#ffffff;padding:12px 14px;display:flex;align-items:center;gap:10px;">
+      <div style="width:32px;height:32px;background:rgba(255,255,255,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;position:relative;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
+        <span style="position:absolute;bottom:0;right:0;width:8px;height:8px;background:#4ade80;border-radius:50%;border:2px solid #075e54;"></span>
+      </div>
+      <div style="flex:1;">
+        <strong style="display:block;font-size:13px;color:#ffffff;line-height:1.2;">Asistente Técnico</strong>
+        <small style="font-size:11px;color:#bbf7d0;">CréditoB2B · En línea</small>
+      </div>
+      <button type="button" onclick="document.getElementById('waChatBoxApp').style.display='none'" style="background:none;border:none;color:#ffffff;font-size:20px;cursor:pointer;line-height:1;">&times;</button>
+    </div>
+    <div style="padding:14px;background:#f8fafc;font-size:12px;color:#1e293b;">
+      <p style="margin:0 0 8px 0;background:#ffffff;padding:10px;border-radius:10px;border:1px solid #e2e8f0;line-height:1.4;">
+        👋 ¿Necesitas ayuda analizando los estados financieros, interpretando el dictamen o requieres más créditos para informes?
+      </p>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <button type="button" onclick="sendWaApp('Tengo dudas con el resultado de una evaluación de crédito')" style="text-align:left;background:#ffffff;border:1px solid #cbd5e1;padding:6px 10px;border-radius:6px;font-size:11px;cursor:pointer;">
+          🔍 Ayuda con mi evaluación
+        </button>
+        <button type="button" onclick="sendWaApp('Necesito comprar más créditos para informes oficiales')" style="text-align:left;background:#ffffff;border:1px solid #cbd5e1;padding:6px 10px;border-radius:6px;font-size:11px;cursor:pointer;">
+          💳 Comprar más créditos
+        </button>
+      </div>
+      <div style="margin-top:8px;font-size:11px;color:#64748b;text-align:center;">
+        Correo: <a href="mailto:contacto@creditob2b.cl" style="color:#0284c7;font-weight:600;">contacto@creditob2b.cl</a>
+      </div>
+    </div>
+    <div style="padding:10px 14px;background:#ffffff;border-top:1px solid #e2e8f0;">
+      <a href="https://wa.me/56983414730?text=Hola,%20necesito%20asistencia%20en%20el%20evaluador%20de%20Cr%C3%A9ditoB2B" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;justify-content:center;gap:6px;background:#25d366;color:#ffffff;text-decoration:none;padding:8px 12px;border-radius:8px;font-size:12px;font-weight:700;">
+        💬 Contactar por WhatsApp
+      </a>
+    </div>
+  </div>
+
+  <button type="button" onclick="var b=document.getElementById('waChatBoxApp');b.style.display=(b.style.display==='flex'?'none':'flex')" style="display:flex;align-items:center;gap:8px;background:linear-gradient(135deg, #25d366, #128c7e);color:#ffffff;border:none;border-radius:999px;padding:9px 15px 9px 12px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 8px 20px -4px rgba(18,140,126,0.45);">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.669-.699c.969.54 1.771.82 2.791.82 3.182 0 5.768-2.587 5.768-5.766.001-3.182-2.585-5.766-5.768-5.766zm9.969 5.766c0 5.503-4.477 9.97-9.97 9.97-1.748 0-3.385-.45-4.821-1.238l-5.209 1.366 1.391-5.082c-.878-1.492-1.391-3.232-1.391-5.016 0-5.504 4.477-9.97 9.97-9.97 5.503 0 10.03 4.466 10.03 9.97z"/>
+    </svg>
+    <span>Asistente WhatsApp</span>
+  </button>
+</div>
+
+<script>
+  function sendWaApp(msg) {
+    const phone = "56983414730";
+    const url = "https://wa.me/" + phone + "?text=" + encodeURIComponent("Hola, estoy en el evaluador CréditoB2B. " + msg);
+    window.open(url, "_blank");
+  }
+</script>
 </body>
 </html>

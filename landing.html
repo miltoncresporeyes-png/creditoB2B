@@ -463,7 +463,18 @@
         <p class="section-desc">Estamos a tu disposición para consultas técnicas, ventas corporativas de paquetes de informes o soporte en la plataforma.</p>
       </div>
 
-      <div class="grid-3">
+      <div class="grid-3" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));">
+        <div class="card" style="text-align: center;">
+          <div class="card-icon" style="margin: 0 auto 1rem;">💬</div>
+          <h4 class="card-title">Asistente WhatsApp</h4>
+          <p class="card-text">
+            <a href="https://wa.me/56983414730?text=Hola,%20necesito%20asistencia%20con%20la%20plataforma%20Cr%C3%A9ditoB2B" target="_blank" rel="noopener noreferrer" style="color: #25d366; text-decoration: none; font-weight: 700;">
+              +56 9 8341 4730
+            </a>
+          </p>
+          <p style="font-size: 0.825rem; color: var(--color-text-muted); margin-top: 0.5rem;">Atención y orientación comercial inmediata</p>
+        </div>
+
         <div class="card" style="text-align: center;">
           <div class="card-icon" style="margin: 0 auto 1rem;">✉️</div>
           <h4 class="card-title">Correo Corporativo</h4>
@@ -472,17 +483,17 @@
         </div>
 
         <div class="card" style="text-align: center;">
-          <div class="card-icon" style="margin: 0 auto 1rem;">📍</div>
-          <h4 class="card-title">Ubicación</h4>
-          <p class="card-text">Santiago, Chile</p>
-          <p style="font-size: 0.825rem; color: var(--color-text-muted); margin-top: 0.5rem;">Cobertura técnica y normativa para todo el territorio nacional</p>
-        </div>
-
-        <div class="card" style="text-align: center;">
           <div class="card-icon" style="margin: 0 auto 1rem;">💼</div>
           <h4 class="card-title">Empresas & Facturación</h4>
           <p class="card-text"><a href="mailto:facturacion@creditob2b.cl" style="color: var(--color-accent); text-decoration: none; font-weight: 600;">facturacion@creditob2b.cl</a></p>
           <p style="font-size: 0.825rem; color: var(--color-text-muted); margin-top: 0.5rem;">Factura electrónica exenta o afecta según corresponda</p>
+        </div>
+
+        <div class="card" style="text-align: center;">
+          <div class="card-icon" style="margin: 0 auto 1rem;">📍</div>
+          <h4 class="card-title">Ubicación</h4>
+          <p class="card-text">Santiago, Chile</p>
+          <p style="font-size: 0.825rem; color: var(--color-text-muted); margin-top: 0.5rem;">Cobertura técnica y normativa nacional</p>
         </div>
       </div>
     </div>
@@ -864,11 +875,323 @@
       </form>
     </div>
   </div>
+  <!-- Asistente Virtual Flotante WhatsApp -->
+  <div id="waAssistant" class="wa-assistant-wrap">
+    <!-- Popover / Ventana de Asistencia -->
+    <div id="waChatBox" class="wa-chatbox">
+      <div class="wa-chatbox-header">
+        <div class="wa-avatar-box">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          </svg>
+          <span class="wa-status-dot"></span>
+        </div>
+        <div class="wa-header-info">
+          <strong>Asistente CréditoB2B</strong>
+          <small>En línea · Respuesta rápida</small>
+        </div>
+        <button type="button" class="wa-close-btn" onclick="toggleWaChat()" title="Cerrar">&times;</button>
+      </div>
+
+      <div class="wa-chatbox-body">
+        <div class="wa-message wa-message-bot">
+          <p>👋 ¡Hola! Soy tu asistente en <strong>CréditoB2B</strong>.</p>
+          <p>¿Tienes dudas sobre los <strong>informes oficiales</strong>, evaluación de clientes empresa o necesitas soporte comercial?</p>
+          <span class="wa-time">Ahora</span>
+        </div>
+        
+        <div class="wa-quick-options">
+          <button type="button" class="wa-quick-btn" onclick="sendWaPreset('Consulta sobre paquetes de informes de crédito')">
+            📊 Paquetes de informes
+          </button>
+          <button type="button" class="wa-quick-btn" onclick="sendWaPreset('Necesito soporte técnico o ayuda con mi evaluación')">
+            🛠️ Soporte técnico
+          </button>
+          <button type="button" class="wa-quick-btn" onclick="sendWaPreset('Quiero consultar por factura o pago por transferencia')">
+            🧾 Facturación / Transferencia
+          </button>
+        </div>
+
+        <div style="margin-top: 10px; font-size: 11px; color: #64748b; text-align: center;">
+          Correo directo: <a href="mailto:contacto@creditob2b.cl" style="color: #0284c7; font-weight: 600;">contacto@creditob2b.cl</a>
+        </div>
+      </div>
+
+      <div class="wa-chatbox-footer">
+        <a id="btnWaChatDirect" href="https://wa.me/56983414730?text=Hola,%20necesito%20asistencia%20en%20Cr%C3%A9ditoB2B" target="_blank" rel="noopener noreferrer" class="wa-send-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.669-.699c.969.54 1.771.82 2.791.82 3.182 0 5.768-2.587 5.768-5.766.001-3.182-2.585-5.766-5.768-5.766zm9.969 5.766c0 5.503-4.477 9.97-9.97 9.97-1.748 0-3.385-.45-4.821-1.238l-5.209 1.366 1.391-5.082c-.878-1.492-1.391-3.232-1.391-5.016 0-5.504 4.477-9.97 9.97-9.97 5.503 0 10.03 4.466 10.03 9.97z"/>
+          </svg>
+          <span>Iniciar conversación en WhatsApp</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Botón Burbuja Flotante -->
+    <button type="button" id="btnWaToggle" class="wa-floating-btn" onclick="toggleWaChat()" title="Hablar con un asistente por WhatsApp">
+      <div class="wa-btn-badge">1</div>
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.669-.699c.969.54 1.771.82 2.791.82 3.182 0 5.768-2.587 5.768-5.766.001-3.182-2.585-5.766-5.768-5.766zm9.969 5.766c0 5.503-4.477 9.97-9.97 9.97-1.748 0-3.385-.45-4.821-1.238l-5.209 1.366 1.391-5.082c-.878-1.492-1.391-3.232-1.391-5.016 0-5.504 4.477-9.97 9.97-9.97 5.503 0 10.03 4.466 10.03 9.97z"/>
+      </svg>
+      <span class="wa-btn-label">Asistente</span>
+    </button>
+  </div>
+
   <style>
-    @keyframes popIn {
-      from { transform: scale(0.95); opacity: 0; }
-      to { transform: scale(1); opacity: 1; }
+    /* Estilos del Asistente Flotante WhatsApp */
+    .wa-assistant-wrap {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 9999;
+      font-family: inherit;
+    }
+
+    .wa-floating-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: linear-gradient(135deg, #25d366, #128c7e);
+      color: #ffffff;
+      border: none;
+      border-radius: 999px;
+      padding: 10px 18px 10px 14px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 8px 24px -4px rgba(18, 140, 126, 0.45), 0 2px 6px rgba(0,0,0,0.12);
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+    }
+
+    .wa-floating-btn:hover {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 12px 28px -4px rgba(18, 140, 126, 0.55), 0 4px 10px rgba(0,0,0,0.16);
+    }
+
+    .wa-btn-badge {
+      position: absolute;
+      top: -4px;
+      right: -2px;
+      background: #ef4444;
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 800;
+      width: 19px;
+      height: 19px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid #ffffff;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .wa-chatbox {
+      display: none;
+      position: absolute;
+      bottom: 66px;
+      right: 0;
+      width: 320px;
+      max-width: calc(100vw - 32px);
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 20px 40px -10px rgba(15, 23, 42, 0.3), 0 0 0 1px rgba(15, 23, 42, 0.08);
+      overflow: hidden;
+      animation: waPopup 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      flex-direction: column;
+    }
+
+    @keyframes waPopup {
+      from { opacity: 0; transform: translateY(12px) scale(0.96); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .wa-chatbox-header {
+      background: linear-gradient(135deg, #075e54, #128c7e);
+      color: #ffffff;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .wa-avatar-box {
+      position: relative;
+      width: 36px;
+      height: 36px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .wa-status-dot {
+      position: absolute;
+      bottom: 1px;
+      right: 1px;
+      width: 9px;
+      height: 9px;
+      background: #4ade80;
+      border-radius: 50%;
+      border: 2px solid #075e54;
+    }
+
+    .wa-header-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .wa-header-info strong {
+      display: block;
+      font-size: 14px;
+      color: #ffffff;
+      line-height: 1.2;
+    }
+
+    .wa-header-info small {
+      font-size: 11px;
+      color: #bbf7d0;
+    }
+
+    .wa-close-btn {
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.8);
+      font-size: 22px;
+      cursor: pointer;
+      line-height: 1;
+      padding: 2px 6px;
+      border-radius: 6px;
+    }
+
+    .wa-close-btn:hover {
+      color: #ffffff;
+      background: rgba(255,255,255,0.15);
+    }
+
+    .wa-chatbox-body {
+      padding: 16px;
+      background: #f8fafc;
+      max-height: 360px;
+      overflow-y: auto;
+    }
+
+    .wa-message-bot {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px 12px 12px 2px;
+      padding: 12px;
+      font-size: 13px;
+      color: #1e293b;
+      line-height: 1.45;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      margin-bottom: 12px;
+    }
+
+    .wa-message-bot p {
+      margin: 0 0 6px 0;
+    }
+
+    .wa-message-bot p:last-of-type {
+      margin-bottom: 0;
+    }
+
+    .wa-time {
+      display: block;
+      font-size: 10px;
+      color: #94a3b8;
+      text-align: right;
+      margin-top: 4px;
+    }
+
+    .wa-quick-options {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .wa-quick-btn {
+      text-align: left;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      color: #0f172a;
+      padding: 7px 11px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .wa-quick-btn:hover {
+      background: #f0fdf4;
+      border-color: #86efac;
+      color: #15803d;
+      transform: translateX(2px);
+    }
+
+    .wa-chatbox-footer {
+      padding: 12px 16px;
+      background: #ffffff;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .wa-send-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: #25d366;
+      color: #ffffff;
+      text-decoration: none;
+      padding: 9px 14px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 700;
+      transition: background 0.2s ease;
+    }
+
+    .wa-send-btn:hover {
+      background: #1eb956;
+      color: #ffffff;
+    }
+
+    @media (max-width: 640px) {
+      .wa-assistant-wrap {
+        bottom: 16px;
+        right: 16px;
+      }
+      .wa-btn-label {
+        display: none;
+      }
+      .wa-floating-btn {
+        padding: 12px;
+        border-radius: 50%;
+      }
     }
   </style>
+
+  <script>
+    function toggleWaChat() {
+      const box = document.getElementById('waChatBox');
+      const badge = document.querySelector('.wa-btn-badge');
+      if (box.style.display === 'flex') {
+        box.style.display = 'none';
+      } else {
+        box.style.display = 'flex';
+        if (badge) badge.style.display = 'none';
+      }
+    }
+
+    function sendWaPreset(msg) {
+      const phone = "56983414730";
+      const encodedMsg = encodeURIComponent("Hola, te contacto desde CréditoB2B. " + msg);
+      const url = "https://wa.me/" + phone + "?text=" + encodedMsg;
+      window.open(url, "_blank");
+    }
+  </script>
 </body>
 </html>
