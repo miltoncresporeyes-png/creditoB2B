@@ -1464,30 +1464,117 @@
     }
   }
 
-  function refreshCreditStatus() {
-    if (!ACTIVE_CREDIT_TOKEN) {
-      var banner = $("creditStatusBanner");
-      if (banner) banner.style.display = "none";
+  var CURRENT_CREDIT_DATA = null;
+
+  function openCreditPanel() {
+    var pModal = $("creditPanelModal");
+    if (!pModal) return;
+    pModal.style.display = "flex";
+    pModal.classList.remove("hidden");
+    updateCreditPanelUI();
+  }
+
+  function closeCreditPanel() {
+    var pModal = $("creditPanelModal");
+    if (!pModal) return;
+    pModal.style.display = "none";
+    pModal.classList.add("hidden");
+  }
+
+  function updateCreditPanelUI() {
+    var activeSec = $("panelActiveSection");
+    var emptySec = $("panelEmptySection");
+    if (!ACTIVE_CREDIT_TOKEN || !CURRENT_CREDIT_DATA || !CURRENT_CREDIT_DATA.valid) {
+      if (activeSec) activeSec.style.display = "none";
+      if (emptySec) emptySec.style.display = "block";
       return;
     }
+
+    if (emptySec) emptySec.style.display = "none";
+    if (activeSec) activeSec.style.display = "block";
+
+    var d = CURRENT_CREDIT_DATA;
+    if ($("panelPlanTitle")) $("panelPlanTitle").textContent = d.plan_nombre || "Paquete de Informes";
+    if ($("panelCreditsRemaining")) $("panelCreditsRemaining").textContent = d.creditos_restantes;
+    if ($("panelCreditsTotal")) $("panelCreditsTotal").textContent = d.creditos_totales;
+
+    var pct = Math.round((d.creditos_restantes / Math.max(1, d.creditos_totales)) * 100);
+    var pBar = $("panelProgressBar");
+    if (pBar) pBar.style.width = pct + "%";
+
+    var tBox = $("panelTokenMasked");
+    if (tBox) tBox.textContent = ACTIVE_CREDIT_TOKEN;
+
+    var oRef = $("panelOrderRef");
+    if (oRef) oRef.textContent = d.order_id_masked || "ORD-COMPRA";
+
+    var invLink = $("panelInvoiceLink");
+    if (invLink && d.invoice_url) {
+      invLink.href = API_BASE + d.invoice_url;
+      invLink.style.display = "inline-block";
+    }
+
+    var badge = $("panelStatusBadge");
+    if (badge) {
+      if (d.creditos_restantes > 0) {
+        badge.textContent = d.creditos_restantes + " disponibles (" + pct + "%)";
+        badge.style.background = "#dcfce7";
+        badge.style.color = "#166534";
+      } else {
+        badge.textContent = "Créditos Agotados";
+        badge.style.background = "#fee2e2";
+        badge.style.color = "#991b1b";
+      }
+    }
+  }
+
+  function refreshCreditStatus() {
+    var topBadge = $("btnCreditsTopBadge");
+    var topText = $("creditsTopText");
+
+    if (!ACTIVE_CREDIT_TOKEN) {
+      CURRENT_CREDIT_DATA = null;
+      var banner = $("creditStatusBanner");
+      if (banner) banner.style.display = "none";
+      if (topBadge && topText) {
+        topText.textContent = "Sin Plan Activo";
+        topBadge.style.background = "#f1f5f9";
+        topBadge.style.color = "#475569";
+        topBadge.style.borderColor = "#cbd5e1";
+      }
+      return;
+    }
+
     fetch(API_BASE + "/api/payments/credit-status?token=" + encodeURIComponent(ACTIVE_CREDIT_TOKEN))
       .then(function(res) { return res.json(); })
       .then(function(data) {
-        if (data.valid && data.creditos_restantes > 0) {
-          var banner = $("creditStatusBanner");
-          if (banner) {
-            banner.style.display = "block";
-            if ($("creditPlanName")) $("creditPlanName").textContent = data.plan_nombre || "Paquete de Informes";
-            if ($("creditAvailableCount")) $("creditAvailableCount").textContent = data.creditos_restantes;
+        if (data.valid) {
+          CURRENT_CREDIT_DATA = data;
+          // Actualizar botón de cabecera
+          if (topBadge && topText) {
+            topText.textContent = data.creditos_restantes + " Crédito(s)";
+            topBadge.style.background = data.creditos_restantes > 0 ? "#f0fdf4" : "#fee2e2";
+            topBadge.style.color = data.creditos_restantes > 0 ? "#166534" : "#991b1b";
+            topBadge.style.borderColor = data.creditos_restantes > 0 ? "#86efac" : "#fca5a5";
           }
+
+          if (data.creditos_restantes > 0) {
+            var banner = $("creditStatusBanner");
+            if (banner) {
+              banner.style.display = "block";
+              if ($("creditPlanName")) $("creditPlanName").textContent = data.plan_nombre || "Paquete de Informes";
+              if ($("creditAvailableCount")) $("creditAvailableCount").textContent = data.creditos_restantes;
+            }
+          } else {
+            var banner2 = $("creditStatusBanner");
+            if (banner2) banner2.style.display = "none";
+            showToast("Has consumido los créditos de este paquete.");
+          }
+          updateCreditPanelUI();
         } else {
-          var banner2 = $("creditStatusBanner");
-          if (banner2) banner2.style.display = "none";
-          if (data.valid && data.creditos_restantes === 0) {
-            showToast("Se han consumido todos los créditos asignados");
-            ACTIVE_CREDIT_TOKEN = "";
-            localStorage.removeItem("creditob2b_active_token");
-          }
+          ACTIVE_CREDIT_TOKEN = "";
+          localStorage.removeItem("creditob2b_active_token");
+          refreshCreditStatus();
         }
       })
       .catch(function() {});
@@ -1571,6 +1658,42 @@
     localStorage.removeItem("creditob2b_active_token");
     refreshCreditStatus();
     showToast("Código de créditos desvinculado.");
+  });
+
+  // Event Listeners del Panel de Créditos
+  if ($("btnCreditsTopBadge")) $("btnCreditsTopBadge").addEventListener("click", openCreditPanel);
+  if ($("btnCloseCreditPanel")) $("btnCloseCreditPanel").addEventListener("click", closeCreditPanel);
+
+  if ($("btnCopyActiveToken")) $("btnCopyActiveToken").addEventListener("click", function() {
+    if (!ACTIVE_CREDIT_TOKEN) return;
+    copyText(ACTIVE_CREDIT_TOKEN).then(function() {
+      showToast("Token copiado al portapapeles.");
+    }).catch(function() {
+      showToast("Token: " + ACTIVE_CREDIT_TOKEN);
+    });
+  });
+
+  if ($("btnPanelOpenRedeem")) $("btnPanelOpenRedeem").addEventListener("click", function() {
+    closeCreditPanel();
+    var rModal = $("redeemModal");
+    if (rModal) {
+      rModal.style.display = "flex";
+      rModal.classList.remove("hidden");
+      setTimeout(function() { if ($("inputRedeemCode")) $("inputRedeemCode").focus(); }, 80);
+    }
+  });
+
+  if ($("btnPanelChangeToken")) $("btnPanelChangeToken").addEventListener("click", function() {
+    closeCreditPanel();
+    ACTIVE_CREDIT_TOKEN = "";
+    localStorage.removeItem("creditob2b_active_token");
+    refreshCreditStatus();
+    var rModal = $("redeemModal");
+    if (rModal) {
+      rModal.style.display = "flex";
+      rModal.classList.remove("hidden");
+      setTimeout(function() { if ($("inputRedeemCode")) $("inputRedeemCode").focus(); }, 80);
+    }
   });
 
   // Reemplazar llamada directa de descarga de PDF por el gestor de modo comercial

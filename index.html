@@ -26,6 +26,10 @@
     </div>
   </div>
   <div style="display:flex;gap:8px;align-items:center;">
+    <button type="button" id="btnCreditsTopBadge" style="display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;color:#166534;border:1px solid #86efac;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.2s ease;" title="Administrar mis créditos de informes">
+      <span style="display:inline-block;width:8px;height:8px;background:#22c55e;border-radius:50%;"></span>
+      <span id="creditsTopText">Mis Créditos</span>
+    </button>
     <span id="userEmailBadge" style="display:none;background:#eef4ff;color:#1e40af;border:1px solid #cbd5e1;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;align-items:center;gap:4px;">
       👤 <span id="userEmailText"></span>
     </span>
@@ -615,6 +619,86 @@
       <button type="button" id="btnHaveCodeLink" class="btn ghost small" style="color:var(--ac);font-size:12px;font-weight:600;">
         Ya tengo un código de orden
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Panel de Administración de Créditos (Mi Cuenta y Saldos) -->
+<div id="creditPanelModal" class="modal-backdrop hidden" style="position:fixed;inset:0;background:rgba(10,37,64,0.7);z-index:999;display:none;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:var(--card);max-width:500px;width:100%;border-radius:18px;padding:28px 24px;border:1px solid var(--bd);box-shadow:var(--shadow);position:relative;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:36px;height:36px;background:linear-gradient(135deg, #059669, #10b981);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;">
+          💼
+        </div>
+        <div>
+          <h3 style="margin:0;font-size:17px;font-weight:800;color:var(--tx);">Panel de Créditos</h3>
+          <small style="color:var(--mut);font-size:12px;">Administración de saldo para informes oficiales</small>
+        </div>
+      </div>
+      <button type="button" id="btnCloseCreditPanel" class="btn ghost small" style="padding:4px 8px;font-size:16px;">✕</button>
+    </div>
+
+    <!-- Estado de Créditos -->
+    <div id="panelActiveSection" style="display:none;background:var(--field);border:1px solid var(--bd);border-radius:14px;padding:18px;margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <span style="font-size:13px;font-weight:700;color:var(--tx);" id="panelPlanTitle">Paquete Activo</span>
+        <span id="panelStatusBadge" style="font-size:11px;font-weight:700;background:#dcfce7;color:#166534;padding:3px 9px;border-radius:20px;">Habilitado</span>
+      </div>
+
+      <!-- Barra de progreso de créditos -->
+      <div style="margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;">
+          <span style="color:var(--mut);">Saldo disponible:</span>
+          <strong><span id="panelCreditsRemaining">0</span> de <span id="panelCreditsTotal">0</span> informes</strong>
+        </div>
+        <div style="width:100%;height:8px;background:var(--track);border-radius:999px;overflow:hidden;">
+          <div id="panelProgressBar" style="width:0%;height:100%;background:linear-gradient(90deg, #10b981, #059669);border-radius:999px;transition:width 0.4s ease;"></div>
+        </div>
+      </div>
+
+      <!-- Información del token y respaldo -->
+      <div style="background:rgba(2,132,199,0.06);border:1px solid rgba(2,132,199,0.18);border-radius:10px;padding:12px;margin-top:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <span style="font-size:11px;font-weight:700;color:#0284c7;text-transform:uppercase;">Token Secreto de Respaldo:</span>
+          <button type="button" id="btnCopyActiveToken" class="btn ghost small" style="padding:2px 8px;font-size:11px;border-color:#bae6fd;color:#0284c7;">
+            📋 Copiar
+          </button>
+        </div>
+        <div id="panelTokenMasked" style="font-family:monospace;font-size:12px;color:var(--tx);word-break:break-all;">-</div>
+        <small style="display:block;margin-top:4px;font-size:11px;color:var(--mut);">Guarda este token para reutilizar tu saldo en otro dispositivo o navegador.</small>
+      </div>
+
+      <!-- Fecha de compra y comprobante -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;font-size:12px;color:var(--mut);">
+        <span>Orden: <strong id="panelOrderRef">-</strong></span>
+        <a id="panelInvoiceLink" href="#" target="_blank" style="color:var(--ac);text-decoration:none;font-weight:600;display:none;">
+          📄 Descargar Comprobante PDF
+        </a>
+      </div>
+    </div>
+
+    <!-- Sección cuando NO hay token activo -->
+    <div id="panelEmptySection" style="display:block;text-align:center;padding:24px 16px;background:var(--field);border:1px dashed var(--bd);border-radius:14px;margin-bottom:16px;">
+      <div style="font-size:28px;margin-bottom:8px;">💳</div>
+      <h4 style="margin:0 0 6px 0;font-size:15px;font-weight:700;color:var(--tx);">No tienes créditos activos vinculados</h4>
+      <p style="font-size:12.5px;color:var(--mut);line-height:1.45;margin:0 0 16px 0;">
+        Puedes comprar un paquete con descuento o ingresar un token secreto si ya completaste una compra comercial.
+      </p>
+      <div style="display:flex;gap:8px;justify-content:center;">
+        <a href="/#precios" class="btn primary small" style="text-decoration:none;">Adquirir Pack de Informes</a>
+        <button type="button" id="btnPanelOpenRedeem" class="btn ghost small">🔑 Ingresar Código</button>
+      </div>
+    </div>
+
+    <!-- Acciones inferiores del modal -->
+    <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--bd);padding-top:14px;">
+      <button type="button" id="btnPanelChangeToken" class="btn ghost small" style="font-size:12px;">
+        🔄 Cambiar / Desvincular token
+      </button>
+      <a href="/#precios" class="btn primary small" style="text-decoration:none;font-size:12px;">
+        ➕ Comprar más créditos
+      </a>
     </div>
   </div>
 </div>

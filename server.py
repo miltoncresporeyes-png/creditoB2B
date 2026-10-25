@@ -933,14 +933,22 @@ def get_credit_status():
         return jsonify({'valid': False, 'message': 'Token no encontrado o compra no aprobada'}), 404
     
     plan_info = PRICES_CONFIG.get(order.get('plan_tipo'), {})
-    # No exponer token secreto en la respuesta ni datos sensibles
+    order_id = order.get('order_id', '')
+    masked_order = order_id[:8] + '...' + order_id[-4:] if len(order_id) > 12 else order_id
+    paid_at = order.get('paid_at') or order.get('created_at')
+
+    # No exponer token secreto en la respuesta
     return jsonify({
         'valid': True,
         'plan_tipo': order.get('plan_tipo'),
         'plan_nombre': plan_info.get('nombre', 'Paquete de Informes'),
         'creditos_totales': order.get('creditos_totales', 1),
         'creditos_restantes': order.get('creditos_restantes', 0),
-        'evaluacion_id': order.get('evaluacion_id')
+        'creditos_usados': max(0, order.get('creditos_totales', 1) - order.get('creditos_restantes', 0)),
+        'order_id_masked': masked_order,
+        'paid_at': paid_at,
+        'evaluacion_id': order.get('evaluacion_id'),
+        'invoice_url': f"/api/invoice-pdf?order_id={order_id}" if order_id else None
     })
 
 @app.route('/api/report-pdf-paid', methods=['GET'])
