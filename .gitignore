@@ -24,3 +24,23 @@ Desktop.ini
 node_modules/
 dist/
 build/
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
+
+# Archivos comprimidos y dumps
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Entornos virtuales y configuraciones locales de IDE
+.venv/
+venv/
+env/
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
