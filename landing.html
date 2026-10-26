@@ -1064,20 +1064,26 @@
         </div>
       </div>
 
-      <!-- Selector de Tipo de Ingreso -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;background:#f1f5f9;padding:4px;border-radius:10px;margin-bottom:1.25rem;">
-        <button type="button" id="tabBtnRegistered" onclick="switchLoginTab('registered')" style="border:none;background:#ffffff;color:#0a2540;font-weight:700;font-size:0.85rem;padding:8px;border-radius:8px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.1);transition:all 0.15s ease;">
-          💼 Usuario Registrado
+      <!-- Selector de Tipo de Ingreso (3 Tabs) -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;background:#f1f5f9;padding:4px;border-radius:10px;margin-bottom:1.15rem;">
+        <button type="button" id="tabBtnRegistered" onclick="switchLoginTab('registered')" style="border:none;background:#ffffff;color:#0a2540;font-weight:700;font-size:0.8rem;padding:7px 4px;border-radius:8px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.1);transition:all 0.15s ease;">
+          💼 Ingresar
         </button>
-        <button type="button" id="tabBtnTest" onclick="switchLoginTab('test')" style="border:none;background:transparent;color:#64748b;font-weight:600;font-size:0.85rem;padding:8px;border-radius:8px;cursor:pointer;transition:all 0.15s ease;">
-          🧪 Usuario de Prueba
+        <button type="button" id="tabBtnRegister" onclick="switchLoginTab('register')" style="border:none;background:transparent;color:#64748b;font-weight:600;font-size:0.8rem;padding:7px 4px;border-radius:8px;cursor:pointer;transition:all 0.15s ease;">
+          ✨ Registrarse
+        </button>
+        <button type="button" id="tabBtnTest" onclick="switchLoginTab('test')" style="border:none;background:transparent;color:#64748b;font-weight:600;font-size:0.8rem;padding:7px 4px;border-radius:8px;cursor:pointer;transition:all 0.15s ease;">
+          🧪 Simulador
         </button>
       </div>
 
+      <!-- Mensaje de Alerta / Error Dinámico -->
+      <div id="loginAlertBox" style="display:none;margin-bottom:1rem;padding:0.75rem 0.9rem;border-radius:8px;font-size:0.825rem;line-height:1.4;"></div>
+
       <!-- Panel 1: Usuario Registrado -->
       <div id="tabRegisteredContent" style="display:block;">
-        <p style="font-size:0.875rem;color:#475569;margin-bottom:1.1rem;line-height:1.45;">
-          Ingresa con tu correo corporativo y tu <strong>clave de acceso</strong> entregada al momento de tu compra de informes.
+        <p style="font-size:0.85rem;color:#475569;margin-bottom:1rem;line-height:1.45;">
+          Ingresa con tu correo corporativo y clave de acceso registrada.
         </p>
 
         <form id="accessForm" onsubmit="submitAccessEmail(event)">
@@ -1098,8 +1104,8 @@
               </button>
             </div>
             <div style="position:relative;">
-              <input type="password" id="optionalToken" placeholder="Ingresa tu clave de acceso" style="width:100%;padding:0.75rem 2.4rem 0.75rem 1rem;font-size:0.9rem;border:1px solid #cbd5e1;border-radius:8px;outline:none;box-sizing:border-box;">
-              <button type="button" onclick="togglePasswordVisibility()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#64748b;font-size:16px;padding:4px;" title="Mostrar u ocultar clave">
+              <input type="password" id="optionalToken" required placeholder="Ingresa tu clave de acceso" style="width:100%;padding:0.75rem 2.4rem 0.75rem 1rem;font-size:0.9rem;border:1px solid #cbd5e1;border-radius:8px;outline:none;box-sizing:border-box;">
+              <button type="button" onclick="togglePasswordVisibility('optionalToken')" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#64748b;font-size:16px;padding:4px;" title="Mostrar u ocultar clave">
                 👁️
               </button>
             </div>
@@ -1108,10 +1114,72 @@
           <button type="submit" id="btnSubmitAccess" class="btn btn-primary" style="width:100%;padding:0.85rem;font-size:0.95rem;font-weight:700;">
             Ingresar a la Plataforma →
           </button>
+
+          <p style="font-size:0.8rem;color:#64748b;margin-top:0.9rem;text-align:center;">
+            ¿Aún no tienes cuenta? <a href="javascript:void(0)" onclick="switchLoginTab('register')" style="color:#0284c7;font-weight:700;text-decoration:underline;">Regístrate gratis</a>
+          </p>
         </form>
       </div>
 
-      <!-- Panel 2: Usuario de Prueba -->
+      <!-- Panel 2: Registro de Nuevo Usuario -->
+      <div id="tabRegisterContent" style="display:none;">
+        <p style="font-size:0.85rem;color:#475569;margin-bottom:1rem;line-height:1.45;">
+          Crea tu cuenta corporativa para evaluar empresas y gestionar tus informes crediticios.
+        </p>
+
+        <form id="registerForm" onsubmit="submitUserRegistration(event)">
+          <div style="margin-bottom:10px;">
+            <label style="display:block;font-size:0.825rem;font-weight:700;color:var(--color-primary);margin-bottom:0.25rem;" for="regNombre">
+              Nombre y Apellido *
+            </label>
+            <input type="text" id="regNombre" required placeholder="Ej: Juan Pérez" style="width:100%;padding:0.65rem 0.9rem;font-size:0.9rem;border:1px solid #cbd5e1;border-radius:8px;outline:none;box-sizing:border-box;">
+          </div>
+
+          <div style="margin-bottom:10px;">
+            <label style="display:block;font-size:0.825rem;font-weight:700;color:var(--color-primary);margin-bottom:0.25rem;" for="regEmail">
+              Correo corporativo *
+            </label>
+            <input type="email" id="regEmail" required placeholder="nombre@empresa.cl" style="width:100%;padding:0.65rem 0.9rem;font-size:0.9rem;border:1px solid #cbd5e1;border-radius:8px;outline:none;box-sizing:border-box;">
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+            <div>
+              <label style="display:block;font-size:0.825rem;font-weight:700;color:var(--color-primary);margin-bottom:0.25rem;" for="regEmpresa">
+                Empresa
+              </label>
+              <input type="text" id="regEmpresa" placeholder="Razón Social" style="width:100%;padding:0.65rem 0.9rem;font-size:0.9rem;border:1px solid #cbd5e1;border-radius:8px;outline:none;box-sizing:border-box;">
+            </div>
+            <div>
+              <label style="display:block;font-size:0.825rem;font-weight:700;color:var(--color-primary);margin-bottom:0.25rem;" for="regRut">
+                RUT Empresa
+              </label>
+              <input type="text" id="regRut" placeholder="76.123.456-K" style="width:100%;padding:0.65rem 0.9rem;font-size:0.9rem;border:1px solid #cbd5e1;border-radius:8px;outline:none;box-sizing:border-box;">
+            </div>
+          </div>
+
+          <div style="margin-bottom:1.15rem;">
+            <label style="display:block;font-size:0.825rem;font-weight:700;color:var(--color-primary);margin-bottom:0.25rem;" for="regPassword">
+              Crear Clave de acceso * (mín. 4 caracteres)
+            </label>
+            <div style="position:relative;">
+              <input type="password" id="regPassword" required minlength="4" placeholder="Crea una contraseña segura" style="width:100%;padding:0.65rem 2.4rem 0.65rem 0.9rem;font-size:0.9rem;border:1px solid #cbd5e1;border-radius:8px;outline:none;box-sizing:border-box;">
+              <button type="button" onclick="togglePasswordVisibility('regPassword')" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#64748b;font-size:16px;padding:4px;" title="Mostrar u ocultar clave">
+                👁️
+              </button>
+            </div>
+          </div>
+
+          <button type="submit" id="btnSubmitRegister" class="btn btn-primary" style="width:100%;padding:0.85rem;font-size:0.95rem;font-weight:700;background:#0284c7;">
+            Crear Cuenta y Continuar →
+          </button>
+
+          <p style="font-size:0.8rem;color:#64748b;margin-top:0.85rem;text-align:center;">
+            ¿Ya tienes cuenta? <a href="javascript:void(0)" onclick="switchLoginTab('registered')" style="color:#0284c7;font-weight:700;text-decoration:underline;">Inicia sesión aquí</a>
+          </p>
+        </form>
+      </div>
+
+      <!-- Panel 3: Usuario de Prueba -->
       <div id="tabTestContent" style="display:none;">
         <div style="background:var(--color-bg);border:1px solid var(--color-border);border-radius:12px;padding:16px;margin-bottom:1.25rem;">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
@@ -1119,17 +1187,17 @@
             <strong style="font-size:0.875rem;color:var(--color-primary);">Modo Simulador de Prueba</strong>
           </div>
           <p style="font-size:0.8rem;color:var(--color-text-muted);margin:0;line-height:1.5;">
-            Acceso libre de prueba para simular análisis financiero, cálculo de límites y explorar las funcionalidades del sistema sin requerir credenciales comerciales.
+            Acceso libre para simular análisis financiero, cálculo de límites y explorar las funcionalidades del sistema sin requerir credenciales comerciales.
           </p>
         </div>
 
         <button type="button" onclick="loginAsTestUser()" class="btn" style="width:100%;padding:0.85rem;background:#0f172a;color:#ffffff;font-size:0.925rem;font-weight:700;border:none;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity 0.15s ease;">
-          <span>Ingresar en modo de prueba</span>
+          <span>Ingresar al simulador gratis</span>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
 
         <p style="font-size:0.725rem;color:#94a3b8;margin-top:0.85rem;text-align:center;line-height:1.4;">
-          Sesión de prueba demostrativa · No descuenta créditos
+          Sesión de prueba demostrativa · No requiere tarjeta
         </p>
       </div>
 
@@ -1519,34 +1587,73 @@
     // Control del Modal de Acceso
     let currentLoginTab = 'registered';
 
+    function setLoginAlert(msg, type = 'error') {
+      const box = document.getElementById('loginAlertBox');
+      if (!box) return;
+      if (!msg) {
+        box.style.display = 'none';
+        box.innerHTML = '';
+        return;
+      }
+      box.style.display = 'block';
+      if (type === 'error') {
+        box.style.background = '#fef2f2';
+        box.style.border = '1px solid #fecaca';
+        box.style.color = '#991b1b';
+      } else if (type === 'success') {
+        box.style.background = '#f0fdf4';
+        box.style.border = '1px solid #bbf7d0';
+        box.style.color = '#166534';
+      } else {
+        box.style.background = '#eff6ff';
+        box.style.border = '1px solid #bfdbfe';
+        box.style.color = '#1e40af';
+      }
+      box.innerHTML = msg;
+    }
+
     function switchLoginTab(tab) {
       currentLoginTab = tab;
+      setLoginAlert('');
       const btnReg = document.getElementById('tabBtnRegistered');
+      const btnNew = document.getElementById('tabBtnRegister');
       const btnTest = document.getElementById('tabBtnTest');
       const contReg = document.getElementById('tabRegisteredContent');
+      const contNew = document.getElementById('tabRegisterContent');
       const contTest = document.getElementById('tabTestContent');
+
+      // Reset active tabs
+      [btnReg, btnNew, btnTest].forEach(b => {
+        if (b) {
+          b.style.background = 'transparent';
+          b.style.color = '#64748b';
+          b.style.boxShadow = 'none';
+        }
+      });
+      [contReg, contNew, contTest].forEach(c => { if (c) c.style.display = 'none'; });
 
       if (tab === 'registered') {
         btnReg.style.background = '#ffffff';
         btnReg.style.color = '#0a2540';
         btnReg.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-        btnTest.style.background = 'transparent';
-        btnTest.style.color = '#64748b';
-        btnTest.style.boxShadow = 'none';
         contReg.style.display = 'block';
-        contTest.style.display = 'none';
         setTimeout(() => {
           const inp = document.getElementById('userEmail');
+          if (inp) inp.focus();
+        }, 50);
+      } else if (tab === 'register') {
+        btnNew.style.background = '#ffffff';
+        btnNew.style.color = '#0a2540';
+        btnNew.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+        contNew.style.display = 'block';
+        setTimeout(() => {
+          const inp = document.getElementById('regNombre');
           if (inp) inp.focus();
         }, 50);
       } else {
         btnTest.style.background = '#ffffff';
         btnTest.style.color = '#0a2540';
         btnTest.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-        btnReg.style.background = 'transparent';
-        btnReg.style.color = '#64748b';
-        btnReg.style.boxShadow = 'none';
-        contReg.style.display = 'none';
         contTest.style.display = 'block';
       }
     }
@@ -1554,6 +1661,7 @@
     function openAccessModal() {
       const modal = document.getElementById('accessModal');
       modal.style.display = 'flex';
+      setLoginAlert('');
       switchLoginTab('registered');
       setTimeout(() => {
         const inp = document.getElementById('userEmail');
@@ -1571,11 +1679,12 @@
 
     function closeAccessModal() {
       document.getElementById('accessModal').style.display = 'none';
+      setLoginAlert('');
     }
 
-    // Funciones de Recuperación de Clave
-    function togglePasswordVisibility() {
-      const inp = document.getElementById('optionalToken');
+    // Funciones de Recuperación y visualización de Clave
+    function togglePasswordVisibility(targetId = 'optionalToken') {
+      const inp = document.getElementById(targetId);
       if (!inp) return;
       inp.type = inp.type === 'password' ? 'text' : 'password';
     }
@@ -1604,26 +1713,130 @@
       window.open(url, "_blank");
     }
 
-    function submitAccessEmail(e) {
+    async function submitAccessEmail(e) {
       e.preventDefault();
-      const email = document.getElementById('userEmail').value.trim();
+      setLoginAlert('');
+      const email = (document.getElementById('userEmail')?.value || '').trim();
       if (!email || !email.includes('@')) {
-        alert('Por favor ingresa un correo electrónico corporativo válido.');
+        setLoginAlert('Por favor ingresa un correo electrónico corporativo válido.');
         return;
       }
-      const token = document.getElementById('optionalToken').value.trim();
-      
-      localStorage.setItem('creditob2b_user_email', email);
-      localStorage.setItem('creditob2b_user_type', 'registered');
-      if (token) {
-        localStorage.setItem('creditob2b_active_token', token);
+      const token = (document.getElementById('optionalToken')?.value || '').trim();
+      if (!token) {
+        setLoginAlert('Por favor ingresa tu clave de acceso.');
+        return;
       }
 
-      trackEvent('user_login_registered', { email_domain: email.split('@')[1] });
+      const submitBtn = document.getElementById('btnSubmitAccess');
+      const originalText = submitBtn.textContent;
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Verificando acceso...';
 
-      let targetUrl = '/app?email=' + encodeURIComponent(email) + '&user_type=registered';
-      if (token) targetUrl += '&credit_token=' + encodeURIComponent(token);
-      window.location.href = targetUrl;
+      try {
+        const resp = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email, password: token })
+        });
+        const res = await resp.json();
+
+        if (!resp.ok || !res.success) {
+          if (res.registered === false) {
+            setLoginAlert(
+              `⚠️ <strong>Usuario no registrado:</strong> Este correo no cuenta con cuenta activa. ` +
+              `<br><a href="javascript:void(0)" onclick="switchLoginTab('register')" style="color:#0284c7;font-weight:700;text-decoration:underline;">Haz clic aquí para registrarte</a> o ingresa en modo simulador.`
+            );
+          } else {
+            setLoginAlert(`🔒 ${res.message || 'Clave de acceso incorrecta. Verifica tu contraseña.'}`);
+          }
+          submitBtn.disabled = false;
+          submitBtn.textContent = originalText;
+          return;
+        }
+
+        // Acceso exitoso
+        localStorage.setItem('creditob2b_user_email', email);
+        localStorage.setItem('creditob2b_user_type', 'registered');
+        if (res.active_token) {
+          localStorage.setItem('creditob2b_active_token', res.active_token);
+        }
+
+        trackEvent('user_login_registered', { email_domain: email.split('@')[1] });
+
+        let targetUrl = '/app?email=' + encodeURIComponent(email) + '&user_type=registered';
+        if (res.active_token) {
+          targetUrl += '&credit_token=' + encodeURIComponent(res.active_token);
+        }
+        window.location.href = targetUrl;
+      } catch (err) {
+        console.error("Error al validar login:", err);
+        setLoginAlert('Error de conexión al validar credenciales. Por favor intenta nuevamente.');
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+      }
+    }
+
+    async function submitUserRegistration(e) {
+      e.preventDefault();
+      setLoginAlert('');
+
+      const nombre = (document.getElementById('regNombre')?.value || '').trim();
+      const email = (document.getElementById('regEmail')?.value || '').trim();
+      const empresa = (document.getElementById('regEmpresa')?.value || '').trim();
+      const rut = (document.getElementById('regRut')?.value || '').trim();
+      const password = (document.getElementById('regPassword')?.value || '').trim();
+
+      if (!nombre || !email || !password) {
+        setLoginAlert('Nombre, correo y clave de acceso son requeridos.');
+        return;
+      }
+
+      if (rut && typeof validateRutChile === 'function' && !validateRutChile(rut)) {
+        setLoginAlert('El RUT ingresado no es válido según el Módulo 11.');
+        return;
+      }
+
+      const submitBtn = document.getElementById('btnSubmitRegister');
+      const originalText = submitBtn.textContent;
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Creando cuenta...';
+
+      try {
+        const resp = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nombre: nombre,
+            email: email,
+            empresa: empresa,
+            rut: rut,
+            password: password
+          })
+        });
+        const res = await resp.json();
+
+        if (!resp.ok || !res.success) {
+          setLoginAlert(`⚠️ ${res.message || 'Error al crear la cuenta.'}`);
+          submitBtn.disabled = false;
+          submitBtn.textContent = originalText;
+          return;
+        }
+
+        // Cuenta creada exitosamente -> Guardar sesión y redirigir
+        localStorage.setItem('creditob2b_user_email', email);
+        localStorage.setItem('creditob2b_user_type', 'registered');
+        trackEvent('user_register_success', { email_domain: email.split('@')[1] });
+
+        setLoginAlert('✅ Cuenta creada exitosamente. Ingresando a la plataforma...', 'success');
+        setTimeout(() => {
+          window.location.href = '/app?email=' + encodeURIComponent(email) + '&user_type=registered';
+        }, 600);
+      } catch (err) {
+        console.error("Error en registro:", err);
+        setLoginAlert('Error de red al intentar registrar la cuenta. Intenta de nuevo.');
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+      }
     }
 
     function loginAsTestUser() {

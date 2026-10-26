@@ -968,6 +968,93 @@ def verify_payment():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# ==============================================================================
+# RUTAS DE AUTENTICACIÓN Y VALIDACIÓN DE ACCESO
+# ==============================================================================
+
+@app.route('/api/auth/login', methods=['POST'])
+def auth_login():
+    """Valida credenciales de acceso de un usuario o comprador de informes."""
+    data = request.get_json(silent=True) or {}
+    email = data.get('email', '').strip()
+    password_or_token = data.get('password', '').strip() or data.get('token', '').strip()
+
+    if not email:
+        return jsonify({'success': False, 'registered': False, 'message': 'El correo corporativo es obligatorio.'}), 400
+    
+    res = db.verify_user_login(email, password_or_token)
+    if not res.get('registered'):
+        return jsonify({
+            'success': False,
+            'registered': False,
+            'message': res.get('message', 'Usuario no registrado en la plataforma. Por favor regístrate o prueba el modo simulador.')
+        }), 404
+    
+    if not res.get('valid'):
+        return jsonify({
+            'success': False,
+            'registered': True,
+            'message': res.get('message', 'Clave de acceso incorrecta.')
+        }), 401
+
+    return jsonify({
+        'success': True,
+        'registered': True,
+        'user_type': res.get('user_type', 'registered'),
+        'user': res.get('user'),
+        'active_token': res.get('active_token'),
+        'message': res.get('message')
+    }), 200
+
+@app.route('/api/auth/register', methods=['POST'])
+def auth_register():
+    """Registra una nueva cuenta de usuario en CréditoB2B."""
+    data = request.get_json(silent=True) or {}
+    email = data.get('email', '').strip()
+    password = data.get('password', '').strip()
+    nombre = data.get('nombre', '').strip()
+    empresa = data.get('empresa', '').strip()
+    rut = data.get('rut', '').strip()
+    telefono = data.get('telefono', '').strip()
+
+    if not email or '@' not in email:
+        return jsonify({'success': False, 'message': 'Por favor ingresa un correo corporativo válido.'}), 400
+    if not password or len(password) < 4:
+        return jsonify({'success': False, 'message': 'La clave debe tener al menos 4 caracteres.'}), 400
+
+    ok, msg = db.register_user(email, password, nombre=nombre, rut=rut, empresa=empresa, telefono=telefono)
+    if not ok:
+        return jsonify({'success': False, 'message': msg}), 400
+
+    return jsonify({
+        'success': True,
+        'message': 'Registro completado con éxito. Ya puedes iniciar sesión con tu correo y clave.',
+        'user': {'email': email.lower(), 'nombre': nombre, 'empresa': empresa}
+    }), 201
+
+@app.route('/api/auth/check-user', methods=['GET'])
+def auth_check_user():
+    """Comprueba de forma ágil si un correo electrónico está registrado."""
+    email = request.args.get('email', '').strip().lower()
+    if not email:
+        return jsonify({'registered': False, 'message': 'Email requerido'}), 400
+    user = db.get_user_by_email(email)
+    if user:
+        return jsonify({'registered': True, 'type': 'user'})
+    # Verificar compras
+    try:
+        conn = db.get_db()
+        cur = conn.cursor()
+        pg = db.is_postgres(conn)
+        cur.execute(db._adapt_sql("SELECT id FROM transacciones_pago WHERE billing_data LIKE ? AND estado = 'APPROVED' LIMIT 1", pg), (f'%{email}%',))
+        row = cur.fetchone()
+        conn.close()
+        if row:
+            return jsonify({'registered': True, 'type': 'purchaser'})
+    except Exception:
+        pass
+    return jsonify({'registered': False})
+
 @app.route('/api/payments/credit-status', methods=['GET'])
 def get_credit_status():
     """Consulta el saldo de créditos disponible exclusivamente mediante token de acceso secreto."""

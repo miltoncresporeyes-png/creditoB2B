@@ -113,7 +113,179 @@ def init_db():
     cur.execute('CREATE INDEX IF NOT EXISTS idx_trans_order ON transacciones_pago(order_id);')
     cur.execute('CREATE INDEX IF NOT EXISTS idx_trans_token ON transacciones_pago(token_acceso);')
     conn.commit()
+
+    # 3. Tabla de usuarios registrados
+    cur.execute(f'''
+    CREATE TABLE IF NOT EXISTS usuarios (
+        id {id_type},
+        email TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        nombre TEXT,
+        rut TEXT,
+        empresa TEXT,
+        telefono TEXT,
+        is_active INTEGER DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_login TIMESTAMP
+    );
+    ''')
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_users_email ON usuarios(email);')
+    conn.commit()
     conn.close()
+
+import hashlib
+import secrets
+
+def _hash_password(password: str) -> str:
+    """Genera un hash seguro SHA-256 con salt determinístico para almacenamiento."""
+    if not password:
+        return ""
+    salt = "creditob2b_salt_2026_"
+    return hashlib.sha256((salt + password).encode('utf-8')).hexdigest()
+
+def get_user_by_email(email: str):
+    """Obtiene un usuario registrado por su correo electrónico."""
+    if not email:
+        return None
+    email_clean = email.strip().lower()
+    conn = get_db()
+    cur = conn.cursor()
+    pg = is_postgres(conn)
+    sql = _adapt_sql('SELECT * FROM usuarios WHERE LOWER(email) = ?', pg)
+    cur.execute(sql, (email_clean,))
+    row = cur.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+def register_user(email: str, password: str, nombre: str = None, rut: str = None, empresa: str = None, telefono: str = None):
+    """Registra un nuevo usuario en la base de datos."""
+    if not email or not password:
+        return False, "Correo y contraseña son obligatorios."
+    email_clean = email.strip().lower()
+    if get_user_by_email(email_clean):
+        return False, "El correo electrónico ya se encuentra registrado."
+    
+    pwd_hash = _hash_password(password)
+    conn = get_db()
+    cur = conn.cursor()
+    pg = is_postgres(conn)
+    sql = _adapt_sql('''
+    INSERT INTO usuarios (email, password_hash, nombre, rut, empresa, telefono)
+    VALUES (?, ?, ?, ?, ?, ?)
+    ''', pg)
+    try:
+        cur.execute(sql, (email_clean, pwd_hash, nombre, rut, empresa, telefono))
+        conn.commit()
+        conn.close()
+        return True, "Usuario registrado exitosamente."
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return False, f"Error al registrar usuario: {str(e)}"
+
+def verify_user_login(email: str, password_or_token: str):
+    """
+    Verifica las credenciales de acceso de un usuario.
+    Retorna un diccionario estructurado:
+    {
+      'registered': bool,
+      'valid': bool,
+      'user_type': 'registered' | 'purchaser',
+      'user': dict,
+      'active_token': str or None,
+      'message': str
+    }
+    """
+    if not email:
+        return {'registered': False, 'valid': False, 'message': 'Debes ingresar un correo electrónico.'}
+    
+    email_clean = email.strip().lower()
+    cred = (password_or_token or '').strip()
+
+    # 1. Buscar en tabla usuarios
+    user = get_user_by_email(email_clean)
+    if user:
+        if not cred:
+            return {'registered': True, 'valid': False, 'message': 'Debes ingresar tu clave de acceso.'}
+        
+        # Comparar hash
+        pwd_hash = _hash_password(cred)
+        if user.get('password_hash') == pwd_hash:
+            # Actualizar last_login
+            try:
+                conn = get_db()
+                cur = conn.cursor()
+                pg = is_postgres(conn)
+                cur.execute(_adapt_sql('UPDATE usuarios SET last_login = CURRENT_TIMESTAMP WHERE id = ?', pg), (user['id'],))
+                conn.commit()
+                conn.close()
+            except Exception:
+                pass
+            
+            # Buscar si tiene algún token activo de informes en transacciones_pago
+            active_token = None
+            try:
+                conn = get_db()
+                cur = conn.cursor()
+                pg = is_postgres(conn)
+                cur.execute(_adapt_sql("SELECT token_acceso FROM transacciones_pago WHERE billing_data LIKE ? AND estado = 'APPROVED' AND creditos_restantes > 0 ORDER BY id DESC LIMIT 1", pg), (f'%{email_clean}%',))
+                row = cur.fetchone()
+                if row:
+                    active_token = dict(row).get('token_acceso')
+                conn.close()
+            except Exception:
+                pass
+
+            return {
+                'registered': True,
+                'valid': True,
+                'user_type': 'registered',
+                'active_token': active_token,
+                'user': {
+                    'email': user['email'],
+                    'nombre': user.get('nombre'),
+                    'empresa': user.get('empresa')
+                },
+                'message': 'Acceso correcto.'
+            }
+        else:
+            return {'registered': True, 'valid': False, 'message': 'Clave de acceso incorrecta.'}
+
+    # 2. Si no está en usuarios, verificar si es comprador con token en transacciones_pago
+    conn = get_db()
+    cur = conn.cursor()
+    pg = is_postgres(conn)
+    cur.execute(_adapt_sql("SELECT * FROM transacciones_pago WHERE billing_data LIKE ? AND estado = 'APPROVED' ORDER BY id DESC", pg), (f'%{email_clean}%',))
+    purchases = [dict(r) for r in cur.fetchall()]
+    conn.close()
+
+    if purchases:
+        # El correo tiene compras de paquetes de informes
+        if not cred:
+            return {'registered': True, 'valid': False, 'message': 'Ingresa tu clave de acceso o token de compra.'}
+        
+        # Verificar si la clave ingresada coincide con algún token_acceso
+        matched_tx = next((tx for tx in purchases if tx.get('token_acceso') == cred), None)
+        if matched_tx:
+            # Auto-registrar al comprador en la tabla usuarios para unificar credencial
+            register_user(email_clean, cred, empresa=None)
+            return {
+                'registered': True,
+                'valid': True,
+                'user_type': 'registered',
+                'active_token': matched_tx.get('token_acceso'),
+                'user': {'email': email_clean},
+                'message': 'Acceso verificado por compra de informes.'
+            }
+        else:
+            return {'registered': True, 'valid': False, 'message': 'La clave o token de acceso no coincide con tus compras registradas.'}
+
+    # 3. Si no existe ni en usuarios ni en compras aprobadas
+    return {
+        'registered': False,
+        'valid': False,
+        'message': 'El correo no se encuentra registrado. Regístrate o prueba la plataforma en modo simulador.'
+    }
 
 def create_payment_order(order_id, plan_tipo, monto, evaluacion_id=None, billing_data=None, creditos=1):
     conn = get_db()
