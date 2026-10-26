@@ -1100,5 +1100,30 @@ def check_db_status():
     status['raw_db_start'] = raw_db_val[:12] if raw_db_val else 'EMPTY'
     return jsonify(status)
 
+@app.route('/api/admin/backup-download', methods=['GET'])
+def download_database_backup():
+    """Descarga de respaldo completo de la base de datos en formato JSON."""
+    key = request.args.get('key', '').strip()
+    admin_secret = os.environ.get('ADMIN_BACKUP_KEY', 'creditob2b_backup_2026').strip()
+    
+    if not key or key != admin_secret:
+        return jsonify({
+            'error': 'No autorizado. Debe proporcionar la clave de acceso de respaldo (?key=...).'
+        }), 401
+
+    try:
+        data = db.export_full_backup()
+        filename = f"backup_creditob2b_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        
+        response = app.response_class(
+            response=json.dumps(data, indent=2, ensure_ascii=False),
+            status=200,
+            mimetype='application/json'
+        )
+        response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+        return response
+    except Exception as e:
+        return jsonify({'error': f'Error al generar respaldo: {str(e)}'}), 500
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000, debug=False)

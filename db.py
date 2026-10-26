@@ -383,4 +383,42 @@ def get_db_status():
             "url_configured": is_configured
         }
 
+def export_full_backup():
+    """Genera un respaldo completo de las tablas en formato estructurado JSON."""
+    conn = get_db()
+    cur = conn.cursor()
+    pg = is_postgres(conn)
+    
+    # 1. Evaluaciones
+    cur.execute("SELECT * FROM evaluaciones ORDER BY id ASC")
+    eval_rows = [dict(r) for r in cur.fetchall()]
+    for r in eval_rows:
+        if isinstance(r.get('created_at'), datetime):
+            r['created_at'] = r['created_at'].isoformat()
+    
+    # 2. Transacciones de pago
+    cur.execute("SELECT * FROM transacciones_pago ORDER BY id ASC")
+    trans_rows = [dict(r) for r in cur.fetchall()]
+    for r in trans_rows:
+        if isinstance(r.get('created_at'), datetime):
+            r['created_at'] = r['created_at'].isoformat()
+        if isinstance(r.get('paid_at'), datetime):
+            r['paid_at'] = r['paid_at'].isoformat()
+            
+    conn.close()
+    
+    return {
+        "version": "1.0",
+        "created_at": datetime.now().isoformat(),
+        "database_engine": "PostgreSQL" if pg else "SQLite",
+        "tables": {
+            "evaluaciones": eval_rows,
+            "transacciones_pago": trans_rows
+        },
+        "total_records": {
+            "evaluaciones": len(eval_rows),
+            "transacciones_pago": len(trans_rows)
+        }
+    }
+
 init_db()
