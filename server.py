@@ -319,6 +319,7 @@ PRICES_CONFIG = {
     'pack_10': {'monto': 69900.0, 'informes': 10, 'nombre': 'Pack 10 Informes'}
 }
 
+@app.route('/informe-ejemplo', methods=['GET'])
 @app.route('/api/sample-report', methods=['GET'])
 def get_sample_report():
     """Genera y descarga un informe de demostración con datos ficticios claramente identificados."""
