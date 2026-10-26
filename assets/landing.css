@@ -112,11 +112,11 @@ body {
 }
 
 .brand-tagline {
-  font-size: 0.68rem;
+  font-size: 0.74rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #64748b;
+  letter-spacing: 0.06em;
+  color: #475569;
   margin-top: 2px;
 }
 
