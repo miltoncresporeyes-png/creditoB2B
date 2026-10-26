@@ -167,6 +167,14 @@ def landing():
 def app_view():
     return send_file(ROOT + '/index.html')
 
+@app.route('/sitemap.xml')
+def sitemap_xml():
+    return send_file(ROOT + '/sitemap.xml', mimetype='application/xml')
+
+@app.route('/robots.txt')
+def robots_txt():
+    return send_file(ROOT + '/robots.txt', mimetype='text/plain')
+
 @app.route('/favicon.ico')
 def favicon():
     return ('', 204)

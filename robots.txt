@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+Allow: /app
+Allow: /informe-ejemplo
+Allow: /assets/
+Allow: /terminos-y-condiciones.html
+Allow: /politica-de-privacidad.html
+Allow: /politica-de-reembolso.html
+
+# Prohibir rastreo de APIs internas y endpoints de administración
+Disallow: /api/
+Disallow: /Omega/
+
+# Ubicación del Sitemap oficial para metabuscadores
+Sitemap: https://creditob2b.cl/sitemap.xml
