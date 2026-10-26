@@ -115,8 +115,24 @@ body {
   box-shadow: 0 0 0 3px rgba(11,61,145,0.12);
 }
 
-.field input.rut-valid { border-color: var(--ok); box-shadow: 0 0 0 3px rgba(31,122,77,0.12); }
-.field input.rut-invalid { border-color: var(--bad); box-shadow: 0 0 0 3px rgba(179,38,30,0.12); }
+.field input.rut-valid { border-color: var(--ok) !important; box-shadow: 0 0 0 3px rgba(31,122,77,0.14) !important; }
+.field input.rut-invalid { border-color: var(--bad) !important; box-shadow: 0 0 0 3px rgba(179,38,30,0.16) !important; }
+
+.rut-feedback {
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 4px;
+  display: none;
+  line-height: 1.3;
+}
+.rut-feedback.show-invalid {
+  display: block;
+  color: var(--bad, #b3261e);
+}
+.rut-feedback.show-valid {
+  display: block;
+  color: var(--ok, #1f7a4d);
+}
 
 .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
 .metric {

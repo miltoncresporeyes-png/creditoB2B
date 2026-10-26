@@ -500,10 +500,76 @@
       var field = $(id);
       if (!field) return;
       field.classList.remove("rut-valid", "rut-invalid");
-      if (String(field.value || "").trim() === "") return;
-      if (M.isValidRut(M.cleanRut(field.value))) field.classList.add("rut-valid");
-      else field.classList.add("rut-invalid");
+
+      // Buscar o crear contenedor de feedback
+      var fbId = id + "Feedback";
+      var fb = $(fbId);
+      if (!fb) {
+        fb = document.createElement("div");
+        fb.id = fbId;
+        fb.className = "rut-feedback";
+        if (field.parentNode) {
+          if (field.parentNode.style && field.parentNode.style.display === "flex") {
+            field.parentNode.parentNode.appendChild(fb);
+          } else {
+            field.parentNode.appendChild(fb);
+          }
+        }
+      }
+
+      var raw = String(field.value || "").trim();
+      if (raw === "") {
+        fb.className = "rut-feedback";
+        fb.textContent = "";
+        return;
+      }
+
+      var clean = M.cleanRut(raw);
+      if (clean.length < 2) {
+        field.classList.add("rut-invalid");
+        fb.className = "rut-feedback show-invalid";
+        fb.textContent = "⚠ RUT incompleto (ingresa cuerpo y dígito verificador)";
+        return;
+      }
+
+      var body = clean.slice(0, -1);
+      var dv = clean.slice(-1);
+      var sum = 0;
+      var multiplier = 2;
+      for (var i = body.length - 1; i >= 0; i -= 1) {
+        sum += Number(body.charAt(i)) * multiplier;
+        multiplier = multiplier === 7 ? 2 : multiplier + 1;
+      }
+      var res = 11 - (sum % 11);
+      var expectedDv = res === 11 ? "0" : res === 10 ? "K" : String(res);
+
+      if (dv === expectedDv) {
+        field.classList.add("rut-valid");
+        fb.className = "rut-feedback show-valid";
+        fb.textContent = "✓ RUT válido (Módulo 11)";
+      } else {
+        field.classList.add("rut-invalid");
+        fb.className = "rut-feedback show-invalid";
+        fb.textContent = "✕ RUT inválido (Módulo 11): para " + body + " el dígito verificador debe ser -" + expectedDv + " y no -" + dv;
+      }
     });
+
+    // Validar también inputs dinámicos de representantes legales
+    var repContainer = $("repListContainer");
+    if (repContainer) {
+      repContainer.querySelectorAll(".rep-row").forEach(function(row) {
+        var inp = row.querySelector(".rep-input");
+        if (!inp) return;
+        row.classList.remove("rut-row-valid", "rut-row-invalid");
+        var val = String(inp.value || "").trim();
+        if (!val) return;
+        if (M.isValidRut(M.cleanRut(val))) {
+          row.classList.add("rut-row-valid");
+        } else {
+          row.classList.add("rut-row-invalid");
+        }
+      });
+    }
   }
 
   function setText(id, text) {
@@ -1138,6 +1204,22 @@
   function runEvaluation() {
     try {
       var input = toModelInput(collectForm());
+
+      // Validación estricta Módulo 11 de RUT de la empresa
+      if (input.rut && !M.isValidRut(input.rut)) {
+        var clean = M.cleanRut(input.rut);
+        var body = clean.slice(0, -1);
+        var dv = clean.slice(-1);
+        var sum = 0, mul = 2;
+        for (var i = body.length - 1; i >= 0; i--) {
+          sum += Number(body.charAt(i)) * mul;
+          mul = mul === 7 ? 2 : mul + 1;
+        }
+        var res = 11 - (sum % 11);
+        var expDv = res === 11 ? "0" : res === 10 ? "K" : String(res);
+        showToast("RUT inválido (Módulo 11): para " + body + " el DV debe ser -" + expDv + " y no -" + dv);
+      }
+
       var result = M.evaluate(input);
       renderResults(result);
       saveDraft();
