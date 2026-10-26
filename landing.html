@@ -140,113 +140,118 @@
     </div>
   </header>
 
-  <!-- Section 1: Hero con espaciado compensado para header fijo -->
-  <section class="hero-section" style="padding-top: calc(72px + 32px); padding-bottom: 3.5rem;">
+  <!-- Section 1: Hero con espaciado vertical optimizado (header ~70px + 40px) -->
+  <section class="hero-section" style="padding-top: calc(70px + 40px); padding-bottom: 2.75rem;">
     <div class="hero-content">
-      <div class="hero-pill" style="margin-bottom: 1.1rem;">
+      <div class="hero-pill" style="margin-bottom: 0.85rem;">
         <span class="dot"></span>
         <span>Evaluación técnica de crédito comercial entre empresas</span>
       </div>
 
-      <!-- Titular principal en dos líneas de alto impacto -->
-      <h1 class="hero-title" style="margin-bottom: 1rem; line-height: 1.18;">
+      <!-- Titular jerarquizado: línea principal grande y bajada en color de acento -->
+      <h1 class="hero-title" style="margin-bottom: 0.85rem; font-size: 2.45rem; line-height: 1.15; letter-spacing: -0.025em;">
         Decide cuánto crédito comercial otorgar.<br>
-        <span style="color: var(--color-primary); font-weight: 800;">Aprueba o rechaza a empresas en minutos, con respaldo.</span>
+        <span style="display: block; font-size: 1.55rem; color: #0284c7; font-weight: 700; margin-top: 0.35rem; letter-spacing: -0.015em;">
+          Aprueba o rechaza a empresas en minutos, con respaldo.
+        </span>
       </h1>
       
       <!-- Subtítulo con contraste optimizado (>4.5:1 ratio sobre fondo claro) -->
-      <p class="hero-subtitle" style="color: #334155; font-size: 1.15rem; font-weight: 450; max-width: 740px; margin-bottom: 1.75rem; line-height: 1.55;">
+      <p class="hero-subtitle" style="color: #1e293b; font-size: 1.05rem; font-weight: 450; max-width: 720px; margin-bottom: 1.35rem; line-height: 1.5;">
         Sube la carpeta tributaria, el certificado de deuda y el e-RUT, y obtén la decisión, el monto sugerido y el plazo inicial.
       </p>
 
       <!-- Botones principales: Principal azul marino y Secundario contorno -->
-      <div class="hero-cta-group" style="margin-bottom: 1rem;">
-        <button type="button" class="btn btn-primary" style="background-color: #0a2540; font-weight: 700; padding: 0.85rem 1.75rem;" onclick="loginAsTestUser()">
+      <div class="hero-cta-group" style="margin-bottom: 0.75rem; gap: 0.85rem;">
+        <button type="button" class="btn btn-primary" style="background-color: #0a2540; font-weight: 700; padding: 0.8rem 1.6rem; font-size: 0.95rem;" onclick="loginAsTestUser()">
           Probar el simulador gratis →
         </button>
-        <a href="/informe-ejemplo" class="btn btn-outline" style="font-weight: 600; padding: 0.85rem 1.6rem;" target="_blank" onclick="trackEvent('landing_cta_click', {location: 'hero_sample_report'})">
+        <a href="/informe-ejemplo" class="btn btn-outline" style="font-weight: 600; padding: 0.8rem 1.5rem; font-size: 0.95rem;" target="_blank" onclick="trackEvent('landing_cta_click', {location: 'hero_sample_report'})">
           📄 Ver informe de ejemplo
         </a>
       </div>
 
-      <!-- Línea de confianza con candado -->
-      <p style="font-size: 0.825rem; color: #475569; margin: 0 auto 2.25rem; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 500;">
+      <!-- Línea de confianza bajo los botones -->
+      <p style="font-size: 0.825rem; color: #475569; margin: 0 auto 1.5rem; display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 500;">
         <span>🔒</span>
-        <span>Tus PDF se procesan en memoria y no se guardan · Hecho para empresas chilenas</span>
+        <span>Tus PDF no se almacenan · Hecho para empresas chilenas</span>
       </p>
 
       <!-- Maqueta interactiva del producto: Tarjeta de Dictamen Oficial de Crédito con APROBADO (Datos claramente ficticios) -->
       <div style="max-width: 860px; margin: 0 auto; text-align: left;">
-        <div style="background: #ffffff; border-radius: 14px; border: 1px solid #cbd5e1; box-shadow: 0 20px 35px -10px rgba(10, 37, 64, 0.16); padding: 1.5rem; position: relative;">
-          <!-- Badge de ejemplo ficticio -->
-          <div style="position: absolute; top: 12px; right: 14px; background: #f1f5f9; color: #64748b; font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.05em; border: 1px solid #e2e8f0;">
-            Ejemplo
-          </div>
-
-          <!-- Cabecera de la tarjeta con datos ficticios -->
-          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 1.25rem; padding-bottom: 1rem; border-bottom: 1px solid #f1f5f9;">
+        <div style="background: #ffffff; border-radius: 14px; border: 1px solid #cbd5e1; box-shadow: 0 16px 30px -10px rgba(10, 37, 64, 0.14); padding: 1.35rem 1.5rem; position: relative;">
+          
+          <!-- Cabecera de la tarjeta: Etiqueta EJEMPLO en la esquina superior izquierda separada del sello -->
+          <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 1.15rem; padding-bottom: 0.85rem; border-bottom: 1px solid #f1f5f9;">
             <div style="display: flex; align-items: center; gap: 10px;">
-              <div style="width: 38px; height: 38px; background: #0a2540; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #ffffff; font-weight: 800; font-size: 14px;">
+              <!-- Badge EJEMPLO en la esquina superior izquierda -->
+              <span style="background: #e2e8f0; color: #334155; font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.05em; border: 1px solid #cbd5e1;">
+                EJEMPLO
+              </span>
+              <div style="width: 34px; height: 34px; background: #0a2540; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #ffffff; font-weight: 800; font-size: 13px;">
                 B2B
               </div>
               <div>
-                <strong style="display: block; font-size: 0.95rem; color: #0a2540;">DISTRIBUIDORA ANDINA EJEMPLO SpA</strong>
-                <span style="font-size: 0.8rem; color: #64748b;">RUT 76.999.888-K · Giro: Comercio Mayorista · F29 / F22 Analizados</span>
+                <strong style="display: block; font-size: 0.95rem; color: #0a2540;">DISTRIBUIDORA ANDINA DEMO SpA</strong>
+                <span style="font-size: 0.825rem; color: #334155;">RUT 76.999.888-K · Giro: Comercio Mayorista · F29 / F22 Analizados</span>
               </div>
             </div>
-            <!-- Estado APROBADO -->
-            <div style="display: inline-flex; align-items: center; gap: 6px; background: #dcfce7; color: #15803d; padding: 6px 14px; border-radius: 8px; font-weight: 800; font-size: 0.9rem; border: 1px solid #86efac;">
-              <span style="font-size: 14px;">✓</span> DICTAMEN: APROBADO
+
+            <!-- Sello DICTAMEN: APROBADO en el extremo derecho con separación nítida -->
+            <div style="display: inline-flex; align-items: center; gap: 6px; background: #dcfce7; color: #166534; padding: 6px 14px; border-radius: 8px; font-weight: 800; font-size: 0.875rem; border: 1px solid #86efac;">
+              <span style="font-size: 13px;">✓</span> DICTAMEN: APROBADO
             </div>
           </div>
 
-          <!-- Cuadrantes de métricas clave (Puntaje, Monto sugerido y Plazo inicial) -->
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 1rem;">
+          <!-- Cuadrantes de métricas clave con tipografía aumentada y contraste alto (mínimo 4.5:1) -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 0.5rem;">
             <!-- Score -->
-            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px;">
-              <div style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em;">Puntaje de Solvencia</div>
-              <div style="display: flex; align-items: baseline; gap: 4px; margin-top: 4px;">
+            <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px 14px;">
+              <div style="font-size: 0.8rem; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.04em;">Puntaje de Solvencia</div>
+              <div style="display: flex; align-items: baseline; gap: 4px; margin-top: 3px;">
                 <span style="font-size: 1.65rem; font-weight: 900; color: #0a2540;">84</span>
-                <span style="font-size: 0.85rem; color: #64748b; font-weight: 600;">/ 100</span>
+                <span style="font-size: 0.9rem; color: #475569; font-weight: 600;">/ 100</span>
               </div>
-              <span style="font-size: 0.72rem; color: #166534; font-weight: 700;">Riesgo Comercial Bajo</span>
+              <span style="font-size: 0.78rem; color: #166534; font-weight: 700;">Riesgo Comercial Bajo</span>
             </div>
 
             <!-- Monto Sugerido -->
-            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 12px 14px;">
-              <div style="font-size: 0.75rem; font-weight: 700; color: #166534; text-transform: uppercase; letter-spacing: 0.04em;">Monto Sugerido (Cupo)</div>
-              <div style="margin-top: 4px;">
-                <span style="font-size: 1.45rem; font-weight: 900; color: #15803d;">$35.000.000</span>
-                <span style="font-size: 0.78rem; color: #166534; font-weight: 600;"> CLP</span>
+            <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 10px; padding: 12px 14px;">
+              <div style="font-size: 0.8rem; font-weight: 700; color: #166534; text-transform: uppercase; letter-spacing: 0.04em;">Monto Sugerido (Cupo)</div>
+              <div style="margin-top: 3px;">
+                <span style="font-size: 1.45rem; font-weight: 900; color: #14532d;">$35.000.000</span>
+                <span style="font-size: 0.825rem; color: #166534; font-weight: 700;"> CLP</span>
               </div>
-              <span style="font-size: 0.72rem; color: #166534; font-weight: 600;">Techo Financiero Flujo EBITDA</span>
+              <span style="font-size: 0.78rem; color: #166534; font-weight: 700;">Límite según capacidad de pago</span>
             </div>
 
             <!-- Plazo Inicial -->
-            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px;">
-              <div style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em;">Plazo Inicial Sugerido</div>
-              <div style="margin-top: 4px;">
+            <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px 14px;">
+              <div style="font-size: 0.8rem; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.04em;">Plazo Inicial Sugerido</div>
+              <div style="margin-top: 3px;">
                 <span style="font-size: 1.45rem; font-weight: 900; color: #0a2540;">30</span>
-                <span style="font-size: 0.85rem; color: #64748b; font-weight: 700;"> Días</span>
+                <span style="font-size: 0.9rem; color: #475569; font-weight: 700;"> Días</span>
               </div>
               <!-- REVISAR CON ABOGADO: Plazo de pago Ley 21.131 -->
-              <span style="font-size: 0.72rem; color: #0284c7; font-weight: 600;">Ley 21.131 (Pago Oportuno)</span>
+              <span style="font-size: 0.78rem; color: #0369a1; font-weight: 700;">Ley 21.131 (Pago Oportuno)</span>
             </div>
 
-            <!-- Indicadores de Respaldo -->
-            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 14px;">
-              <div style="font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em;">Alertas & CMF</div>
-              <div style="margin-top: 6px; display: flex; flex-direction: column; gap: 3px; font-size: 0.78rem;">
-                <span style="color: #166534; font-weight: 600;">✓ Sin mora CMF registrada</span>
-                <span style="color: #166534; font-weight: 600;">✓ IVA al día · Timbraje SII</span>
+            <!-- Indicadores de Respaldo y Alertas -->
+            <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px 14px;">
+              <div style="font-size: 0.8rem; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.04em;">Alertas & Validación</div>
+              <div style="margin-top: 4px; display: flex; flex-direction: column; gap: 2px; font-size: 0.78rem;">
+                <span style="color: #166534; font-weight: 700;">✓ Representante validado (e-RUT)</span>
+                <span style="color: #166534; font-weight: 700;">✓ Sin mora CMF registrada</span>
+                <span style="color: #166534; font-weight: 700;">✓ IVA al día · Timbraje SII</span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Aviso legal reubicado al pie del hero en tamaño más pequeño, debajo de la maqueta -->
-      <p class="hero-disclaimer" style="margin-top: 1.5rem; font-size: 0.75rem; color: #64748b; text-align: center; max-width: 780px; margin-left: auto; margin-right: auto;">
+      <!-- Único aviso legal bajo la tarjeta del hero -->
+      <!-- REVISAR CON ABOGADO: Deslinde de responsabilidad técnica y asesoría financiera -->
+      <p class="hero-disclaimer" style="margin-top: 1.25rem; font-size: 0.75rem; color: #64748b; text-align: center; max-width: 780px; margin-left: auto; margin-right: auto; line-height: 1.45;">
         Herramienta de análisis técnico y gestión de riesgo comercial para empresas. No constituye garantía de pago ni asesoría financiera.
       </p>
     </div>
@@ -284,7 +289,7 @@
             <li><strong>Consolidación automática:</strong> Extracción directa de Carpeta Tributaria F29/F22, deudas CMF y estatutos RES.</li>
             <!-- REVISAR CON ABOGADO: Plazo de pago a 30 días regulado por Ley 21.131 (Pago Oportuno). Mérito ejecutivo y cesión de facturas regulados por Ley 19.983 -->
             <li><strong>Parámetros normativos:</strong> Verificación de plazos de pago según la Ley 21.131 (plazo general a 30 días y acuerdos excepcionales inscritos) y respaldo ejecutivo de facturas según la Ley 19.983.</li>
-            <li><strong>Triple techo de crédito:</strong> Cálculo simultáneo del límite financiero (flujo y EBITDA), comercial y por concentración de cartera.</li>
+            <li><strong>Triple techo de crédito:</strong> Cálculo simultáneo del límite comercial por ventas, límite financiero por capacidad de pago (flujo/EBITDA) y límite por política interna de riesgo.</li>
             <li><strong>Historial y respaldo formal:</strong> Cada decisión queda registrada y se puede descargar en PDF para presentar a gerencia o comités.</li>
           </ul>
         </div>
@@ -354,20 +359,20 @@
       <div class="grid-4">
         <div class="card" style="text-align: center;">
           <div class="step-number">1</div>
-          <h4 class="card-title">Identificación</h4>
-          <p class="card-text">Ingresa el RUT de la empresa solicitante. El sistema valida su vigencia y timbraje tributario ante el SII.</p>
+          <h4 class="card-title">Identificación & e-RUT</h4>
+          <p class="card-text">Ingresa el RUT de la empresa solicitante. Valida su vigencia ante el SII y la personería del representante legal mediante el e-RUT oficial.</p>
         </div>
 
         <div class="card" style="text-align: center;">
           <div class="step-number">2</div>
           <h4 class="card-title">Carga Documental</h4>
-          <p class="card-text">Adjunta la Carpeta Tributaria F29/F22 y el informe CMF para autocompletar ventas y razones financieras.</p>
+          <p class="card-text">Adjunta la Carpeta Tributaria F29/F22, certificado de deudas CMF, estatutos societarios e informe comercial DICOM (opcional) para autocompletar ventas y razones financieras.</p>
         </div>
 
         <div class="card" style="text-align: center;">
           <div class="step-number">3</div>
           <h4 class="card-title">Ejecución del Modelo</h4>
-          <p class="card-text">El sistema analiza 5 dimensiones de riesgo, calcula los techos de exposición y aplica las reglas normativas vigentes.</p>
+          <p class="card-text">El sistema analiza 5 dimensiones de riesgo, calcula los tres límites de exposición (comercial, capacidad de pago y política de riesgo) y aplica las reglas normativas vigentes.</p>
         </div>
 
         <div class="card" style="text-align: center;">
@@ -397,25 +402,26 @@
             </p>
             <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.95rem; color: var(--color-text-main);">
               <li>✓ <strong>Carátula y Datos del Solicitante:</strong> Razón social, RUT, giro SII y fecha de consulta.</li>
-              <li>✓ <strong>Puntaje y Estado de Decisión:</strong> Score (0-100), estado (Aprobado, Aprobado con Condiciones, Pendiente, Rechazado o Bloqueado).</li>
+              <li>✓ <strong>Puntaje y Estado de Decisión:</strong> Score (0-100), estado (Aprobado, Aprobado con condiciones, Pendiente, Rechazado o Bloqueado).</li>
               <!-- REVISAR CON ABOGADO: Plazo de pago Ley 21.131 -->
-              <li>✓ <strong>Límites y Plazo Sugerido:</strong> Límite financiero por flujo, límite comercial y plazo sugerido bajo la Ley 21.131.</li>
-              <li>✓ <strong>Desglose por Dimensión:</strong> Capacidad de pago, solvencia patrimonial, comportamiento comercial, cumplimiento tributario y formalidad legal.</li>
-              <li>✓ <strong>Matriz de Alertas Preventivas:</strong> Detalle explícito de observaciones comerciales o deudas bancarias registradas.</li>
+              <li>✓ <strong>Triple Techo de Crédito y Plazo Sugerido:</strong> Límite comercial por ventas, límite financiero por capacidad de pago (flujo/EBITDA), límite por política interna de riesgo y plazo sugerido bajo la Ley 21.131.</li>
+              <li>✓ <strong>Desglose por Dimensión:</strong> Capacidad de pago, solvencia patrimonial, comportamiento comercial, cumplimiento tributario y formalidad legal con validación de e-RUT.</li>
+              <li>✓ <strong>Matriz de Alertas Preventivas:</strong> Detalle explícito de observaciones comerciales, morosidad o deudas bancarias CMF registradas.</li>
               <li>✓ <strong>Panel de Firmas:</strong> Casillas formales para Analista de Crédito y Jefatura de Finanzas.</li>
             </ul>
 
             <div style="margin-top: 1.75rem;">
-              <h4 style="font-size: 0.95rem; color: var(--color-primary); margin-bottom: 0.75rem; font-weight: 700;">Indicadores evaluados en el reporte:</h4>
+              <h4 style="font-size: 0.95rem; color: var(--color-primary); margin-bottom: 0.75rem; font-weight: 700;">Antecedentes e indicadores analizados:</h4>
               <div class="report-badge-list">
-                <span class="report-badge">EBITDA Anual</span>
+                <span class="report-badge">Carpeta Tributaria F29/F22</span>
+                <span class="report-badge">Deuda Bancaria CMF</span>
+                <span class="report-badge">Validación e-RUT</span>
+                <span class="report-badge">Estatutos / Escritura</span>
+                <span class="report-badge">Informe Comercial DICOM (Opcional)</span>
+                <span class="report-badge">Capacidad de Pago (EBITDA)</span>
                 <span class="report-badge">Ventas Promedio F29</span>
                 <span class="report-badge">Patrimonio Neto F22</span>
                 <span class="report-badge">Razón Ácida</span>
-                <span class="report-badge">Deuda CMF Bancaria</span>
-                <span class="report-badge">Morosidad Comercial</span>
-                <span class="report-badge">Afectación IVA</span>
-                <span class="report-badge">Timbraje SII</span>
                 <span class="report-badge">Plazo Ley 21.131</span>
               </div>
             </div>
@@ -490,11 +496,11 @@
           
           <ul class="pricing-features">
             <li>✓ 1 Dictamen formal en PDF descargable</li>
-            <li>✓ Consulta tributaria SII y vigencia</li>
-            <li>✓ Extracción documental F29 / F22 / CMF</li>
+            <li>✓ Consulta de vigencia tributaria y timbraje SII</li>
+            <li>✓ Análisis de Carpeta Tributaria F29/F22 y deudas CMF</li>
             <!-- REVISAR CON ABOGADO: Plazo Ley 21.131 y respaldo Ley 19.983 -->
             <li>✓ Verificación normativa Ley 21.131 y Ley 19.983</li>
-            <li>✓ Pago seguro vía Mercado Pago</li>
+            <li>✓ Pago seguro vía Mercado Pago [DECIDIR_MEDIO_PAGO]</li>
           </ul>
 
           <button type="button" class="btn btn-outline" style="width: 100%;" onclick="startCheckout('individual', 9990)">
@@ -514,9 +520,9 @@
             <li>✓ 3 Dictámenes formales en PDF descargables</li>
             <li>✓ Ahorro del 17% respecto a la compra individual</li>
             <li>✓ Créditos sin fecha forzosa de vencimiento</li>
-            <li>✓ Consulta automatizada SII y timbraje</li>
-            <li>✓ Verificación de límites y personería legal</li>
-            <li>✓ Pago seguro vía Mercado Pago</li>
+            <li>✓ Análisis tributario y validación de e-RUT</li>
+            <li>✓ Triple techo de crédito y respaldo auditable</li>
+            <li>✓ Pago seguro vía Mercado Pago [DECIDIR_MEDIO_PAGO]</li>
           </ul>
 
           <button type="button" class="btn btn-accent" style="width: 100%;" onclick="startCheckout('pack_3', 24990)">
@@ -535,9 +541,9 @@
             <li>✓ 10 Dictámenes formales en PDF descargables</li>
             <li>✓ Ahorro del 30% respecto a la compra individual</li>
             <li>✓ Créditos prepagados sin costo mensual de mantención</li>
-            <li>✓ Consulta automatizada SII y timbraje</li>
+            <li>✓ Análisis tributario y validación de e-RUT</li>
             <li>✓ Historial completo de tus evaluaciones</li>
-            <li>✓ Pago seguro vía Mercado Pago</li>
+            <li>✓ Pago seguro vía Mercado Pago [DECIDIR_MEDIO_PAGO]</li>
           </ul>
 
           <button type="button" class="btn btn-outline" style="width: 100%;" onclick="startCheckout('pack_10', 69900)">
@@ -658,8 +664,11 @@
               Especialistas en finanzas corporativas, evaluación de liquidez ácida, flujo operacional (EBITDA) y calibración de límites de crédito comercial para el mercado empresarial chileno.
             </p>
           </div>
-          <div style="margin-top: 1.25rem; padding-top: 0.75rem; border-top: 1px solid var(--color-border); font-size: 0.78rem; color: var(--color-text-muted); font-weight: 600;">
-            Metodología y algoritmos paramétricos
+          <!-- Marcador de integrante editable -->
+          <div style="margin-top: 1.25rem; padding-top: 0.75rem; border-top: 1px solid var(--color-border); font-size: 0.8rem; color: var(--color-text-muted);">
+            <div style="font-weight: 700; color: var(--color-primary);">[NOMBRE_INTEGRANTE_1]</div>
+            <div>[CARGO_INTEGRANTE_1]</div>
+            <div style="margin-top: 4px;"><a href="[LINKEDIN_INTEGRANTE_1]" target="_blank" rel="noopener noreferrer" style="color: var(--color-accent); text-decoration: none; font-size: 0.75rem; font-weight: 600;">🔗 Perfil LinkedIn</a></div>
           </div>
         </div>
 
@@ -675,8 +684,11 @@
               Ingenieros de software enfocados en extracción documental automatizada (F29/F22/CMF), persistencia transaccional y procesamiento seguro de información financiera en memoria volátil.
             </p>
           </div>
-          <div style="margin-top: 1.25rem; padding-top: 0.75rem; border-top: 1px solid var(--color-border); font-size: 0.78rem; color: var(--color-text-muted); font-weight: 600;">
-            Infraestructura y privacidad de datos
+          <!-- Marcador de integrante editable -->
+          <div style="margin-top: 1.25rem; padding-top: 0.75rem; border-top: 1px solid var(--color-border); font-size: 0.8rem; color: var(--color-text-muted);">
+            <div style="font-weight: 700; color: var(--color-primary);">[NOMBRE_INTEGRANTE_2]</div>
+            <div>[CARGO_INTEGRANTE_2]</div>
+            <div style="margin-top: 4px;"><a href="[LINKEDIN_INTEGRANTE_2]" target="_blank" rel="noopener noreferrer" style="color: var(--color-accent); text-decoration: none; font-size: 0.75rem; font-weight: 600;">🔗 Perfil LinkedIn</a></div>
           </div>
         </div>
 
@@ -692,8 +704,11 @@
               Supervisión de apego a la normativa mercantil y tributaria chilena: plazos de pago a 30 días, mérito ejecutivo de facturas, personería societaria y estricta confidencialidad bajo la Ley 19.628 / 21.719.
             </p>
           </div>
-          <div style="margin-top: 1.25rem; padding-top: 0.75rem; border-top: 1px solid var(--color-border); font-size: 0.78rem; color: var(--color-text-muted); font-weight: 600;">
-            Blindaje y respaldo jurídico comercial
+          <!-- Marcador de integrante editable -->
+          <div style="margin-top: 1.25rem; padding-top: 0.75rem; border-top: 1px solid var(--color-border); font-size: 0.8rem; color: var(--color-text-muted);">
+            <div style="font-weight: 700; color: var(--color-primary);">[NOMBRE_INTEGRANTE_3]</div>
+            <div>[CARGO_INTEGRANTE_3]</div>
+            <div style="margin-top: 4px;"><a href="[LINKEDIN_INTEGRANTE_3]" target="_blank" rel="noopener noreferrer" style="color: var(--color-accent); text-decoration: none; font-size: 0.75rem; font-weight: 600;">🔗 Perfil LinkedIn</a></div>
           </div>
         </div>
       </div>
@@ -747,7 +762,10 @@
         <div class="card">
           <div class="card-icon">⚡</div>
           <h4 class="card-title">Procesamiento Efímero en Memoria</h4>
-          <p class="card-text">Los archivos PDF sensibles (F29, F22, balances y CMF) son leídos exclusivamente en memoria volátil durante el análisis. Tus datos se manejan de forma segura y confidencial, sin guardar copias de los documentos PDF en disco.</p>
+          <p class="card-text">Los archivos PDF sensibles (F29, F22, estatutos, e-RUT y CMF) son leídos exclusivamente en memoria volátil de forma transitoria para extraer cifras tributarias y balances; no se guardan como archivo en el disco. Únicamente se conservan en la base de datos relacional los datos numéricos del expediente para el historial de consultas del usuario.</p>
+          <p style="font-size: 0.8rem; color: var(--color-text-muted); margin-top: 0.5rem; border-top: 1px dashed var(--color-border); padding-top: 0.5rem;">
+            <em>Extracción de datos:</em> Procesamiento interno seguro sin almacenamiento persistente de documentos [DECIDIR_PROVEEDOR_IA: Si se usa un modelo externo de IA para extracción OCR, especificar proveedor y país de procesamiento].
+          </p>
         </div>
 
         <div class="card">
@@ -847,7 +865,15 @@
             <span>+</span>
           </div>
           <div class="faq-answer">
-            Para una evaluación completa se recomienda contar con el RUT de la empresa solicitante, la Carpeta Tributaria Electrónica SII (F29 de los últimos 12 meses y balance F22) y el informe consolidado de deudas de la CMF. También puedes ingresar antecedentes de manera manual en el simulador.
+            Para una evaluación técnica completa se requiere:
+            <ul style="margin: 0.5rem 0 0.5rem 1.25rem; padding: 0; line-height: 1.6;">
+              <li><strong>Carpeta Tributaria Electrónica SII:</strong> Formularios F29 de los últimos 12 meses y balance o declaración de renta F22.</li>
+              <li><strong>Certificado de Deudas CMF:</strong> Informe de endeudamiento financiero consolidado ante la Comisión para el Mercado Financiero.</li>
+              <li><strong>e-RUT Oficial SII:</strong> Para la validación de personería y facultades del representante legal firmante.</li>
+              <li><strong>Estatutos Sociales o Escritura de Constitución:</strong> Verificación de constitución y vigencia de la sociedad.</li>
+              <li><strong>Informe Comercial DICOM (opcional):</strong> Antecedentes complementarios de morosidades y protestos comerciales no bancarios.</li>
+            </ul>
+            También puedes ingresar antecedentes de manera manual directamente en el simulador sin costo.
           </div>
         </div>
 
@@ -857,7 +883,33 @@
             <span>+</span>
           </div>
           <div class="faq-answer">
-            El pago se realiza de manera 100% segura a través de <strong>Mercado Pago</strong>, admitiendo tarjetas de crédito, tarjetas de débito, transferencias y saldo en cuenta. No cobramos mensualidades obligatorias: solo compras el informe individual o packs de informes prepagados cuando los necesitas. Todos los precios son netos, más IVA.
+            El pago se realiza de manera 100% segura a través de <strong>Mercado Pago</strong> [DECIDIR: Mercado Pago / Webpay Plus / ambos], admitiendo tarjetas de crédito (Visa, Mastercard, Amex), tarjetas de débito (Redcompra), transferencia bancaria electrónica y saldo en cuenta. No cobramos mensualidades obligatorias: solo compras el informe individual o packs de informes prepagados cuando los necesitas. Todos los precios exhibidos son <strong>valores netos, más IVA</strong>, con emisión automática de factura electrónica comercial.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question" onclick="toggleFaq(this)">
+            <span>¿Cómo se calculan los límites de crédito del informe?</span>
+            <span>+</span>
+          </div>
+          <div class="faq-answer">
+            El informe calcula un <strong>triple techo de crédito comercial</strong>:
+            <ol style="margin: 0.5rem 0 0.5rem 1.25rem; padding: 0; line-height: 1.6;">
+              <li><strong>Límite Comercial por Ventas:</strong> Proyección de compras razonables calculada a partir de las ventas declaradas en F29 y el plazo comercial otorgado.</li>
+              <li><strong>Límite Financiero por Capacidad de Pago:</strong> Basado en el flujo operacional disponible y generación de EBITDA para no sobreendeudar al cliente.</li>
+              <li><strong>Límite por Política Interna de Riesgo:</strong> Criterio prudencial de concentración máxima de cartera para proteger el patrimonio del proveedor.</li>
+            </ol>
+            El sistema sugiere como cupo máximo el menor de estos tres límites para mitigar el riesgo de incobrabilidad.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question" onclick="toggleFaq(this)">
+            <span>¿Cuáles son los posibles estados de una evaluación?</span>
+            <span>+</span>
+          </div>
+          <div class="faq-answer">
+            El motor de scoring clasifica la solicitud en uno de cinco estados estandarizados: <strong>Aprobado</strong>, <strong>Aprobado con condiciones</strong> (sujeto a garantías, anticipos o plazos reducidos), <strong>Pendiente</strong> (a la espera de antecedentes adicionales), <strong>Rechazado</strong> o <strong>Bloqueado</strong> (por alertas de alto riesgo como mora bancaria CMF grave o pérdidas continuadas).
           </div>
         </div>
 
@@ -867,7 +919,7 @@
             <span>+</span>
           </div>
           <div class="faq-answer">
-            El documento en PDF se genera y descarga inmediatamente tras completar la evaluación en la plataforma.
+            El documento en PDF se genera y descarga inmediatamente tras completar la evaluación en la plataforma. Cada decisión queda registrada con trazabilidad completa en el historial de tu cuenta.
           </div>
         </div>
 
@@ -877,7 +929,7 @@
             <span>+</span>
           </div>
           <div class="faq-answer">
-            Los archivos PDF se procesan en la memoria volátil del servidor para extraer cifras tributarias y balances; no quedan copias de los PDFs almacenadas en disco. Tus datos se manejan de forma segura y confidencial conforme a la Ley 19.628 y los estándares de la nueva Ley 21.719. No comercializamos datos con terceros.
+            Los archivos PDF se leen y procesan de forma efímera en la memoria volátil del servidor para extraer cifras tributarias y balances; no quedan copias de los archivos PDF guardadas en disco. Únicamente se conservan en la base de datos relacional los datos numéricos del expediente para el historial del usuario. El tratamiento se realiza conforme a la Ley N° 19.628, en proceso de adecuación a la Ley N° 21.719 [DECIDIR_PROVEEDOR_IA]. No comercializamos datos con terceros.
           </div>
         </div>
 
@@ -887,7 +939,7 @@
             <span>+</span>
           </div>
           <div class="faq-answer">
-            No. El informe es una herramienta técnica de estimación paramétrica y apoyo profesional a la gestión del riesgo. No constituye fianza, aval, póliza de seguro de crédito ni garantía de cobro. La decisión soberana de conceder crédito radica en la empresa vendedora.
+            No. El informe es una herramienta técnica de estimación paramétrica y apoyo profesional a la gestión del riesgo de crédito comercial. No constituye fianza, aval, póliza de seguro de crédito ni garantía de cobro ni asesoría financiera personalizada. La decisión soberana de conceder crédito radica única y exclusivamente en la empresa vendedora.
           </div>
         </div>
       </div>
@@ -1464,6 +1516,10 @@
         bottom: 54px;
         right: 0;
         width: calc(100vw - 32px);
+      }
+      /* Espacio inferior de resguardo en footer para evitar colisión con el botón flotante */
+      .site-footer {
+        padding-bottom: 5rem !important;
       }
     }
   </style>
