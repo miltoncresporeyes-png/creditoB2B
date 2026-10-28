@@ -1,12 +1,21 @@
 import os, re, time, threading, json
+import uuid, secrets, hmac, hashlib
+from html import escape as hesc
 from datetime import datetime
-from flask import Flask, request, jsonify, send_from_directory, send_file
+from flask import Flask, request, jsonify, send_from_directory, send_file, Response
 from dotenv import load_dotenv
+import requests as req
+import requests
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException
-
 from flask_cors import CORS
+
+import pdf_extractor
+import db
+import report_generator
+import invoice_generator
+import email_service
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(ROOT, '.env'))
@@ -16,7 +25,161 @@ CORS(app, resources={r"/api/*": {"origins": "*"}})
 CACHE = {}
 LOCK = threading.Lock()
 
+def fetch_sii_v2(rut):
+    return fetch_sii_engine(rut)
+LOCK = threading.Lock()
+
 def fetch_sii(rut):
+    return fetch_sii_engine(rut)
+
+def fetch_sii_engine(rut):
+    rut = rut.strip()
+    with LOCK:
+        if rut in CACHE:
+            return CACHE[rut]
+    
+    clean_rut = re.sub(r'[^0-9kK]', '', rut)
+    if len(clean_rut) >= 2:
+        body = clean_rut[:-1]
+        dv = clean_rut[-1].upper()
+    else:
+        parts = (rut.split('-') + [''])[:2]
+        body = re.sub(r'[^0-9]', '', parts[0])
+        dv = parts[1].strip().upper()
+
+    formatted_rut = f"{body}-{dv}"
+
+    # INTENTO 1: API REST Oficial del SII (directo, rápido, sin Queue-it)
+    try:
+        s = requests.Session()
+        s.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Referer': 'https://www2.sii.cl/stc/noauthz',
+            'Origin': 'https://www2.sii.cl',
+            'Accept': 'application/json, text/plain, */*'
+        })
+        payload = {
+            'rut': body,
+            'dv': dv,
+            'reAction': 'stc',
+            'reToken': ''
+        }
+        resp = s.post('https://www2.sii.cl/app/stc/recurso/v1/consulta/getConsultaData/', json=payload, timeout=6)
+        if resp.status_code == 200:
+            res_json = resp.json()
+            if res_json.get('registrado') and res_json.get('nombre'):
+                nombre = res_json.get('nombre', '').strip()
+                fecha_inicio = res_json.get('fechaInicioActividades')
+                antiguedad = None
+                if fecha_inicio:
+                    try:
+                        d = datetime.strptime(fecha_inicio, '%d-%m-%Y')
+                        antiguedad = round((datetime.now() - d).days / 365.25, 1)
+                    except Exception:
+                        pass
+                
+                giros = res_json.get('girosNegocio') or []
+                actividad = None
+                cod_actividad = None
+                afecta_iva = 'Si' if res_json.get('cumpleObligacionTributaria') == 'SI' or res_json.get('tienePrimeraCategoria') else 'No'
+                
+                if giros:
+                    primer_giro = giros[0]
+                    actividad = primer_giro.get('descripcion', '').strip()
+                    cod_actividad = primer_giro.get('codigo', '').strip()
+                    if primer_giro.get('indicadorAfectoIva') == 'S':
+                        afecta_iva = 'Si'
+
+                timbrajes = res_json.get('timbrajes') or []
+                documentos_timbrados = []
+                anio_timbraje = None
+                for t in timbrajes:
+                    desc = (t.get('descripcion') or '').strip()
+                    f_timb = (t.get('fechaTimbraje') or '').strip()
+                    if desc:
+                        documentos_timbrados.append({'documento': desc, 'anio': f_timb})
+                        if 'factura' in desc.lower() and ('electr' in desc.lower() or not anio_timbraje):
+                            anio_timbraje = f_timb
+
+                pyme = 'SI' if res_json.get('tieneEMTP') else 'NO'
+                moneda_extranjera = 'SI' if res_json.get('tieneAPME') else 'NO'
+
+                data = {
+                    'rut': formatted_rut,
+                    'nombre': nombre,
+                    'rutContribuyente': formatted_rut,
+                    'inicioActividades': 'SI' if res_json.get('inicioActividades') or res_json.get('tieneInicio') else 'NO',
+                    'fechaInicioActividades': fecha_inicio,
+                    'antiguedad': antiguedad,
+                    'monedaExtranjera': moneda_extranjera,
+                    'empresaMenorTamano': pyme,
+                    'actividad': actividad,
+                    'codActividad': cod_actividad,
+                    'afectaIva': afecta_iva,
+                    'anioTimbraje': anio_timbraje or str(datetime.now().year),
+                    'documentosTimbrados': documentos_timbrados,
+                    'rawSnippet': f"Razón Social: {nombre}. Giros: {len(giros)}. Timbrajes: {len(timbrajes)}"
+                }
+                with LOCK:
+                    CACHE[rut] = data
+                return data
+    except Exception as api_err:
+        print(f"[SII REST API Info] Consulta REST SII directa no disponible ({str(api_err)}).")
+
+    # INTENTO 2: Historial local en base de datos
+    try:
+        conn = db.get_db()
+        cur = conn.cursor()
+        pg = db.is_postgres(conn)
+        sql = "SELECT razon_social, sector, input_data FROM evaluaciones WHERE rut = ? ORDER BY id DESC LIMIT 1"
+        cur.execute(db._adapt_sql(sql, pg), (formatted_rut,))
+        row = cur.fetchone()
+        if row:
+            r_social = row['razon_social'] if pg or hasattr(row, 'keys') else row[0]
+            r_sector = row['sector'] if pg or hasattr(row, 'keys') else row[1]
+            data = {
+                'rut': formatted_rut,
+                'nombre': r_social,
+                'rutContribuyente': formatted_rut,
+                'inicioActividades': 'SI',
+                'fechaInicioActividades': 'Registrado previamente',
+                'antiguedad': 5.0,
+                'monedaExtranjera': 'NO',
+                'empresaMenorTamano': 'NO',
+                'actividad': r_sector or 'Empresa comercial registrada',
+                'codActividad': None,
+                'afectaIva': 'Si',
+                'anioTimbraje': str(datetime.now().year),
+                'documentosTimbrados': [{'documento': 'Factura Electrónica', 'anio': str(datetime.now().year)}],
+                'fuente': 'Historial CRM'
+            }
+            with LOCK:
+                CACHE[rut] = data
+            return data
+    except Exception as db_err:
+        print(f"[SII DB History Info] {db_err}")
+
+    # Fallback final si no se encontró en SII ni en historial
+    data = {
+        'rut': formatted_rut,
+        'nombre': None,
+        'rutContribuyente': formatted_rut,
+        'inicioActividades': 'Verificar manualmente o adjuntar Carpeta Tributaria F29',
+        'fechaInicioActividades': None,
+        'antiguedad': None,
+        'monedaExtranjera': 'No',
+        'empresaMenorTamano': 'No especificado',
+        'actividad': 'Información disponible en Carpeta Tributaria F29/F22',
+        'codActividad': None,
+        'afectaIva': 'Si',
+        'anioTimbraje': str(datetime.now().year),
+        'documentosTimbrados': [{'documento': 'Factura Electrónica', 'anio': str(datetime.now().year)}],
+        'fallback': True,
+        'nota': 'El RUT ingresado no registra antecedentes en el SII o el servicio no se encuentra disponible. Puedes completar los datos manualmente o adjuntar la Carpeta Tributaria.'
+    }
+    return data
+
+def fetch_sii_legacy(rut):
     rut = rut.strip()
     with LOCK:
         if rut in CACHE:
@@ -72,8 +235,6 @@ def fetch_sii(rut):
             'fallback': True,
             'nota': 'Consulta automática al portal SII temporalmente no disponible desde este entorno. Por favor verifica los datos o adjunta la Carpeta Tributaria oficial.'
         }
-        with LOCK:
-            CACHE[rut] = data
         return data
     finally:
         if driver:
@@ -87,21 +248,27 @@ def fetch_sii(rut):
     return data
 
 def parse_sii(text, rut):
-    # Limpiar y normalizar para evitar fallas por tildes o codificación
-    def grab_flexible(pattern):
-        m = re.search(pattern + r'\s*:\s*(.+)', text, re.IGNORECASE)
-        return m.group(1).strip() if m else None
+    # Normalizar caracteres no-ascii / caracteres de reemplazo unicode (\ufffd) para garantizar coincidencia de regex
+    clean_text = re.sub(r'[^\x00-\x7F]+', ' ', text)
 
-    nombre = grab_flexible(r'Nombre\s+o\s+Raz[oó\?]n\s+Social')
+    def grab_flexible(pattern):
+        # Intentar en texto limpio primero
+        m = re.search(pattern + r'\s*:\s*([^\r\n]+)', clean_text, re.IGNORECASE)
+        if m:
+            return m.group(1).strip()
+        # Intentar en texto original
+        m2 = re.search(pattern + r'\s*:\s*([^\r\n]+)', text, re.IGNORECASE)
+        return m2.group(1).strip() if m2 else None
+
+    nombre = grab_flexible(r'Nombre\s+o\s+Raz.*?n\s+Social')
     rutc = grab_flexible(r'RUT\s+Contribuyente')
     inicio = grab_flexible(r'Contribuyente\s+presenta\s+Inicio\s+de\s+Actividades')
     fecha_inicio = grab_flexible(r'Fecha\s+de\s+Inicio\s+de\s+Actividades')
     extranjera = grab_flexible(r'Contribuyente\s+autorizado\s+para\s+declarar\s+y\s+pagar\s+sus\s+impuestos\s+en\s+moneda\s+extranjera')
-    pyme = grab_flexible(r'Contribuyente\s+es\s+Empresa\s+de\s+Menor\s+Tama[nñ\?]o')
+    pyme = grab_flexible(r'Contribuyente\s+es\s+Empresa\s+de\s+Menor\s+Tama.*?o')
     antiguedad = None
     if fecha_inicio:
         try:
-            from datetime import datetime
             d = datetime.strptime(fecha_inicio, '%d-%m-%Y')
             antiguedad = round((datetime.now() - d).days / 365.25, 1)
         except Exception:
@@ -111,27 +278,27 @@ def parse_sii(text, rut):
     actividad = None
     cod_actividad = None
     afecta_iva = None
-    m_act = re.search(r'Actividades\s+Econ[oó\?]micas\s+vigentes.*?Fecha\s*\n\s*1\s*\n\s*([^\n]+)\s*\n\s*(\d{4,6})\s*\n\s*([^\n]+)\s*\n\s*([^\n]+)', text, re.DOTALL | re.IGNORECASE)
+    m_act = re.search(r'Actividades\s+Econ.*?micas\s+vigentes.*?Fecha\s*\n\s*1\s*\n\s*([^\n]+)\s*\n\s*(\d{4,6})\s*\n\s*([^\n]+)\s*\n\s*([^\n]+)', clean_text, re.DOTALL | re.IGNORECASE)
     if m_act:
         actividad = m_act.group(1).strip()
         cod_actividad = m_act.group(2).strip()
         afecta_iva = m_act.group(4).strip()
     else:
         # Fallback genérico si viene en otra disposición
-        m_act2 = re.search(r'1\s*\n\s*([A-ZÁÉÍÓÚÑ0-9\s,\.\-]{10,80})\s*\n\s*(\d{5,6})\s*\n\s*Primera\s*\n\s*(Si|No)', text, re.IGNORECASE)
+        m_act2 = re.search(r'1\s*\n\s*([A-Za-z0-9\s,\.\-]{10,80})\s*\n\s*(\d{5,6})\s*\n\s*Primera\s*\n\s*(Si|No)', clean_text, re.IGNORECASE)
         if m_act2:
             actividad = m_act2.group(1).strip()
             cod_actividad = m_act2.group(2).strip()
             afecta_iva = m_act2.group(3).strip()
 
     # Extraer última autorización / timbraje electrónico
-    m_timbraje = re.search(r'Factura\s+Electr[oó\?]nica\s*\n\s*(\d{4})', text, re.IGNORECASE)
+    m_timbraje = re.search(r'Factura\s+Electr.*?nica\s*\n\s*(\d{4})', clean_text, re.IGNORECASE)
     anio_timbraje = m_timbraje.group(1).strip() if m_timbraje else None
 
     # Extraer lista completa de documentos autorizados y año de timbraje
     documentos_timbrados = []
     # Buscar patrones de documentos y años (Factura, Boleta, Guía, etc.)
-    doc_matches = re.findall(r'(Factura[^\n\d]*|Boleta[^\n\d]*|Gu[ií]a[^\n\d]*|Liquidaci[oó]n[^\n\d]*)\s*(\d{4})', text, re.IGNORECASE)
+    doc_matches = re.findall(r'(Factura[^\n\d]*|Boleta[^\n\d]*|Gu.*?a[^\n\d]*|Liquidaci.*?n[^\n\d]*)\s*(\d{4})', clean_text, re.IGNORECASE)
     seen_docs = set()
     for dm in doc_matches:
         d_name = re.sub(r'^\d+\s*', '', dm[0]).strip()
@@ -194,20 +361,30 @@ def api_sii():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-import pdf_extractor
-
 @app.route('/api/extract-pdf', methods=['POST'])
 def extract_pdf():
-    if 'file' not in request.files:
+    files = request.files.getlist('file')
+    if not files or len(files) == 0:
         return jsonify({'error': 'No se adjuntó ningún archivo'}), 400
-    
-    file = request.files['file']
+
     doc_type = request.form.get('type', 'auto')
-    
-    if not file.filename.lower().endswith('.pdf'):
-        return jsonify({'error': 'El archivo debe ser un PDF'}), 400
-    
+
+    # Filtrar solo archivos PDF válidos
+    pdf_files = [f for f in files if f.filename.lower().endswith('.pdf')]
+    if not pdf_files:
+        return jsonify({'error': 'Todos los archivos deben ser PDF'}), 400
+
     try:
+        if len(pdf_files) > 1 and doc_type in ('eeff', 'auto'):
+            # Procesamiento consolidado / comparativo de múltiples balances
+            contents = [f.read() for f in pdf_files]
+            names = [f.filename for f in pdf_files]
+            data = pdf_extractor.parse_estados_financieros(contents, filenames=names)
+            if data.get('error'):
+                return jsonify({'error': data['error']}), 400
+            return jsonify({'success': True, 'data': data})
+
+        file = pdf_files[0]
         content = file.read()
         if doc_type == 'erut':
             data = pdf_extractor.parse_erut(content)
@@ -217,31 +394,36 @@ def extract_pdf():
             data = pdf_extractor.parse_carpeta_tributaria(content)
         elif doc_type == 'estatutos':
             data = pdf_extractor.parse_estatutos(content)
+        elif doc_type == 'eeff':
+            data = pdf_extractor.parse_estados_financieros(content, filenames=file.filename)
         else:
             # Deteccion automatica segun contenido
-            # Probar erut, cmf, carpeta tributaria
             try:
-                ct = pdf_extractor.parse_carpeta_tributaria(content)
-                if ct['periodos_disponibles'] > 0:
-                    data = ct
+                eeff = pdf_extractor.parse_estados_financieros(content, filenames=file.filename)
+                if eeff.get('activoCorriente') or eeff.get('pasivoCorriente') or eeff.get('cuentasPorCobrar') or eeff.get('pasivoTotal'):
+                    data = eeff
                 else:
-                    cmf = pdf_extractor.parse_cmf_deudas(content)
-                    if cmf['deuda_total'] > 0 or cmf['rut']:
-                        data = cmf
+                    ct = pdf_extractor.parse_carpeta_tributaria(content)
+                    if ct.get('error'):
+                        raise ValueError(ct['error'])
+                    if ct['periodos_disponibles'] > 0:
+                        data = ct
                     else:
-                        data = pdf_extractor.parse_erut(content)
+                        cmf = pdf_extractor.parse_cmf_deudas(content)
+                        if cmf.get('error'):
+                            raise ValueError(cmf['error'])
+                        if cmf['deuda_total'] > 0 or cmf['rut']:
+                            data = cmf
+                        else:
+                            data = pdf_extractor.parse_erut(content)
             except Exception:
                 data = pdf_extractor.parse_erut(content)
-                
+
+        if data.get('error'):
+            return jsonify({'error': data['error']}), 400
         return jsonify({'success': True, 'data': data})
     except Exception as e:
         return jsonify({'error': f'Error al procesar el PDF: {str(e)}'}), 500
-
-import db
-import report_generator
-import invoice_generator
-import email_service
-from flask import Response
 
 @app.route('/api/evaluations', methods=['POST'])
 def handle_evaluations():
@@ -399,8 +581,6 @@ def get_sample_report():
     except Exception as e:
         return jsonify({'error': f'Error al generar dictamen demo: {str(e)}'}), 500
 
-import uuid, secrets
-
 @app.route('/api/payments/create', methods=['POST'])
 def create_payment():
     data = request.get_json() or {}
@@ -453,7 +633,6 @@ def verify_mp_webhook_signature(x_signature, x_request_id, data_id):
         
     secret_key = MP_WEBHOOK_SECRET or 'creditob2b_default_webhook_secret'
     manifest = f"id:{data_id};request-id:{x_request_id};ts:{ts};"
-    import hmac, hashlib
     expected_hash = hmac.new(
         secret_key.encode('utf-8'),
         manifest.encode('utf-8'),
@@ -468,7 +647,6 @@ def verify_mp_webhook_signature(x_signature, x_request_id, data_id):
 @app.route('/api/payments/mp-preference', methods=['POST'])
 def create_mp_preference():
     """Genera preferencia de pago oficial en Mercado Pago Sandbox/Producción."""
-    import requests as req
     
     # Validar que existan credenciales configuradas
     if not MP_ACCESS_TOKEN or not MP_PUBLIC_KEY:
@@ -539,7 +717,6 @@ def create_mp_preference():
 @app.route('/api/payments/mp-webhook', methods=['POST'])
 def mp_webhook():
     """Webhook oficial de Mercado Pago: valida firma criptográfica y confirma transacciones consultando el estado real."""
-    import requests as req
     data = request.get_json() or {}
     topic = data.get('type') or request.args.get('topic') or data.get('topic')
     
@@ -599,7 +776,6 @@ def mp_webhook():
 @app.route('/pago/exito')
 def pago_exito():
     """Página informativa de retorno tras el checkout de Mercado Pago."""
-    import requests as req
     order_id = request.args.get('order_id', '').strip()
     collection_id = request.args.get('collection_id', '').strip()
     payment_id = request.args.get('payment_id', '').strip() or collection_id
@@ -645,23 +821,24 @@ def pago_exito():
 
     is_approved = order_record.get('estado') == 'APPROVED'
     billing = order_record.get('billing_data', {})
-    receptor_nombre = billing.get('razon_social') or billing.get('nombre') or 'Cliente Registrado'
-    receptor_rut = billing.get('rut') or 'N/A'
-    plan_nombre = PRICES_CONFIG.get(order_record.get('plan_tipo'), {}).get('nombre', 'Evaluación de Crédito')
+    receptor_nombre = hesc(billing.get('razon_social') or billing.get('nombre') or 'Cliente Registrado')
+    receptor_rut = hesc(billing.get('rut') or 'N/A')
+    order_id_esc = hesc(order_id)
+    plan_nombre = hesc(PRICES_CONFIG.get(order_record.get('plan_tipo'), {}).get('nombre', 'Evaluación de Crédito'))
     monto_fmt = f"${int(order_record.get('monto', 0)):,}".replace(',', '.')
 
     status_badge_text = "Pago Confirmado" if is_approved else "Verificando Transacción"
     status_msg = "Tu pago ha sido confirmado. Puedes descargar de inmediato tu comprobante comercial y acceder a la plataforma." if is_approved else "Estamos validando la confirmación de la pasarela bancaria. Si el pago fue completado, tu acceso se habilitará en breve."
 
     download_button = f"""
-    <a href="/api/invoice-pdf?order_id={order_id}" class="btn btn-invoice" target="_blank" download>
+    <a href="/api/invoice-pdf?order_id={order_id_esc}" class="btn btn-invoice" target="_blank" download>
       📄 Descargar Comprobante de Compra (PDF)
     </a>
     """ if is_approved else """
     <p style="color: #f59e0b; font-size: 13px;">⏳ La descarga se habilitará una vez recibido el comprobante bancario.</p>
     """
 
-    tok = order_record.get('token_acceso', '') if is_approved else ''
+    tok = hesc(order_record.get('token_acceso', '')) if is_approved else ''
     app_url = f"/app?credit_token={tok}" if tok else "/app"
     token_display = f"""
     <div class="order-row" style="background: rgba(37,99,235,0.1); padding: 8px; border-radius: 8px; margin-top: 8px;">
@@ -819,7 +996,7 @@ def pago_exito():
         <div class="order-box">
           <div class="order-row">
             <span class="order-label">N° de Orden:</span>
-            <span class="order-value">{order_id}</span>
+            <span class="order-value">{order_id_esc}</span>
           </div>
           <div class="order-row">
             <span class="order-label">Plan / Servicio:</span>
@@ -887,7 +1064,7 @@ def pago_fallo():
         <div class="icon">✗</div>
         <h1>El pago no pudo procesarse</h1>
         <p>La transacción no fue autorizada o fue cancelada por la entidad financiera.</p>
-        <p style="font-size: 13px; color: #64748b;">Orden: <strong>{order_id}</strong></p>
+        <p style="font-size: 13px; color: #64748b;">Orden: <strong>{hesc(order_id)}</strong></p>
         <a href="/" class="btn">Volver al Inicio</a>
       </div>
     </body>
@@ -896,7 +1073,7 @@ def pago_fallo():
 
 @app.route('/pago/pendiente')
 def pago_pendiente():
-    order_id = request.args.get('order_id', '')
+    order_id = hesc(request.args.get('order_id', ''))
     return f"""
     <!DOCTYPE html>
     <html lang="es">
@@ -949,21 +1126,25 @@ def download_invoice_pdf():
 
 @app.route('/api/payments/verify', methods=['POST'])
 def verify_payment():
+    """Consulta de SOLO LECTURA del estado de una orden.
+
+    Seguridad: NUNCA confirma pagos ni emite tokens de acceso. La confirmación
+    exclusiva la realiza el webhook oficial /api/payments/mp-webhook validando
+    firma criptográfica y consultando el estado real en la API de Mercado Pago.
+    """
     data = request.get_json() or {}
     order_id = data.get('order_id')
     if not order_id:
         return jsonify({'error': 'order_id requerido'}), 400
-    access_token = f"tok_{secrets.token_urlsafe(24)}"
     try:
-        tx, err = db.verify_and_complete_payment(order_id, access_token)
-        if err and not tx:
-            return jsonify({'error': err}), 400
+        order_record = db.get_payment_order(order_id)
+        if not order_record:
+            return jsonify({'error': 'Orden no encontrada'}), 404
         return jsonify({
             'success': True,
-            'transaction': tx,
-            'access_token': access_token,
-            'download_url': f"/api/report-pdf-paid?token={access_token}",
-            'invoice_url': f"/api/invoice-pdf?order_id={order_id}"
+            'order_id': order_id,
+            'estado': order_record.get('estado'),
+            'paid': order_record.get('estado') == 'APPROVED'
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -1124,9 +1305,26 @@ def export_paid_report():
     except Exception as e:
         return jsonify({'error': f'Error al generar dictamen PDF: {str(e)}'}), 500
 
+def _require_admin_key():
+    """Valida la clave de administración (env ADMIN_BACKUP_KEY) para endpoints de diagnóstico.
+
+    Devuelve (clave_ok, error_response). Sin env configurado -> 503 (endpoint deshabilitado).
+    """
+    admin_secret = os.environ.get('ADMIN_BACKUP_KEY', '').strip()
+    if not admin_secret:
+        return None, (jsonify({'error': 'ADMIN_BACKUP_KEY no está configurado en el servidor.'}), 503)
+    provided = request.args.get('key', '').strip() or request.headers.get('X-Admin-Key', '').strip()
+    if not provided or not hmac.compare_digest(provided, admin_secret):
+        return None, (jsonify({'error': 'No autorizado.'}), 401)
+    return admin_secret, None
+
+
 @app.route('/api/test-email', methods=['GET', 'POST'])
 def trigger_test_email():
-    """Endpoint de diagnóstico para emitir correos de prueba reales hacia cliente y administración."""
+    """Endpoint de diagnóstico protegido para emitir correos de prueba reales hacia cliente y administración."""
+    _, auth_err = _require_admin_key()
+    if auth_err:
+        return auth_err
     client_email = request.args.get('client_email', 'pedropablomeromero@gmail.com').strip()
     admin_email = request.args.get('admin_email', 'contacto@creditob2b.cl').strip()
     sync = request.args.get('sync', '1').strip() == '1'
@@ -1187,7 +1385,10 @@ def trigger_test_email():
 
 @app.route('/api/db-status')
 def check_db_status():
-    """Diagnóstico en vivo de la conexión con PostgreSQL / SQLite."""
+    """Diagnóstico en vivo de la conexión con PostgreSQL / SQLite (protegido)."""
+    _, auth_err = _require_admin_key()
+    if auth_err:
+        return auth_err
     status = db.get_db_status()
     db_keys = [k for k in os.environ.keys() if any(sub in k.upper() for sub in ['DATA', 'POST', 'PG', 'SQL', 'DB'])]
     status['detected_env_keys'] = db_keys
@@ -1198,14 +1399,14 @@ def check_db_status():
 
 @app.route('/api/admin/backup-download', methods=['GET'])
 def download_database_backup():
-    """Descarga de respaldo completo de la base de datos en formato JSON."""
-    key = request.args.get('key', '').strip()
-    admin_secret = os.environ.get('ADMIN_BACKUP_KEY', 'creditob2b_backup_2026').strip()
-    
-    if not key or key != admin_secret:
-        return jsonify({
-            'error': 'No autorizado. Debe proporcionar la clave de acceso de respaldo (?key=...).'
-        }), 401
+    """Descarga de respaldo completo de la base de datos en formato JSON.
+
+    Seguridad: sin default hardcodeado; requiere env ADMIN_BACKUP_KEY configurada
+    y comparación en tiempo constante (hmac.compare_digest).
+    """
+    _, auth_err = _require_admin_key()
+    if auth_err:
+        return auth_err
 
     try:
         data = db.export_full_backup()

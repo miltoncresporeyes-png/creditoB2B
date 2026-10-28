@@ -208,17 +208,19 @@
       concentracionTopCliente: toNum(source.concentracionTopCliente),
       activoCorriente: toNum(source.activoCorriente),
       pasivoCorriente: toNum(source.pasivoCorriente),
-      inventarios: toNum(source.inventarios, 0),
-      caja: toNum(source.caja, 0),
+      inventarios: toNum(source.inventarios),
+      caja: toNum(source.caja),
       cuentasPorCobrar: toNum(source.cuentasPorCobrar),
       ebitda: toNum(source.ebitda),
       flujoCajaOperacional: toNum(source.flujoCajaOperacional),
-      gastosFinancieros: toNum(source.gastosFinancieros, 0),
-      servicioDeuda: toNum(source.servicioDeuda, 0),
+      gastosFinancieros: toNum(source.gastosFinancieros),
+      servicioDeuda: toNum(source.servicioDeuda),
       pasivoTotal: toNum(source.pasivoTotal),
       patrimonio: toNum(source.patrimonio),
       deudaFinanciera: toNum(source.deudaFinanciera),
-      deudaFinancieraCP: toNum(source.deudaFinancieraCP, 0),
+      deudaFinancieraCP: toNum(source.deudaFinancieraCP),
+      deudaSociosRelacionados: toNum(source.deudaSociosRelacionados),
+      diferenciaCambio: toNum(source.diferenciaCambio),
       maxDiasMora: toNum(source.maxDiasMora, 0),
       deudaVencida: toNum(source.deudaVencida, 0),
       deudaCastigada: toNum(source.deudaCastigada, 0),
@@ -249,7 +251,7 @@
       validacionLegal: toBool(source.validacionLegal, false),
       autorizacion90: toBool(source.autorizacion90, false),
       justificacion90: toBool(source.justificacion90, false),
-      limitePoliticaRiesgo: toNum(source.limitePoliticaRiesgo, 10000000),
+      limitePoliticaRiesgo: (source.limitePoliticaRiesgo !== undefined && source.limitePoliticaRiesgo !== null && String(source.limitePoliticaRiesgo).trim() !== "") ? toNum(source.limitePoliticaRiesgo, null) : null,
       factorComercial: toNum(source.factorComercial, 0.9),
       multiplicadorFlujo: toNum(source.multiplicadorFlujo, 1),
       tendenciaVentas: ["sube", "estable", "cae", ""].indexOf(source.tendenciaVentas) >= 0 ? source.tendenciaVentas : "",
@@ -278,36 +280,57 @@
     var capitalTrabajoRatio = capitalTrabajo !== null && ventasMensuales !== null && ventasMensuales > 0 ? capitalTrabajo / ventasMensuales : null;
     var margenEbitda = ratio(input.ebitda, input.ventas12m);
     var flujoMargen = ratio(input.flujoCajaOperacional, input.ventas12m);
-    var coberturaIntereses = input.gastosFinancieros === 0
-      ? (input.deudaFinanciera > 0 ? null : input.ebitda !== null ? 999 : null)
-      : ratio(input.ebitda, input.gastosFinancieros);
-    var coberturaServicio = input.servicioDeuda === 0
-      ? (input.deudaFinanciera > 0 ? null : input.flujoCajaOperacional !== null ? 999 : null)
-      : ratio(input.flujoCajaOperacional, input.servicioDeuda);
+    var coberturaIntereses;
+    if (input.gastosFinancieros === null || input.gastosFinancieros === undefined) {
+      coberturaIntereses = null;
+    } else if (input.gastosFinancieros === 0) {
+      coberturaIntereses = input.deudaFinanciera !== null && input.deudaFinanciera > 0 ? null : (input.ebitda !== null ? 999 : null);
+    } else {
+      coberturaIntereses = ratio(input.ebitda, input.gastosFinancieros);
+    }
+    var coberturaServicio;
+    if (input.servicioDeuda === null || input.servicioDeuda === undefined) {
+      coberturaServicio = null;
+    } else if (input.servicioDeuda === 0) {
+      coberturaServicio = input.deudaFinanciera !== null && input.deudaFinanciera > 0 ? null : (input.flujoCajaOperacional !== null ? 999 : null);
+    } else {
+      coberturaServicio = ratio(input.flujoCajaOperacional, input.servicioDeuda);
+    }
     var deudaPatrimonio;
     if (input.patrimonio === null) deudaPatrimonio = null;
     else if (input.patrimonio <= 0) deudaPatrimonio = input.pasivoTotal === null ? null : 999;
     else deudaPatrimonio = ratio(input.pasivoTotal, input.patrimonio);
-    var deudaNeta = input.deudaFinanciera !== null ? input.deudaFinanciera - input.caja : null;
+    var deudaNeta = input.deudaFinanciera !== null && input.deudaFinanciera !== undefined
+      ? input.deudaFinanciera - (input.caja || 0)
+      : null;
     var deudaNetaEbitda = null;
     if (deudaNeta !== null && input.ebitda !== null) {
       if (input.ebitda > 0) deudaNetaEbitda = deudaNeta / input.ebitda;
       else deudaNetaEbitda = deudaNeta <= 0 ? -1 : 999;
     }
-    var cajaDeudaCP = input.deudaFinancieraCP === 0
-      ? (input.caja !== null ? 999 : null)
-      : ratio(input.caja, input.deudaFinancieraCP);
+    var cajaDeudaCP;
+    if (input.deudaFinancieraCP === null || input.deudaFinancieraCP === undefined) {
+      cajaDeudaCP = null;
+    } else if (input.deudaFinancieraCP === 0) {
+      cajaDeudaCP = input.caja !== null && input.caja !== undefined ? 999 : null;
+    } else {
+      cajaDeudaCP = ratio(input.caja, input.deudaFinancieraCP);
+    }
     var deudaCPShare;
-    if (input.deudaFinanciera === 0) deudaCPShare = input.deudaFinancieraCP > 0 ? 1 : 0;
+    if (input.deudaFinanciera === null || input.deudaFinanciera === undefined) deudaCPShare = null;
+    else if (input.deudaFinanciera === 0) deudaCPShare = input.deudaFinancieraCP > 0 ? 1 : 0;
     else deudaCPShare = ratio(input.deudaFinancieraCP, input.deudaFinanciera);
     var vencidaRatio;
-    if (input.deudaFinanciera === 0) vencidaRatio = input.deudaVencida > 0 ? 1 : 0;
+    if (input.deudaFinanciera === null || input.deudaFinanciera === undefined) vencidaRatio = null;
+    else if (input.deudaFinanciera === 0) vencidaRatio = input.deudaVencida > 0 ? 1 : 0;
     else vencidaRatio = ratio(input.deudaVencida, input.deudaFinanciera);
     var facturasVencidasRatio;
     if (ventasMensuales === null) facturasVencidasRatio = null;
     else if (ventasMensuales === 0) facturasVencidasRatio = input.facturasVencidas > 0 ? 1 : 0;
     else facturasVencidasRatio = ratio(input.facturasVencidas, ventasMensuales);
-    var flujoLibre = input.flujoCajaOperacional !== null ? input.flujoCajaOperacional - input.servicioDeuda : null;
+    var flujoLibre = input.flujoCajaOperacional !== null && input.flujoCajaOperacional !== undefined
+      ? input.flujoCajaOperacional - (input.servicioDeuda || 0)
+      : null;
     var dso = input.cuentasPorCobrar !== null && input.ventas12m > 0
       ? input.cuentasPorCobrar / input.ventas12m * 365
       : null;
@@ -331,7 +354,7 @@
       facturasVencidasRatio: facturasVencidasRatio,
       flujoLibre: flujoLibre,
       dso: dso,
-      deudaTotalExterna: (input.deudaFinanciera || 0) + (input.deudaTGR || 0) + (input.montoMorosidades || 0)
+      deudaTotalExterna: (input.deudaFinanciera || 0) + (input.deudaTGR || 0) + (input.montoMorosidades || 0) + (input.deudaSociosRelacionados || 0)
     };
   }
 
@@ -359,35 +382,36 @@
     };
   }
 
-  function buildDimensions(input, r) {
+  function buildDimensions(input, r, hasEeff) {
     var sector = SECTORS[input.sector] || SECTORS.otro;
+    var defaultMissingScore = hasEeff === false ? 40 : 0;
 
     var liquidez = buildDimension("liquidez", "A. Liquidez y capital de trabajo", WEIGHTS.liquidez, [
       makeIndicator(
         "Razón corriente",
         r.razonCorriente,
-        scoreHigher(r.razonCorriente, [[1.5, 100], [1.2, 80], [1, 60], [0.8, 35], [0, 0]]),
-        r.razonCorriente === null ? "Sin dato" : formatRatio(r.razonCorriente) + "x",
+        r.razonCorriente === null ? defaultMissingScore : scoreHigher(r.razonCorriente, [[1.5, 100], [1.2, 80], [1, 60], [0.8, 35], [0, 0]]),
+        r.razonCorriente === null ? "Sin balance" : formatRatio(r.razonCorriente) + "x",
         r.razonCorriente === null
       ),
       makeIndicator(
         "Prueba ácida",
         r.pruebaAcida,
-        scoreHigher(r.pruebaAcida, [[1, 100], [0.8, 75], [0.6, 50], [0.4, 25], [0, 0]]),
-        r.pruebaAcida === null ? "Sin dato" : formatRatio(r.pruebaAcida) + "x",
+        r.pruebaAcida === null ? defaultMissingScore : scoreHigher(r.pruebaAcida, [[1, 100], [0.8, 75], [0.6, 50], [0.4, 25], [0, 0]]),
+        r.pruebaAcida === null ? "Sin balance" : formatRatio(r.pruebaAcida) + "x",
         r.pruebaAcida === null
       ),
       makeIndicator(
         "Capital de trabajo / venta mensual",
         r.capitalTrabajoRatio,
-        r.capitalTrabajoRatio === null ? 0 : r.capitalTrabajoRatio >= 1 ? 100 : r.capitalTrabajoRatio >= 0.5 ? 80 : r.capitalTrabajoRatio >= 0 ? 50 : 0,
-        r.capitalTrabajoRatio === null ? "Sin dato" : formatRatio(r.capitalTrabajoRatio) + "x · " + formatCLP(r.capitalTrabajo),
+        r.capitalTrabajoRatio === null ? defaultMissingScore : r.capitalTrabajoRatio >= 1 ? 100 : r.capitalTrabajoRatio >= 0.5 ? 80 : r.capitalTrabajoRatio >= 0 ? 50 : 0,
+        r.capitalTrabajoRatio === null ? "Sin balance" : formatRatio(r.capitalTrabajoRatio) + "x · " + formatCLP(r.capitalTrabajo),
         r.capitalTrabajoRatio === null
       )
     ]);
 
     var margenScore = r.margenEbitda === null
-      ? 0
+      ? defaultMissingScore
       : r.margenEbitda >= sector.margenBueno
         ? 100
         : r.margenEbitda >= sector.margenAceptable
@@ -397,25 +421,25 @@
             : 0;
 
     var rentabilidad = buildDimension("rentabilidad", "B. Rentabilidad y flujo de caja", WEIGHTS.rentabilidad, [
-      makeIndicator("Margen EBITDA", r.margenEbitda, margenScore, formatPct(r.margenEbitda), r.margenEbitda === null),
+      makeIndicator("Margen EBITDA", r.margenEbitda, margenScore, r.margenEbitda === null ? "Sin balance" : formatPct(r.margenEbitda), r.margenEbitda === null),
       makeIndicator(
         "Flujo operacional / ventas",
         r.flujoMargen,
-        r.flujoMargen === null ? 0 : r.flujoMargen >= 0.1 ? 100 : r.flujoMargen >= 0.05 ? 80 : r.flujoMargen > 0 ? 60 : 0,
-        formatPct(r.flujoMargen),
+        r.flujoMargen === null ? defaultMissingScore : r.flujoMargen >= 0.1 ? 100 : r.flujoMargen >= 0.05 ? 80 : r.flujoMargen > 0 ? 60 : 0,
+        r.flujoMargen === null ? "Sin balance" : formatPct(r.flujoMargen),
         r.flujoMargen === null
       ),
       makeIndicator(
         "Cobertura de intereses (EBITDA / gastos)",
         r.coberturaIntereses,
-        scoreHigher(r.coberturaIntereses, [[3, 100], [2, 80], [1.5, 60], [1, 30], [0, 0]]),
+        r.coberturaIntereses === null ? defaultMissingScore : scoreHigher(r.coberturaIntereses, [[3, 100], [2, 80], [1.5, 60], [1, 30], [0, 0]]),
         r.coberturaIntereses === null ? "Sin dato" : formatRatio(r.coberturaIntereses) + "x",
         r.coberturaIntereses === null
       ),
       makeIndicator(
         "Cobertura de servicio de deuda (FCO / servicio)",
         r.coberturaServicio,
-        scoreHigher(r.coberturaServicio, [[1.5, 100], [1.2, 80], [1, 60], [0.8, 30], [0, 0]]),
+        r.coberturaServicio === null ? defaultMissingScore : scoreHigher(r.coberturaServicio, [[1.5, 100], [1.2, 80], [1, 60], [0.8, 30], [0, 0]]),
         r.coberturaServicio === null ? "Sin dato" : formatRatio(r.coberturaServicio) + "x",
         r.coberturaServicio === null
       )
@@ -425,29 +449,29 @@
       makeIndicator(
         "Pasivo total / patrimonio",
         r.deudaPatrimonio,
-        scoreLower(r.deudaPatrimonio, [[0.8, 100], [1.5, 80], [2.5, 60], [4, 30], [Infinity, 0]]),
-        r.deudaPatrimonio === null ? "Sin dato" : formatRatio(r.deudaPatrimonio) + "x",
+        r.deudaPatrimonio === null ? defaultMissingScore : scoreLower(r.deudaPatrimonio, [[0.8, 100], [1.5, 80], [2.5, 60], [4, 30], [Infinity, 0]]),
+        r.deudaPatrimonio === null ? "Sin balance" : formatRatio(r.deudaPatrimonio) + "x",
         r.deudaPatrimonio === null
       ),
       makeIndicator(
         "Deuda neta / EBITDA",
         r.deudaNetaEbitda,
-        scoreLower(r.deudaNetaEbitda, [[1, 100], [2, 85], [3, 60], [4, 35], [Infinity, 0]]),
-        r.deudaNetaEbitda === null ? "Sin dato" : formatRatio(r.deudaNetaEbitda) + "x",
+        r.deudaNetaEbitda === null ? defaultMissingScore : scoreLower(r.deudaNetaEbitda, [[1, 100], [2, 85], [3, 60], [4, 35], [Infinity, 0]]),
+        r.deudaNetaEbitda === null ? "Sin balance" : formatRatio(r.deudaNetaEbitda) + "x",
         r.deudaNetaEbitda === null
       ),
       makeIndicator(
         "Caja / deuda financiera CP",
         r.cajaDeudaCP,
-        scoreHigher(r.cajaDeudaCP, [[1.5, 100], [1, 80], [0.5, 50], [0, 0]]),
+        r.cajaDeudaCP === null ? defaultMissingScore : scoreHigher(r.cajaDeudaCP, [[1.5, 100], [1, 80], [0.5, 50], [0, 0]]),
         r.cajaDeudaCP === null ? "Sin dato" : formatRatio(r.cajaDeudaCP) + "x",
         r.cajaDeudaCP === null
       ),
       makeIndicator(
         "Deuda financiera CP / deuda total",
         r.deudaCPShare,
-        scoreLower(r.deudaCPShare, [[0.2, 100], [0.4, 80], [0.6, 50], [Infinity, 20]]),
-        formatPct(r.deudaCPShare),
+        r.deudaCPShare === null ? defaultMissingScore : scoreLower(r.deudaCPShare, [[0.2, 100], [0.4, 80], [0.6, 50], [Infinity, 20]]),
+        r.deudaCPShare === null ? "Sin dato" : formatPct(r.deudaCPShare),
         r.deudaCPShare === null
       )
     ]);
@@ -539,7 +563,7 @@
     return { label: "Riesgo muy alto", decision: "No otorgar crédito sin mitigantes suficientes", tone: "bad" };
   }
 
-  function resolveTerm(input, score, statusKey) {
+  function resolveTerm(input, score, statusKey, hasEeff) {
     var notes = [];
     var max = statusKey === "approved" ? 60 : statusKey === "conditional" || statusKey === "review" ? 30 : 0;
     if (statusKey === "approved" && score >= 85 && input.plazo >= 90) {
@@ -558,6 +582,10 @@
       max = 60;
       notes.push("Plazo de 90 días bloqueado por falta de autorización superior.");
     }
+    if (hasEeff === false && max > 30) {
+      max = 30;
+      notes.push("Plazo restringido a 30 días como máximo por ausencia de Estados Financieros / Balance auditado.");
+    }
     var requested = input.plazo > 0 ? input.plazo : max;
     var approved = Math.min(requested, max);
     if (max > 0 && approved < requested) {
@@ -566,20 +594,71 @@
     return { requested: requested, max: max, approved: approved, notes: notes };
   }
 
-  function computeLimits(input, term, statusKey, r) {
+  function computeLimits(input, term, statusKey, r, hasEeff, score) {
     var factor = clamp(input.factorComercial, 0.1, 1.5);
     var multiplier = clamp(input.multiplicadorFlujo, 0.1, 10);
     var commercial = input.ventas12m > 0 && term.approved > 0
       ? (input.ventas12m / 365) * term.approved * factor
       : 0;
-    // Si el EBITDA es nulo, no informado o menor o igual a cero, no hay capacidad financiera ordinaria
+
     var financial = 0;
-    if (input.ebitda !== null && input.ebitda > 0 && r.flujoLibre !== null && r.flujoLibre > 0) {
-      financial = Math.max(0, r.flujoLibre) * multiplier;
+    var isEeffPenalized = false;
+    var eeffHaircut = 1.0;
+
+    if (hasEeff === false) {
+      // Sin EE.FF. ni balance: se calcula capacidad sobre ventas mensuales (Carpeta Tributaria F29) castigada al 50%
+      isEeffPenalized = true;
+      eeffHaircut = 0.50;
+      var ventaMensualF29 = input.ventas12m > 0 ? input.ventas12m / 12 : 0;
+      // Capacidad estimada sobre flujo operacional tributario con haircut del 50%
+      financial = ventaMensualF29 * 0.50 * factor;
+    } else {
+      // Con EE.FF.: si el EBITDA es nulo o negativo, no hay capacidad financiera ordinaria
+      if (input.ebitda !== null && input.ebitda > 0 && r.flujoLibre !== null && r.flujoLibre > 0) {
+        financial = Math.max(0, r.flujoLibre) * multiplier;
+      }
     }
-    var risk = Math.max(0, input.limitePoliticaRiesgo);
+
+    // ESTIMACIÓN DINÁMICA DEL LÍMITE DE POLÍTICA DE RIESGO (OPCIÓN 3)
+    // Combina solvencia patrimonial (10% a 20%) y rotación comercial (8% a 15% de ventas anuales),
+    // ponderado dinámicamente según el score crediticio obtenido.
+    var isRiskEstimated = false;
+    var risk = 0;
+    if (input.limitePoliticaRiesgo !== null && input.limitePoliticaRiesgo > 0) {
+      risk = input.limitePoliticaRiesgo;
+    } else {
+      isRiskEstimated = true;
+      var scoreVal = typeof score === "number" ? score : 60;
+      // Coeficiente según score: de 0.10 (score <= 50) a 0.20 (score >= 85) para patrimonio
+      var patPct = clamp(0.10 + (Math.max(0, scoreVal - 50) / 35) * 0.10, 0.08, 0.20);
+      // Coeficiente sobre ventas anuales: de 0.08 a 0.15 (aprox 1.0 a 1.8 meses de venta)
+      var vtaPct = clamp(0.08 + (Math.max(0, scoreVal - 50) / 35) * 0.07, 0.06, 0.15);
+
+      var cupoPatrimonio = (input.patrimonio !== null && input.patrimonio > 0) ? input.patrimonio * patPct : null;
+      var cupoVentas = (input.ventas12m !== null && input.ventas12m > 0) ? input.ventas12m * vtaPct : null;
+
+      if (cupoPatrimonio !== null && cupoVentas !== null) {
+        // Enfoque prudencial combinado: promedio armónico/mínimo ponderado
+        // Si el patrimonio es sólido pero ventas bajas, las ventas acotan; si ventas altas pero poco patrimonio, el patrimonio acota.
+        risk = Math.min(cupoPatrimonio, cupoVentas * 1.25);
+      } else if (cupoPatrimonio !== null) {
+        risk = cupoPatrimonio;
+      } else if (cupoVentas !== null) {
+        risk = cupoVentas * (hasEeff ? 1.0 : 0.65); // Haircut si no hay balance patrimonial
+      } else {
+        risk = 15000000; // Piso base de política general para pymes activas
+      }
+      risk = Math.max(1000000, Math.round(risk / 500000) * 500000);
+    }
+
     var gross = Math.min(commercial, financial, risk);
     var limitingFactor = commercial <= financial && commercial <= risk ? "commercial" : financial <= risk ? "financial" : "risk";
+
+    if (isEeffPenalized) {
+      // Aplicación explícita del castigo del 50% por falta de balances
+      gross = gross * eeffHaircut;
+    }
+
     if (statusKey === "review") {
       var mitigant = input.aval || input.garantia || input.seguroCredito;
       gross = gross * (mitigant ? 0.85 : 0.7);
@@ -606,14 +685,21 @@
       limitingFactor: limitingFactor,
       factor: factor,
       multiplier: multiplier,
-      termDays: term.approved
+      termDays: term.approved,
+      isEeffPenalized: isEeffPenalized,
+      eeffHaircut: eeffHaircut,
+      isRiskEstimated: isRiskEstimated
     };
   }
 
   function evaluate(raw) {
     var input = normalize(raw);
+    var hasEeff = Boolean(
+      (input.docs && input.docs.eecc) ||
+      (input.activoCorriente !== null && input.pasivoTotal !== null && input.ebitda !== null)
+    );
     var r = ratios(input);
-    var dimensions = buildDimensions(input, r);
+    var dimensions = buildDimensions(input, r, hasEeff);
     var score = Math.round(dimensions.reduce(function (sum, dim) {
       return sum + dim.weight * dim.note / 100;
     }, 0) * 10) / 10;
@@ -653,11 +739,25 @@
       ["patrimonio", "Patrimonio"],
       ["deudaFinanciera", "Deuda financiera total"]
     ];
-    requiredFinancial.forEach(function (item) {
-      if (input[item[0]] === null) add("pending", "Falta " + item[1] + ".");
-    });
+
+    if (hasEeff) {
+      requiredFinancial.forEach(function (item) {
+        if (input[item[0]] === null) add("pending", "Falta " + item[1] + ".");
+      });
+    } else {
+      // Cliente sin balances ni estados financieros
+      add(
+        "warning",
+        "Sin Estados Financieros / Balance: se aplica castigo del 50% sobre capacidad calculada y plazo máximo de 30 días (evaluado con flujo F29 SII).",
+        false
+      );
+    }
 
     REQUIRED_DOCS.forEach(function (key) {
+      if (key === "eecc" && !hasEeff) {
+        // En evaluación tributaria sin balance, no bloquear como pending general
+        return;
+      }
       if (!input.docs[key]) add("pending", "Documento pendiente: " + DOC_LABELS[key] + ".");
     });
     if (!input.docs.dicom) add("info", "DICOM no disponible: se aplicó puntaje neutro y se recomienda validar antecedentes comerciales.");
@@ -707,11 +807,11 @@
     if (input.ebitda !== null && input.ebitda <= 0 && input.flujoCajaOperacional !== null && input.flujoCajaOperacional <= 0) {
       add("warning", "EBITDA y flujo operacional negativos: señal de deterioro.", true);
     }
-    if (input.exposicionActual >= input.limitePoliticaRiesgo) {
+    if (input.limitePoliticaRiesgo !== null && input.exposicionActual >= input.limitePoliticaRiesgo) {
       add("warning", "La exposición actual alcanza o supera el límite de política de riesgo por cliente.", true);
     }
-    if (input.deudaFinanciera > 0 && input.servicioDeuda === 0) add("pending", "Servicio de deuda no informado pese a deuda financiera vigente.");
-    if (input.deudaFinanciera > 0 && input.gastosFinancieros === 0) add("pending", "Gastos financieros no informados pese a deuda financiera vigente.");
+    if (input.deudaFinanciera > 0 && (input.servicioDeuda === 0 || input.servicioDeuda === null)) add("pending", "Servicio de deuda no informado pese a deuda financiera vigente.");
+    if (input.deudaFinanciera > 0 && (input.gastosFinancieros === 0 || input.gastosFinancieros === null)) add("pending", "Gastos financieros no informados pese a deuda financiera vigente.");
     if (input.pasivoCorriente !== null && input.activoCorriente !== null && input.pasivoCorriente > input.activoCorriente) {
       add("warning", "Pasivo corriente supera al activo corriente: capital de trabajo negativo.");
     }
@@ -722,6 +822,12 @@
       add("warning", "Apalancamiento contable superior a 4 veces el patrimonio.");
     }
     if (input.montoMorosidades > 0 && input.morosidades === 0) add("warning", "Monto de morosidades informado sin número de registros: revisa DICOM.");
+    if (input.deudaSociosRelacionados !== null && input.deudaSociosRelacionados > 0) {
+      add("warning", "Deuda con socios o relacionados (" + formatCLP(input.deudaSociosRelacionados) + "): evaluar como deuda subordinada o vinculada en el análisis.");
+    }
+    if (input.diferenciaCambio !== null && input.diferenciaCambio < 0) {
+      add("warning", "Diferencia de cambio neta desfavorable (" + formatCLP(Math.abs(input.diferenciaCambio)) + "): exposición cambiaria relevante (no incluida en gastos financieros).");
+    }
 
     var hasHard = issues.some(function (item) { return item.severity === "hard"; });
     var hasPending = issues.some(function (item) { return item.severity === "pending"; });
@@ -735,8 +841,8 @@
     else if (score >= 40) status = Object.assign({}, STATUS.no_ordinary);
     else status = Object.assign({}, STATUS.rejected);
 
-    var term = resolveTerm(input, score, status.key);
-    var limits = computeLimits(input, term, status.key, r);
+    var term = resolveTerm(input, score, status.key, hasEeff);
+    var limits = computeLimits(input, term, status.key, r, hasEeff, score);
 
     if (limits.available > 0 && limits.available < 500000 && ["approved", "conditional", "review"].indexOf(status.key) >= 0) {
       add("warning", "Disponibilidad adicional inferior al mínimo operacional (" + formatCLP(500000) + ").");

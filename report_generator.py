@@ -151,6 +151,14 @@ def generate_credit_report(input_data, result_data, is_preliminary=False):
             Paragraph(f"<b>Límite Disponible Adicional:</b> {format_clp(result_data.get('limits', {}).get('available'))}", body_style)
         ]
     ]
+
+    is_eeff_penalized = result_data.get('limits', {}).get('isEeffPenalized', False)
+    if is_eeff_penalized:
+        dictamen_data.append([
+            Paragraph("<font color='#b45309'><b>RESTRICCIÓN EE.FF.:</b></font> <font color='#92400e'>Capacidad castigada en 50% y plazo acotado a 30 días por ausencia de balance/estados financieros (cálculo sobre flujo F29 SII).</font>", alert_style),
+            Paragraph("<font color='#64748b'><i>Regla de mitigación de riesgo crediticio B2B Chile.</i></font>", subtitle_style)
+        ])
+
     t_dictamen = Table(dictamen_data, colWidths=[270, 270])
     t_dictamen.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), dec_bg),
@@ -159,6 +167,10 @@ def generate_credit_report(input_data, result_data, is_preliminary=False):
         ('TOPPADDING', (0,0), (-1,-1), 6),
         ('BOTTOMPADDING', (0,0), (-1,-1), 6),
     ]))
+    if is_eeff_penalized:
+        t_dictamen.setStyle(TableStyle([
+            ('BACKGROUND', (0, 4), (-1, 4), colors.HexColor('#fef3c7')),
+        ]))
     story.append(t_dictamen)
     story.append(Spacer(1, 14))
 

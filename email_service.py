@@ -1,4 +1,5 @@
 import os
+import re
 import threading
 import base64
 import json
@@ -7,6 +8,8 @@ import urllib.error
 import socket
 import ssl
 import smtplib
+import unicodedata
+import email.utils
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
@@ -57,9 +60,6 @@ class EmailApiClient:
         self.api_key = api_key
 
     def sendmail(self, from_addr, recipients, raw_message):
-        import email.utils
-        import unicodedata
-        import re
         message = BytesParser(policy=policy.default).parsebytes(raw_message.encode("utf-8") if isinstance(raw_message, str) else raw_message)
         
         # Extraer dirección pura de correo

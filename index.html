@@ -12,39 +12,50 @@
 <body>
 <header class="topbar">
   <div class="topbar-container">
-    <div class="brand">
-      <span class="logo">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 2.5L4 5.5V11C4 16.5 7.5 21 12 22.5C16.5 21 20 16.5 20 11V5.5L12 2.5Z" stroke="#ffffff" stroke-width="1.8" stroke-linejoin="round" opacity="0.35"/>
-          <path d="M7.2 14.5A6.5 6.5 0 1 1 16.8 14.5" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round"/>
-          <path d="M12 13.5L15 8.5" stroke="#38bdf8" stroke-width="2.4" stroke-linecap="round"/>
-          <circle cx="12" cy="13.5" r="1.6" fill="#38bdf8"/>
+    <a href="/" class="brand" style="text-decoration: none;">
+      <div class="brand-emblem">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2.5L4 5.5V11C4 16.5 7.5 21 12 22.5C16.5 21 20 16.5 20 11V5.5L12 2.5Z" stroke="#ffffff" stroke-width="2" stroke-linejoin="round" opacity="0.6"/>
+          <path d="M7.2 14.5A6.5 6.5 0 1 1 16.8 14.5" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round"/>
+          <path d="M12 13.5L15 8.5" stroke="#38bdf8" stroke-width="2.6" stroke-linecap="round"/>
+          <circle cx="12" cy="13.5" r="2" fill="#38bdf8"/>
         </svg>
-      </span>
-      <div>
-        <strong style="display:flex;align-items:center;gap:4px;">Crédito<span style="color:#2563eb;">B2B</span> <span style="font-size:10px;background:#eef4ff;color:#2563eb;padding:1px 6px;border-radius:12px;border:1px solid #bfdbfe;font-weight:700;">CHILE</span></strong>
-        <small>Capacidad & Riesgo Comercial · Ley 19.983</small>
       </div>
-    </div>
-    <div style="display:flex;gap:8px;align-items:center;">
-      <button type="button" id="btnCreditsTopBadge" style="display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;color:#166534;border:1px solid #86efac;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.2s ease;" title="Administrar mis créditos de informes">
-        <span style="display:inline-block;width:8px;height:8px;background:#22c55e;border-radius:50%;"></span>
-        <span id="creditsTopText">Mis Créditos</span>
-      </button>
-      <span id="userTypeBadge" style="display:none;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;align-items:center;gap:4px;">
-        <span id="userTypeIcon">💼</span> <span id="userTypeText">Registrado</span>
-      </span>
-      <span id="userEmailBadge" style="display:none;background:#eef4ff;color:#1e40af;border:1px solid #cbd5e1;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;align-items:center;gap:4px;">
-        <span id="userEmailText"></span>
-      </span>
-      <a href="/" class="btn small" style="text-decoration:none;background:#0a2540;color:#ffffff;border:1px solid #061727;font-weight:600;display:inline-flex;align-items:center;gap:4px;">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="19" y1="12" x2="5" y2="12"></line>
-          <polyline points="12 19 5 12 12 5"></polyline>
-        </svg>
-        Volver al inicio
-      </a>
-      <button id="btnHelp" class="btn ghost small" type="button">Metodología</button>
+      <div class="brand-text">
+        <div class="brand-title">
+          <span>Crédito</span><span class="brand-accent">B2B</span>
+          <span class="brand-flag">CHILE</span>
+        </div>
+      </div>
+    </a>
+
+    <div class="topbar-nav">
+      <!-- Estado de cuenta unificado y conciso -->
+      <div class="user-status-pill">
+        <button type="button" id="btnCreditsTopBadge" class="pill-plan-btn" title="Administrar mis créditos de informes">
+          <span class="status-dot"></span>
+          <span id="creditsTopText">Sin Plan Activo</span>
+        </button>
+        <span class="pill-divider">|</span>
+        <span id="userTypeBadge" class="pill-user-badge">
+          <span id="userTypeIcon">🧪</span>
+          <span id="userTypeText">Prueba</span>
+        </span>
+        <span id="userEmailBadge" class="pill-user-email">
+          <span id="userEmailText"></span>
+        </span>
+      </div>
+
+      <div class="topbar-actions">
+        <button id="btnHelp" class="topbar-btn topbar-btn-help" type="button" title="Metodología de scoring y riesgo">Metodología</button>
+        <a href="/" class="topbar-btn topbar-btn-back" title="Volver a la portada">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+          <span>Inicio</span>
+        </a>
+      </div>
     </div>
   </div>
 </header>
@@ -57,53 +68,103 @@
     <span class="breadcrumb-current">Evaluación de Crédito B2B</span>
   </nav>
 
-  <section class="hero">
-    <h1>Decide a quién vender a crédito, cuánto y a qué plazo</h1>
-    <p>Modelo para empresas medianas y grandes. Combina liquidez, flujo de caja, endeudamiento, comportamiento de pago y calidad de la información. Elige entre evaluación manual gratuita o evaluación automatizada mediante carga y extracción documental.</p>
-    
-    <!-- Selector de Modelo Comercial Híbrido -->
-    <div id="evalModeSelector" style="margin: 20px 0; background: var(--card); border: 2px solid var(--bd); border-radius: 14px; padding: 6px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; box-shadow: var(--shadow);">
-      <button type="button" id="btnModeManual" class="mode-tab active" style="padding: 12px 14px; border-radius: 10px; border: none; background: var(--ac); color: #ffffff; font-weight: 700; font-size: 14px; text-align: left; cursor: pointer; transition: all 0.2s ease;">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span style="color:#ffffff;">✍️ Evaluación Manual</span>
-          <span id="badgeModeManual" style="font-size: 11px; background: rgba(255,255,255,0.25); color: #ffffff; padding: 2px 8px; border-radius: 20px; font-weight:600;">Gratuita</span>
+  <section class="saas-hero">
+    <div class="saas-hero-mesh"></div>
+    <div class="saas-hero-grid">
+      <!-- Columna Izquierda: Mensaje y Propuesta de Valor -->
+      <div class="saas-hero-content">
+        <div class="saas-tag">
+          <span class="saas-tag-dot"></span>
+          <span>MOTOR DE RIESGO COMERCIAL</span>
         </div>
-        <small id="subModeManual" style="display:block; font-weight:400; color: #e2e8f0; font-size: 11.5px; margin-top: 4px;">Ingreso manual de cifras · Scoring preliminar en pantalla</small>
-      </button>
+        <h1 class="saas-title">Decide a quién vender a crédito, cuánto y a qué plazo</h1>
+        <p class="saas-description">
+          Scoring financiero algorítmico adaptado al marco chileno (Ley 19.983). Evalúa liquidez, apalancamiento, carpetas tributarias (SII) e historial crediticio CMF.
+        </p>
 
-      <button type="button" id="btnModeAuto" class="mode-tab" style="padding: 12px 14px; border-radius: 10px; border: none; background: transparent; color: var(--tx); font-weight: 700; font-size: 14px; text-align: left; cursor: pointer; transition: all 0.2s ease;">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span id="titleModeAuto">⚡ Automatizada con PDFs</span>
-          <span id="badgeModeAuto" style="font-size: 11px; background: #dcfce7; color: #166534; padding: 2px 8px; border-radius: 20px; font-weight:600;">Con Informe Oficial</span>
+        <!-- Barra Rápida de Ejemplos y Calibración -->
+        <div class="saas-quick-case">
+          <label for="selectExampleProfile" class="saas-label">CASO DEMO:</label>
+          <div class="saas-select-wrap">
+            <select id="selectExampleProfile" class="saas-select">
+              <option value="aprobado">🟢 Perfil Sano (Línea $50M · TI)</option>
+              <option value="industrial">🔵 Manufactura ($120M · Plazo 90d)</option>
+              <option value="observado">🟡 Observado (Riesgo Medio · Moras)</option>
+            </select>
+          </div>
+          <button id="btnExample" class="saas-btn-primary" type="button" title="Cargar este perfil">
+            Cargar caso
+          </button>
         </div>
-        <small id="subModeAuto" style="display:block; font-weight:400; color: var(--mut); font-size: 11.5px; margin-top: 4px;">Carpeta SII, CMF y e-RUT · Parser automático y dictamen formal</small>
-      </button>
+      </div>
+
+      <!-- Columna Derecha: Tarjetas Selectoras de Modalidad -->
+      <div class="saas-hero-selector">
+        <div class="saas-mode-cards" id="evalModeSelector">
+          <!-- Tarjeta 1: Manual -->
+          <div id="btnModeManual" class="saas-card-option active" role="button" tabindex="0">
+            <div class="saas-card-header">
+              <div class="saas-card-icon-box">✍️</div>
+              <div class="saas-card-title-group">
+                <span class="saas-card-title">Evaluación Manual</span>
+                <span id="badgeModeManual" class="saas-card-badge badge-free">Gratuita</span>
+              </div>
+            </div>
+            <p id="subModeManual" class="saas-card-text">
+              Ingreso numérico manual de balances y estados. Scoring preliminar en pantalla.
+            </p>
+            <div class="saas-card-footer">
+              <span class="saas-card-action">Seleccionado</span>
+              <span class="saas-radio-indicator"></span>
+            </div>
+          </div>
+
+          <!-- Tarjeta 2: Automatizada con PDFs -->
+          <div id="btnModeAuto" class="saas-card-option" role="button" tabindex="0">
+            <div class="saas-card-header">
+              <div class="saas-card-icon-box auto-icon">⚡</div>
+              <div class="saas-card-title-group">
+                <span id="titleModeAuto" class="saas-card-title">Automatizada con PDFs</span>
+                <span id="badgeModeAuto" class="saas-card-badge badge-official">Informe Oficial</span>
+              </div>
+            </div>
+            <p id="subModeAuto" class="saas-card-text">
+              Extracción instantánea de Carpeta SII, balances F22 y deudas bancarias CMF.
+            </p>
+            <div class="saas-card-footer">
+              <span class="saas-card-action">Habilitar</span>
+              <span class="saas-radio-indicator"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Barra inferior de herramientas auxiliares -->
+        <div class="saas-hero-aux">
+          <button id="btnShowExampleDataGuide" class="saas-aux-btn" type="button">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+            <span>Guía de datos</span>
+          </button>
+          <button id="btnReset" class="saas-aux-btn danger-hover" type="button">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+            <span>Limpiar</span>
+          </button>
+          <button id="btnRedeemCredit" class="saas-aux-btn token-btn" type="button">
+            <span>🔑</span>
+            <span>Canjear orden</span>
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Banner informativo de créditos disponibles o paquete activo -->
-    <div id="creditStatusBanner" class="notice" style="display:none; background: #f0fdf4; border-color: #86efac; color: #166534; margin-bottom: 14px;">
-      <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+    <div id="creditStatusBanner" class="notice credit-status-notice" style="display:none;">
+      <div class="credit-status-content">
         <div>
           <strong>💼 Paquete de Informes Activo:</strong> <span id="creditPlanName">Pack 3</span> ·
           <strong><span id="creditAvailableCount">3</span> informe(s) disponible(s)</strong>
         </div>
-        <button type="button" id="btnClearCreditToken" class="btn ghost small" style="color:#166534; border-color:#86efac;">Cambiar código</button>
+        <button type="button" id="btnClearCreditToken" class="btn ghost small">Cambiar código</button>
       </div>
-    </div>
-
-    <div class="hero-actions" style="flex-wrap: wrap; gap: 8px; align-items: center;">
-      <div style="display:inline-flex; align-items:center; gap:6px;">
-        <label for="selectExampleProfile" style="font-size:12px; font-weight:600;">Cargar ejemplo:</label>
-        <select id="selectExampleProfile" class="btn ghost small" style="padding: 7px 12px; font-weight: 600; cursor: pointer;">
-          <option value="aprobado">🟢 Perfil Sano (Línea $50M - TI)</option>
-          <option value="industrial">🔵 Perfil Manufactura ($120M - Plazo 90d)</option>
-          <option value="observado">🟡 Perfil Con Observaciones (Riesgo Medio)</option>
-        </select>
-        <button id="btnExample" class="btn ghost small" type="button" title="Cargar los datos de este perfil en el formulario">Cargar datos</button>
-      </div>
-      <button id="btnShowExampleDataGuide" class="btn ghost small" type="button" title="Ver detalle de todos los campos que se pueden utilizar">📋 ¿Qué datos se evalúan?</button>
-      <button id="btnReset" class="btn ghost small" type="button">Limpiar</button>
-      <button id="btnRedeemCredit" class="btn ghost small" type="button" style="margin-left:auto;">🔑 Tengo código / orden de pago</button>
     </div>
   </section>
 
@@ -180,18 +241,34 @@
         </div>
       </summary>
       <div class="card-body">
-        <div class="grid">
-          <label class="field span-2">
-            <span>Razón social</span>
-            <input id="razonSocial" name="razonSocial" type="text" placeholder="Ej: Andes Tecnología SpA" autocomplete="organization">
-          </label>
-          <label class="field">
-            <span>RUT de la empresa</span>
-            <div style="display:flex;gap:8px">
-              <input id="rut" name="rut" type="text" placeholder="76.123.456-7" inputmode="text" style="flex:1">
-              <button id="btnSii" class="btn ghost small" type="button">Consultar SII</button>
-            </div>
-            <!-- Barra de estado y progreso en tiempo real -->
+        <div class="form-grid-12">
+          <!-- Fila 1: Razón Social (5 cols) + RUT y Consulta SII (4 cols) + Sector (3 cols) -->
+          <div class="form-col-5">
+            <label class="field">
+              <span class="field-label">Razón social</span>
+              <input id="razonSocial" name="razonSocial" type="text" placeholder="Ej: Andes Tecnología SpA" autocomplete="organization">
+            </label>
+          </div>
+
+          <div class="form-col-4">
+            <label class="field">
+              <span class="field-label">RUT de la empresa</span>
+              <div class="rut-input-group">
+                <input id="rut" name="rut" type="text" placeholder="76.123.456-7" inputmode="text">
+                <button id="btnSii" class="rut-sii-btn" type="button" title="Consultar en portal SII">Consultar SII</button>
+              </div>
+            </label>
+          </div>
+
+          <div class="form-col-3">
+            <label class="field">
+              <span class="field-label">Sector / Giro comercial</span>
+              <select id="sector" name="sector"></select>
+            </label>
+          </div>
+
+          <!-- Cápsulas de SII (ancho completo si se activan) -->
+          <div class="form-col-12" style="padding: 0;">
             <div id="siiProgressBox" class="task-progress-box hidden">
               <div class="task-progress-header">
                 <span id="siiProgressText">Conectando con el SII...</span>
@@ -201,61 +278,111 @@
                 <div id="siiProgressBar" class="task-progress-bar" style="width: 15%;"></div>
               </div>
             </div>
-            <div id="siiCapsule" class="hidden" style="margin-top:8px; padding:10px 12px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; font-size:12px; color:#166534; line-height:1.4;">
+
+            <div id="siiCapsule" class="hidden" style="margin-top:6px; padding:12px 14px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; font-size:12px; color:#166534; line-height:1.45;">
               <div style="display:flex; justify-content:space-between; align-items:center; font-weight:700; margin-bottom:4px;">
                 <span>🛡️ Verificación Tributaria Oficial (SII)</span>
-                <span id="siiTimbrajeBadge" style="background:#dcfce7; padding:2px 6px; border-radius:4px; font-size:11px;">Timbraje: —</span>
+                <span id="siiTimbrajeBadge" style="background:#dcfce7; padding:2px 8px; border-radius:4px; font-size:11px;">Timbraje: —</span>
               </div>
               <div id="siiActividadText" style="color:#15803d; margin-bottom:2px;">Giro: —</div>
-              <div style="display:flex; gap:12px; font-size:11px; color:#14532d; opacity:0.9;">
+              <div style="display:flex; gap:16px; font-size:11.5px; color:#14532d; opacity:0.9; margin-top: 4px;">
                 <span id="siiIvaText">Afecta a IVA: —</span>
                 <span id="siiTamanoText">Tamaño: —</span>
                 <span id="siiInicioText">Inicio: —</span>
               </div>
-              <div id="siiDocsTimbradosBox" style="margin-top:6px; padding-top:6px; border-top:1px dashed #bbf7d0;">
-                <div style="font-weight:600; font-size:11px; margin-bottom:3px; color:#166534;">Documentos timbrados autorizados:</div>
+              <div id="siiDocsTimbradosBox" style="margin-top:8px; padding-top:6px; border-top:1px dashed #bbf7d0;">
+                <div style="font-weight:600; font-size:11px; margin-bottom:4px; color:#166534;">Documentos timbrados autorizados:</div>
                 <div id="siiDocsTimbradosList" style="display:flex; flex-wrap:wrap; gap:4px;"></div>
               </div>
             </div>
-          </label>
-          <label class="field">
-            <span>Sector / modelo de negocio</span>
-            <select id="sector" name="sector"></select>
-          </label>
-          <label class="field">
-            <span>Antigüedad (años)</span>
-            <input id="antiguedad" name="antiguedad" type="number" min="0" step="0.5" inputmode="decimal" placeholder="Ej: 8">
-          </label>
-          <label class="field">
-            <span>Ventas últimos 12 meses (CLP) <small class="money-hint" data-hint-for="ventas12m"></small></span>
-            <input id="ventas12m" name="ventas12m" type="number" min="0" step="1" inputmode="numeric" data-money placeholder="Ej: 1.200.000.000">
-          </label>
-          <label class="field">
-            <span>Monto solicitado (CLP) <small class="money-hint" data-hint-for="montoSolicitado"></small></span>
-            <input id="montoSolicitado" name="montoSolicitado" type="number" min="0" step="1" inputmode="numeric" data-money placeholder="Ej: 50.000.000">
-          </label>
-          <label class="field">
-            <span>Plazo solicitado</span>
-            <select id="plazo" name="plazo">
-              <option value="30">30 días</option>
-              <option value="60" selected>60 días</option>
-              <option value="90">90 días</option>
-            </select>
-          </label>
-          <label class="field">
-            <span>Exposición actual (CLP) <small class="money-hint" data-hint-for="exposicionActual"></small></span>
-            <input id="exposicionActual" name="exposicionActual" type="number" min="0" step="1" inputmode="numeric" data-money placeholder="Facturas pendientes y pedidos comprometidos">
-          </label>
-          <label class="field">
-            <span>Concentración top cliente (%)</span>
-            <input id="concentracionTopCliente" name="concentracionTopCliente" type="number" min="0" max="100" step="1" inputmode="numeric" placeholder="Ej: 25">
-          </label>
+          </div>
+
+          <!-- Fila 2: Antigüedad (2 cols) + Ventas 12m (4 cols) + Monto Solicitado (3 cols) + Plazo (3 cols) -->
+          <div class="form-col-2">
+            <label class="field">
+              <span class="field-label">Antigüedad (años)</span>
+              <input id="antiguedad" name="antiguedad" type="number" min="0" step="0.5" inputmode="decimal" placeholder="Ej: 8">
+            </label>
+          </div>
+
+          <div class="form-col-4">
+            <label class="field">
+              <span class="field-label">
+                <span>Ventas 12 meses (CLP)</span>
+                <small class="money-hint" data-hint-for="ventas12m"></small>
+              </span>
+              <input id="ventas12m" name="ventas12m" type="number" min="0" step="1" inputmode="numeric" data-money placeholder="Ej: 1.200.000.000">
+            </label>
+          </div>
+
+          <div class="form-col-3">
+            <label class="field">
+              <span class="field-label">
+                <span>Monto solicitado (CLP)</span>
+                <small class="money-hint" data-hint-for="montoSolicitado"></small>
+              </span>
+              <input id="montoSolicitado" name="montoSolicitado" type="number" min="0" step="1" inputmode="numeric" data-money placeholder="Ej: 50.000.000">
+            </label>
+          </div>
+
+          <div class="form-col-3">
+            <label class="field">
+              <span class="field-label">Plazo solicitado</span>
+              <select id="plazo" name="plazo">
+                <option value="30">30 días</option>
+                <option value="60" selected>60 días</option>
+                <option value="90">90 días</option>
+              </select>
+            </label>
+          </div>
+
+          <!-- Fila 3: Exposición Actual (4 cols) + Concentración (3 cols) -->
+          <div class="form-col-4">
+            <label class="field">
+              <span class="field-label">
+                <span>Exposición actual (CLP)</span>
+                <small class="money-hint" data-hint-for="exposicionActual"></small>
+              </span>
+              <input id="exposicionActual" name="exposicionActual" type="number" min="0" step="1" inputmode="numeric" data-money placeholder="Facturas pendientes y pedidos liberados">
+            </label>
+          </div>
+
+          <div class="form-col-3">
+            <label class="field">
+              <span class="field-label">Concentración top cliente (%)</span>
+              <input id="concentracionTopCliente" name="concentracionTopCliente" type="number" min="0" max="100" step="1" inputmode="numeric" placeholder="Ej: 25">
+            </label>
+          </div>
         </div>
-        <div class="check-grid">
-          <label class="check"><input id="aval" name="aval" type="checkbox">Aval personal o solidario</label>
-          <label class="check"><input id="garantia" name="garantia" type="checkbox">Garantía real o prenda</label>
-          <label class="check"><input id="seguroCredito" name="seguroCredito" type="checkbox">Seguro de crédito comercial</label>
+
+        <!-- Garantías y Mitigantes con tarjetas alineadas -->
+        <div class="mitigant-container">
+          <div class="mitigant-title">Mitigantes y garantías de pago:</div>
+          <div class="mitigant-grid">
+            <label class="mitigant-card">
+              <input id="aval" name="aval" type="checkbox">
+              <div class="mitigant-info">
+                <strong>Aval personal o solidario</strong>
+                <small>Respaldo de socio o fiador</small>
+              </div>
+            </label>
+            <label class="mitigant-card">
+              <input id="garantia" name="garantia" type="checkbox">
+              <div class="mitigant-info">
+                <strong>Garantía real o prenda</strong>
+                <small>Hipoteca, prenda o boleta de garantía</small>
+              </div>
+            </label>
+            <label class="mitigant-card">
+              <input id="seguroCredito" name="seguroCredito" type="checkbox">
+              <div class="mitigant-info">
+                <strong>Seguro de crédito comercial</strong>
+                <small>Póliza aseguradora (CESCE, Coface, etc.)</small>
+              </div>
+            </label>
+          </div>
         </div>
+
         <p class="section-note">La exposición actual debe incluir facturas pendientes, despachos en tránsito y pedidos liberados aún no facturados.</p>
       </div>
     </details>
@@ -291,28 +418,28 @@
         <div class="doc-grid">
           <div class="doc">
             <label class="doc-head"><input id="docTribOk" name="docTribOk" type="checkbox"><span>Carpeta tributaria (SII)</span></label>
-            <input id="docTrib" type="file" accept=".pdf" data-extract-type="carpeta_tributaria">
+            <input id="docTrib" type="file" accept=".pdf" multiple data-extract-type="carpeta_tributaria">
             <small class="file-label" data-file-label="docTrib">Sin archivo (Autocompleta ventas 12m)</small>
           </div>
           <div class="doc">
             <label class="doc-head"><input id="docERutOk" name="docERutOk" type="checkbox"><span>e-RUT</span></label>
-            <input id="docERut" type="file" accept=".pdf" data-extract-type="erut">
+            <input id="docERut" type="file" accept=".pdf" multiple data-extract-type="erut">
             <small class="file-label" data-file-label="docERut">Sin archivo (Autocompleta RUT y Razón)</small>
           </div>
           <div class="doc">
             <label class="doc-head"><input id="docCMFOk" name="docCMFOk" type="checkbox"><span>Informe de deudas CMF</span></label>
-            <input id="docCMF" type="file" accept=".pdf" data-extract-type="cmf">
+            <input id="docCMF" type="file" accept=".pdf" multiple data-extract-type="cmf">
             <small class="file-label" data-file-label="docCMF">Sin archivo (Autocompleta Deuda y Moras)</small>
           </div>
           <div class="doc">
             <label class="doc-head"><input id="docEscrituraOk" name="docEscrituraOk" type="checkbox"><span>Escritura / estatutos</span></label>
-            <input id="docEscritura" type="file" accept=".pdf" data-extract-type="estatutos">
+            <input id="docEscritura" type="file" accept=".pdf" multiple data-extract-type="estatutos">
             <small class="file-label" data-file-label="docEscritura">Sin archivo (Detecta Representantes)</small>
           </div>
           <div class="doc">
             <label class="doc-head"><input id="docEEFFOk" name="docEEFFOk" type="checkbox"><span>Estados financieros</span></label>
-            <input id="docEEFF" type="file" accept=".pdf,image/*" multiple>
-            <small class="file-label" data-file-label="docEEFF">Sin archivo</small>
+            <input id="docEEFF" type="file" accept=".pdf,image/*" multiple data-extract-type="eeff">
+            <small class="file-label" data-file-label="docEEFF">Sin archivo (Autocompleta balance y cuentas clave)</small>
           </div>
           <div class="doc">
             <label class="doc-head"><input id="docDicomOk" name="docDicomOk" type="checkbox"><span>DICOM / informe comercial (opcional)</span></label>
@@ -527,7 +654,7 @@
         <div class="grid">
           <label class="field">
             <span>Límite de política por cliente (CLP) <small class="money-hint" data-hint-for="limitePoliticaRiesgo"></small></span>
-            <input id="limitePoliticaRiesgo" name="limitePoliticaRiesgo" type="number" min="0" step="100000" inputmode="numeric" data-money value="10000000" placeholder="Ej: 80.000.000">
+            <input id="limitePoliticaRiesgo" name="limitePoliticaRiesgo" type="number" min="0" step="100000" inputmode="numeric" data-money value="" placeholder="Estimado automático según solvencia">
           </label>
           <label class="field">
             <span>Factor comercial (F)</span>
@@ -825,17 +952,11 @@
     if (typeBadge && typeText) {
       typeBadge.style.display = 'inline-flex';
       if (userType === 'test') {
-        typeBadge.style.background = '#fef3c7';
-        typeBadge.style.color = '#92400e';
-        typeBadge.style.border = '1px solid #fde68a';
         typeIcon.textContent = '🧪';
-        typeText.textContent = 'Usuario de Prueba (Sandbox)';
+        typeText.textContent = 'Prueba';
       } else {
-        typeBadge.style.background = '#e0f2fe';
-        typeBadge.style.color = '#0369a1';
-        typeBadge.style.border = '1px solid #bae6fd';
         typeIcon.textContent = '💼';
-        typeText.textContent = 'Usuario Registrado';
+        typeText.textContent = 'Registrado';
       }
     }
 

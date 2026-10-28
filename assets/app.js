@@ -35,6 +35,7 @@
   var ACTIVE_CREDIT_TOKEN = localStorage.getItem("creditob2b_active_token") || "";
   var saveTimer = null;
   var toastTimer = null;
+  var extractedExtra = {};
   var STORAGE_KEY = "credit-eval-draft-v1";
   var REQUIRED_DOCS = M.REQUIRED_DOCS;
 
@@ -268,6 +269,8 @@
       patrimonio: data.patrimonio,
       deudaFinanciera: data.deudaFinanciera,
       deudaFinancieraCP: data.deudaFinancieraCP,
+      deudaSociosRelacionados: extractedExtra.deudaSociosRelacionados,
+      diferenciaCambio: extractedExtra.diferenciaCambio,
       maxDiasMora: data.maxDiasMora,
       deudaVencida: data.deudaVencida,
       deudaCastigada: data.deudaCastigada,
@@ -508,12 +511,11 @@
         fb = document.createElement("div");
         fb.id = fbId;
         fb.className = "rut-feedback";
-        if (field.parentNode) {
-          if (field.parentNode.style && field.parentNode.style.display === "flex") {
-            field.parentNode.parentNode.appendChild(fb);
-          } else {
-            field.parentNode.appendChild(fb);
-          }
+        var labelParent = field.closest("label.field") || field.closest(".field") || field.parentNode;
+        if (labelParent) {
+          labelParent.appendChild(fb);
+        } else if (field.parentNode) {
+          field.parentNode.appendChild(fb);
         }
       }
 
@@ -595,10 +597,15 @@
     setText("liveDso", r.dso === null ? "—" : Math.round(r.dso) + " días");
   }
 
-  function processPdfUpload(field, file) {
+  function processPdfUpload(field, fileOrFiles) {
     var docType = field.getAttribute("data-extract-type") || "auto";
     var formData = new FormData();
-    formData.append("file", file);
+    var isMultiple = Array.isArray(fileOrFiles);
+    var filesList = isMultiple ? fileOrFiles : [fileOrFiles];
+
+    for (var fi = 0; fi < filesList.length; fi++) {
+      formData.append("file", filesList[fi]);
+    }
     formData.append("type", docType);
 
     var dpBox = $("docProgressBox");
@@ -607,10 +614,12 @@
     var dpPct = $("docProgressPct");
     var dpTimer = null;
 
+    var displayName = isMultiple ? (filesList.length + " balances comparativos") : filesList[0].name;
+
     if (dpBox) {
       dpBox.classList.remove("hidden");
       var step = 20;
-      dpText.textContent = "Cargando y leyendo " + file.name + "...";
+      dpText.textContent = "Cargando y leyendo " + displayName + "...";
       dpBar.style.width = "20%";
       dpPct.textContent = "20%";
 
@@ -629,7 +638,7 @@
       }, 500);
     }
 
-    showToast("Extrayendo datos de " + file.name + "...");
+    showToast("Extrayendo datos de " + displayName + "...");
     fetch(API_BASE + "/api/extract-pdf", {
       method: "POST",
       body: formData
@@ -639,7 +648,7 @@
       clearInterval(dpTimer);
       if (dpBar) dpBar.style.width = "100%";
       if (dpPct) dpPct.textContent = "100%";
-      if (dpText) dpText.textContent = "Extracción completada: " + file.name;
+      if (dpText) dpText.textContent = "Extracción completada: " + displayName;
       setTimeout(function() {
         if (dpBox) dpBox.classList.add("hidden");
       }, 1500);
@@ -661,35 +670,47 @@
         if (d.solicitante_rut) $("rutSolicitante").value = d.solicitante_rut;
         showToast("e-RUT procesado: " + (d.razon_social || d.rut));
       } else if (docType === "cmf" || d.tipo === "CMF_DEUDAS") {
-        if (d.deuda_total !== undefined) {
+        if (d.deuda_total !== undefined && $("deudaFinanciera")) {
           $("deudaFinanciera").value = d.deuda_total;
+          $("deudaFinanciera").dispatchEvent(new Event("input", { bubbles: true }));
         }
-        if (d.mora_total !== undefined && d.mora_total > 0) {
-          if ($("morosidades")) $("morosidades").value = "1";
-          if ($("montoMorosidades")) $("montoMorosidades").value = d.mora_total;
+        if (d.instituciones !== undefined && $("instituciones")) {
+          $("instituciones").value = d.instituciones;
+          $("instituciones").dispatchEvent(new Event("input", { bubbles: true }));
         }
-        if (d.mora_90_mas > 0) {
-          if ($("maxDiasMora")) $("maxDiasMora").value = "90";
-          if ($("deudaCastigada")) $("deudaCastigada").value = d.mora_90_mas;
-        } else if (d.mora_60_89 > 0) {
-          if ($("maxDiasMora")) $("maxDiasMora").value = "60";
-        } else if (d.mora_30_59 > 0) {
-          if ($("maxDiasMora")) $("maxDiasMora").value = "30";
+        if (d.max_dias_mora !== undefined && $("maxDiasMora")) {
+          $("maxDiasMora").value = d.max_dias_mora;
+          $("maxDiasMora").dispatchEvent(new Event("input", { bubbles: true }));
         }
-        showToast("Informe CMF procesado: Deuda " + M.formatCLP(d.deuda_total));
+        if (d.deuda_vencida !== undefined && $("deudaVencida")) {
+          $("deudaVencida").value = d.deuda_vencida;
+          $("deudaVencida").dispatchEvent(new Event("input", { bubbles: true }));
+        }
+        if (d.deuda_castigada !== undefined && d.deuda_castigada > 0 && $("deudaCastigada")) {
+          $("deudaCastigada").value = d.deuda_castigada;
+          $("deudaCastigada").dispatchEvent(new Event("input", { bubbles: true }));
+        }
+        // La mora CMF (financiera) ya se refleja en maxDiasMora y deudaVencida.
+        // NO se carga en morosidades/montoMorosidades (campos DICOM/comerciales):
+        // provocaría triple conteo en la dimensión Pago y borrado de datos DICOM reales.
+        var instText = d.instituciones ? " (" + d.instituciones + " acreedores)" : "";
+        showToast("CMF procesado: Deuda " + M.formatCLP(d.deuda_total) + instText + ", Mora: " + (d.max_dias_mora || 0) + " días");
       } else if (docType === "carpeta_tributaria" || d.tipo === "CARPETA_TRIBUTARIA") {
         var fieldsToUpdate = {};
         if (d.rut) fieldsToUpdate.rut = d.rut;
         if (d.razon_social) fieldsToUpdate.razonSocial = d.razon_social;
         if (d.antiguedad_anios) fieldsToUpdate.antiguedad = d.antiguedad_anios;
         if (d.ventas_12m) fieldsToUpdate.ventas12m = d.ventas_12m;
+        if (d.tendencia_ventas) fieldsToUpdate.tendenciaVentas = d.tendencia_ventas;
         if (d.eeff_f22) {
-          if (d.eeff_f22.total_activo) fieldsToUpdate.activoCorriente = d.eeff_f22.total_activo;
+          // El Formulario 22 (código 122) informa 'Total del Activo', no 'Activo Corriente'.
+          // No se asigna a activoCorriente para no distorsionar la razón corriente ni la liquidez.
           if (d.eeff_f22.total_pasivo) fieldsToUpdate.pasivoTotal = d.eeff_f22.total_pasivo;
           if (d.eeff_f22.patrimonio) fieldsToUpdate.patrimonio = d.eeff_f22.patrimonio;
           if (d.eeff_f22.caja) fieldsToUpdate.caja = d.eeff_f22.caja;
           if (d.eeff_f22.inventarios) fieldsToUpdate.inventarios = d.eeff_f22.inventarios;
-          if (d.eeff_f22.resultado) fieldsToUpdate.ebitda = d.eeff_f22.resultado;
+          // 'resultado' del F22 es utilidad neta del ejercicio, NO EBITDA:
+          // no se asigna a ebitda para no corruptir el cálculo (incluye GF, depreciación e impuestos).
         }
 
         // Detectar si alguno de los campos de destino ya tiene datos ingresados
@@ -701,16 +722,19 @@
         var shouldApply = true;
         if (hasExistingData) {
           shouldApply = window.confirm(
-            "La Carpeta Tributaria contiene datos de ventas y balances F22 que reemplazarán valores ya ingresados en el formulario.\n\n¿Deseas sobrescribir los campos con los datos oficiales extraídos?"
+            "La Carpeta Tributaria contiene datos de ventas y balances F22 (Caja, Inventarios, Pasivo Total, Patrimonio) que actualizarán el formulario.\n\n¿Deseas aplicar los datos oficiales extraídos?"
           );
         }
 
         if (shouldApply) {
           Object.keys(fieldsToUpdate).forEach(function (fieldId) {
             var el = $(fieldId);
-            if (el) el.value = fieldsToUpdate[fieldId];
+            if (el) {
+              el.value = fieldsToUpdate[fieldId];
+              el.dispatchEvent(new Event("input", { bubbles: true }));
+            }
           });
-          showToast("Carpeta Tributaria procesada: Ventas 12m " + M.formatCLP(d.ventas_12m) + (d.eeff_f22 ? " + Balances F22" : ""));
+          showToast("Carpeta Tributaria procesada: Ventas 12m " + M.formatCLP(d.ventas_12m) + (d.eeff_f22 ? " + Balances F22" : "") + (d.eeff_f22 && d.eeff_f22.resultado ? " · Resultado neto F22: " + M.formatCLP(d.eeff_f22.resultado) + " (no asignado a EBITDA)" : ""));
         } else {
           showToast("Extracción completada: Se mantuvieron los datos existentes.");
         }
@@ -731,6 +755,53 @@
         }
         $("sociedadVigente").checked = true;
         showToast("Estatutos/Poderes procesados correctamente");
+      } else if (docType === "eeff" || d.tipo === "ESTADOS_FINANCIEROS") {
+        var eeffFields = {};
+        if (d.activoCorriente !== null && d.activoCorriente !== undefined) eeffFields.activoCorriente = d.activoCorriente;
+        if (d.pasivoCorriente !== null && d.pasivoCorriente !== undefined) eeffFields.pasivoCorriente = d.pasivoCorriente;
+        if (d.cuentasPorCobrar !== null && d.cuentasPorCobrar !== undefined) eeffFields.cuentasPorCobrar = d.cuentasPorCobrar;
+        if (d.inventarios !== null && d.inventarios !== undefined) eeffFields.inventarios = d.inventarios;
+        if (d.caja !== null && d.caja !== undefined) eeffFields.caja = d.caja;
+        if (d.pasivoTotal !== null && d.pasivoTotal !== undefined) eeffFields.pasivoTotal = d.pasivoTotal;
+        if (d.patrimonio !== null && d.patrimonio !== undefined) eeffFields.patrimonio = d.patrimonio;
+        if (d.ebitda !== null && d.ebitda !== undefined) eeffFields.ebitda = d.ebitda;
+        if (d.flujoCajaOperacional !== null && d.flujoCajaOperacional !== undefined) eeffFields.flujoCajaOperacional = d.flujoCajaOperacional;
+        if (d.gastosFinancieros !== null && d.gastosFinancieros !== undefined) eeffFields.gastosFinancieros = d.gastosFinancieros;
+        if (d.servicioDeuda !== null && d.servicioDeuda !== undefined) eeffFields.servicioDeuda = d.servicioDeuda;
+        if (d.deudaFinanciera !== null && d.deudaFinanciera !== undefined) eeffFields.deudaFinanciera = d.deudaFinanciera;
+        if (d.deudaFinancieraCP !== null && d.deudaFinancieraCP !== undefined) eeffFields.deudaFinancieraCP = d.deudaFinancieraCP;
+        if (d.deudaSociosRelacionados !== null && d.deudaSociosRelacionados !== undefined) extractedExtra.deudaSociosRelacionados = d.deudaSociosRelacionados;
+        if (d.diferenciaCambio !== null && d.diferenciaCambio !== undefined) extractedExtra.diferenciaCambio = d.diferenciaCambio;
+
+        var hasExistingEeff = Object.keys(eeffFields).some(function (fieldId) {
+          var el = $(fieldId);
+          return el && String(el.value || "").trim() !== "";
+        });
+
+        var applyEeff = true;
+        if (hasExistingEeff) {
+          applyEeff = window.confirm(
+            "Se extrajeron partidas contables del Balance / Estados Financieros (Pasivo Cte, Cuentas por Cobrar, Gastos Financieros, Servicio de Deuda).\n\n¿Deseas completar o actualizar los campos del Paso 3 con estos valores?"
+          );
+        }
+
+        if (applyEeff) {
+          var updatedCount = 0;
+          Object.keys(eeffFields).forEach(function (fieldId) {
+            var el = $(fieldId);
+            if (el) {
+              el.value = eeffFields[fieldId];
+              el.dispatchEvent(new Event("input", { bubbles: true }));
+              updatedCount += 1;
+            }
+          });
+          if ($("eeccVerificados")) $("eeccVerificados").checked = true;
+          var extraMsg = (d.desglose_flujo && d.desglose_flujo.metodo === "COMPARATIVO_DOS_PERIODOS") ? " (Flujo de caja comparativo calculado)" : "";
+          if (d.diferenciaCambio !== null && d.diferenciaCambio !== undefined && d.diferenciaCambio !== 0) {
+            extraMsg += " · Dif. cambio neta: " + M.formatCLP(d.diferenciaCambio) + " (no incluida en Gastos Financieros)";
+          }
+          showToast("Balance procesado: " + updatedCount + " partidas asignadas" + extraMsg);
+        }
       }
 
       updateMoneyHints();
@@ -757,9 +828,11 @@
         var names = Array.prototype.map.call(field.files, function (file) { return file.name; });
         label.textContent = (field.files.length > 1 ? field.files.length + " archivos: " : "") + names.join(", ");
 
-        var primaryFile = field.files[0];
-        if (primaryFile && primaryFile.name.toLowerCase().endsWith(".pdf")) {
-          processPdfUpload(field, primaryFile);
+        var pdfFiles = Array.prototype.filter.call(field.files, function (file) {
+          return file.name.toLowerCase().endsWith(".pdf");
+        });
+        if (pdfFiles.length > 0) {
+          processPdfUpload(field, pdfFiles.length === 1 ? pdfFiles[0] : pdfFiles);
         }
       });
     });
@@ -983,22 +1056,29 @@
     }
     var preAdjustment = Math.min(r.limits.commercial, r.limits.financial, r.limits.risk);
     var adjustment = Math.max(0, preAdjustment - r.limits.gross);
-    var adjustmentRow = adjustment > 0
+    var eeffHaircutRow = r.limits.isEeffPenalized
+      ? '<tr><td><span style="color:var(--warn);font-weight:600;">⚠ Castigo por falta de EE.FF./Balance (-50%)</span><span class="formula">Restricción por evaluación exclusiva sobre flujo SII (F29)</span></td><td class="num" style="color:var(--warn);font-weight:600;">-' + M.formatCLP(preAdjustment * 0.5) + "</td></tr>"
+      : "";
+    var adjustmentRow = adjustment > 0 && !r.limits.isEeffPenalized
       ? '<tr><td>Ajuste por revisión de riesgo</td><td class="num">-' + M.formatCLP(adjustment) + "</td></tr>"
       : "";
+    var financialFormula = r.limits.isEeffPenalized
+      ? '(Venta mensual F29 × 50%) × ' + esc(r.limits.factor)
+      : 'máx(0, FCO − servicio de deuda) × ' + esc(r.limits.multiplier);
     return '<section class="result-section"><h2>Cálculo del límite</h2><div class="table-wrap compact"><table>' +
       '<thead><tr><th>Concepto</th><th class="num">Valor</th></tr></thead><tbody>' +
       '<tr><td>Límite comercial<span class="formula">(Ventas 12m / 365) × ' + (r.limits.termDays || 0) + " días × " + esc(r.limits.factor) + "</span></td><td class=\"num\">" + M.formatCLP(r.limits.commercial) + "</td></tr>" +
-      '<tr><td>Límite financiero<span class="formula">máx(0, FCO − servicio de deuda) × ' + esc(r.limits.multiplier) + "</span></td><td class=\"num\">" + M.formatCLP(r.limits.financial) + "</td></tr>" +
-      '<tr><td>Límite de política de riesgo</td><td class="num">' + M.formatCLP(r.limits.risk) + "</td></tr>" +
+      '<tr><td>Límite financiero<span class="formula">' + financialFormula + "</span></td><td class=\"num\">" + M.formatCLP(r.limits.financial) + "</td></tr>" +
+      '<tr><td>Límite de política de riesgo' + (r.limits.isRiskEstimated ? '<span class="formula">Estimado dinámico (Solvencia/Ventas y Scoring)</span>' : '<span class="formula">Parámetro fijado por analista</span>') + '</td><td class="num">' + M.formatCLP(r.limits.risk) + "</td></tr>" +
+      eeffHaircutRow +
       adjustmentRow +
-      '<tr><td><b>Límite bruto</b><span class="formula">Menor de los límites aplicables</span></td><td class="num"><b>' + M.formatCLP(r.limits.gross) + "</b></td></tr>" +
+      '<tr><td><b>Límite bruto</b><span class="formula">' + (r.limits.isEeffPenalized ? 'Menor de límites con castigo 50%' : 'Menor de los límites aplicables') + '</span></td><td class="num"><b>' + M.formatCLP(r.limits.gross) + "</b></td></tr>" +
       '<tr><td>Exposición actual</td><td class="num">' + M.formatCLP(r.limits.exposure) + "</td></tr>" +
       '<tr><td>Disponible adicional</td><td class="num">' + M.formatCLP(r.limits.available) + "</td></tr>" +
       '<tr><td>Monto solicitado</td><td class="num">' + M.formatCLP(r.limits.requested) + "</td></tr>" +
       '<tr class="total"><td>Monto aprobado</td><td class="num">' + M.formatCLP(r.limits.approved) + "</td></tr>" +
       "</tbody></table></div><p class=\"small muted\" style=\"margin:8px 0 0\">Factor limitante: " +
-      esc(limitingLabel(r.limits.limitingFactor)) + ". El monto aprobado se redondea a $100.000 y nunca supera la disponibilidad.</p></section>";
+      esc(limitingLabel(r.limits.limitingFactor)) + (r.limits.isEeffPenalized ? ". <b>Aviso:</b> Límite reducido en un 50% por falta de balance contable." : "") + ". El monto aprobado se redondea a $100.000 y nunca supera la disponibilidad.</p></section>";
   }
 
   function renderTerm(r) {
@@ -1435,11 +1515,13 @@
         if (btn) { btn.disabled = false; btn.textContent = "Consultar SII"; }
 
         if (data.error) { showToast(data.error); return; }
-        if (data.nombre) {
+        if (data.nombre && $("razonSocial")) {
           $("razonSocial").value = data.nombre;
+          $("razonSocial").dispatchEvent(new Event("input", { bubbles: true }));
         }
         if (data.rut && $("rutERut")) {
           $("rutERut").value = data.rut;
+          $("rutERut").dispatchEvent(new Event("input", { bubbles: true }));
         }
         if (data.inicioActividades === "SI") {
           $("inicioVigente").value = "1";
@@ -1538,36 +1620,10 @@
     if (event.key === "Escape" && !helpModal.classList.contains("hidden")) closeHelp();
   });
   results.addEventListener("click", function (event) {
-    var target = event.target.closest("[data-print], [data-copy], [data-export-pdf], [data-ml-feedback], [data-ml-train], [data-ml-reset]");
+    var target = event.target.closest("[data-print], [data-copy], [data-ml-feedback], [data-ml-train], [data-ml-reset]");
     if (!target) return;
-    if (target.hasAttribute("data-export-pdf")) {
-      if (!LAST_RESULT) return;
-      showToast("Generando Dictamen PDF oficial...");
-      fetch(API_BASE + "/api/report-pdf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: LAST_RESULT.input, result: LAST_RESULT })
-      })
-      .then(function(res) {
-        if (!res.ok) throw new Error("Error en servidor");
-        return res.blob();
-      })
-      .then(function(blob) {
-        var url = window.URL.createObjectURL(blob);
-        var a = document.createElement("a");
-        a.href = url;
-        a.download = "Dictamen_Credito_" + (LAST_RESULT.input.rut || "Comercial") + ".pdf";
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-        showToast("Dictamen PDF descargado con éxito.");
-      })
-      .catch(function(err) {
-        showToast("No se pudo generar el PDF");
-      });
-      return;
-    }
+    // data-export-pdf NO se maneja aquí: lo gestiona el handler comercial dedicado
+    // (handleExportPdfClick) para evitar descargas duplicadas.
     if (target.hasAttribute("data-print")) window.print();
     if (target.hasAttribute("data-copy")) copySummary();
     if (target.hasAttribute("data-ml-feedback")) {
@@ -1606,22 +1662,21 @@
     var noteAut = $("stepDocsAutoNote");
     var badgeDocs = $("stepDocsModeBadge");
 
+    var actMan = btnMan ? btnMan.querySelector(".saas-card-action") : null;
+    var actAut = btnAut ? btnAut.querySelector(".saas-card-action") : null;
+
     if (mode === "manual") {
       if (btnMan) {
-        btnMan.style.background = "var(--ac)";
-        btnMan.style.color = "#ffffff";
-        var subMan = $("subModeManual");
-        if (subMan) subMan.style.color = "#e2e8f0";
-        var bMan = $("badgeModeManual");
-        if (bMan) { bMan.style.background = "rgba(255,255,255,0.25)"; bMan.style.color = "#ffffff"; }
+        btnMan.classList.add("active");
+        btnMan.style.background = "";
+        btnMan.style.color = "";
+        if (actMan) actMan.textContent = "Seleccionado";
       }
       if (btnAut) {
-        btnAut.style.background = "transparent";
-        btnAut.style.color = "var(--tx)";
-        var subAut = $("subModeAuto");
-        if (subAut) subAut.style.color = "var(--mut)";
-        var bAut = $("badgeModeAuto");
-        if (bAut) { bAut.style.background = "#dcfce7"; bAut.style.color = "#166534"; }
+        btnAut.classList.remove("active");
+        btnAut.style.background = "";
+        btnAut.style.color = "";
+        if (actAut) actAut.textContent = "Habilitar";
       }
       if (noteMan) noteMan.style.display = "block";
       if (noteAut) noteAut.style.display = "none";
@@ -1633,20 +1688,16 @@
       showToast("Modo activo: Evaluación Manual Gratuita");
     } else {
       if (btnAut) {
-        btnAut.style.background = "#059669"; // Verde esmeralda profesional con alto contraste
-        btnAut.style.color = "#ffffff";
-        var subAut2 = $("subModeAuto");
-        if (subAut2) subAut2.style.color = "#ecfdf5"; // Blanco menta muy legible y claro
-        var bAut2 = $("badgeModeAuto");
-        if (bAut2) { bAut2.style.background = "rgba(255,255,255,0.25)"; bAut2.style.color = "#ffffff"; }
+        btnAut.classList.add("active");
+        btnAut.style.background = "";
+        btnAut.style.color = "";
+        if (actAut) actAut.textContent = "Seleccionado";
       }
       if (btnMan) {
-        btnMan.style.background = "transparent";
-        btnMan.style.color = "var(--tx)";
-        var subMan2 = $("subModeManual");
-        if (subMan2) subMan2.style.color = "var(--mut)";
-        var bMan2 = $("badgeModeManual");
-        if (bMan2) { bMan2.style.background = "#e2e8f0"; bMan2.style.color = "#475569"; }
+        btnMan.classList.remove("active");
+        btnMan.style.background = "";
+        btnMan.style.color = "";
+        if (actMan) actMan.textContent = "Habilitar";
       }
       if (noteMan) noteMan.style.display = "none";
       if (noteAut) noteAut.style.display = "block";
@@ -1953,13 +2004,11 @@
     }
   });
 
-  // Reemplazar llamada directa de descarga de PDF por el gestor de modo comercial
-  results.removeEventListener("click", function() {}); // evitar duplicidad
+  // Gestor comercial de descarga de PDF (token/crédito/modal de actualización)
   results.addEventListener("click", function (event) {
     var target = event.target.closest("[data-export-pdf]");
     if (target) {
       event.preventDefault();
-      event.stopPropagation();
       handleExportPdfClick();
     }
   }, true);
