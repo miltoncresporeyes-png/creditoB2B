@@ -55,7 +55,42 @@
           </svg>
           <span>Inicio</span>
         </a>
+        <!-- Botón Menú Hamburguesa Móvil -->
+        <button type="button" id="btnMobileMenu" class="topbar-menu-toggle" aria-label="Menú de opciones" onclick="toggleAppDrawer()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
       </div>
+    </div>
+  </div>
+
+  <!-- Menú Desplegable Móvil -->
+  <div id="appMobileDrawer" class="topbar-mobile-drawer">
+    <div class="drawer-user-info">
+      <div>
+        <strong id="drawerUserType" style="color:#fde68a;font-size:12px;">🧪 Modo Prueba</strong>
+        <div id="drawerUserEmail" style="color:#94a3b8;font-size:11px;">invitado.demo@credito</div>
+      </div>
+      <button type="button" onclick="document.getElementById('btnCreditsTopBadge').click(); toggleAppDrawer();" style="background:rgba(34,197,94,0.15);color:#4ade80;border:1px solid rgba(34,197,94,0.3);border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;cursor:pointer;">
+        Plan & Créditos
+      </button>
+    </div>
+    <div class="drawer-links">
+      <button type="button" class="drawer-link" onclick="document.getElementById('btnHelp').click(); toggleAppDrawer();">
+        <span>📘</span> Metodología de Scoring
+      </button>
+      <button type="button" class="drawer-link" onclick="document.getElementById('btnDocsGuide').click(); toggleAppDrawer();">
+        <span>📂</span> Guía Carpetas Tributarias SII
+      </button>
+      <a href="/" class="drawer-link">
+        <span>🏠</span> Ir a Portada Principal
+      </a>
+      <a href="https://wa.me/56983414730?text=Hola,%20necesito%20soporte%20en%20el%20evaluador" target="_blank" class="drawer-link" style="color:#4ade80;">
+        <span>💬</span> Contactar Soporte WhatsApp
+      </a>
     </div>
   </div>
 </header>
@@ -1027,6 +1062,23 @@
     const phone = "56983414730";
     const url = "https://wa.me/" + phone + "?text=" + encodeURIComponent("Hola, estoy en el evaluador CréditoB2B. " + msg);
     window.open(url, "_blank");
+  }
+
+  function toggleAppDrawer() {
+    var drawer = document.getElementById('appMobileDrawer');
+    if (drawer) {
+      drawer.classList.toggle('open');
+      var emailEl = document.getElementById('userEmailText');
+      var typeEl = document.getElementById('userTypeText');
+      if (emailEl && emailEl.textContent) {
+        var dEmail = document.getElementById('drawerUserEmail');
+        if (dEmail) dEmail.textContent = emailEl.textContent;
+      }
+      if (typeEl && typeEl.textContent) {
+        var dType = document.getElementById('drawerUserType');
+        if (dType) dType.textContent = '🧪 ' + typeEl.textContent;
+      }
+    }
   }
 </script>
 </body>
