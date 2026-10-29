@@ -935,8 +935,24 @@
     wrap.id = "planModalWrap";
     wrap.innerHTML = html;
     document.body.appendChild(wrap);
+    window.__planWrap = wrap;
+    window.__planDirty = false;
 
-    function closePlan(){ wrap.remove(); }
+    wrap.addEventListener("change", function(e) {
+      var t = e.target;
+      if (t && t.getAttribute && t.getAttribute("data-plan-code")) {
+        window.__planDirty = true;
+      }
+    });
+
+    function closePlan() {
+      if (window.__planDirty) {
+        alert("Hay cambios sin guardar. Guarda el plan antes de cerrar.");
+        return;
+      }
+      wrap.remove();
+      window.__planWrap = null;
+    }
     document.getElementById("btnClosePlan").addEventListener("click", closePlan);
     var btnClose2 = document.getElementById("btnClosePlan2");
     if (btnClose2) btnClose2.addEventListener("click", closePlan);
@@ -972,6 +988,7 @@
           if (cat) sel.value = cat;
         }
       });
+      window.__planDirty = true;
     });
     // auto classify all
     var btnAutoAll = document.getElementById("btnAutoAll");
@@ -983,6 +1000,7 @@
         var cat = autoCategory(code, name);
         if (cat) sel.value = cat;
       });
+      window.__planDirty = true;
     });
     // bulk apply
     var btnApplyBulk = document.getElementById("btnApplyBulk");
@@ -994,6 +1012,7 @@
         var sel = wrap.querySelector('select[data-plan-code="' + code + '"]');
         if (sel) sel.value = bulkCat;
       });
+      window.__planDirty = true;
     });
 
     window.__planWrap = wrap;
@@ -1006,6 +1025,7 @@
         if (sel.value) newPlan[code] = sel.value;
       });
       saveAccountPlan(newPlan);
+      window.__planDirty = false;
       alert("Plan guardado: " + Object.keys(newPlan).length + " cuentas.");
     };
     window.reclassPlanFromModal = function() {
@@ -1017,6 +1037,7 @@
         if (sel.value) newPlan[code] = sel.value;
       });
       saveAccountPlan(newPlan);
+      window.__planDirty = false;
       reclassifyWithPlan(newPlan);
       w.remove();
       window.__planWrap = null;
