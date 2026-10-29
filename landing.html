@@ -1731,7 +1731,8 @@
       submitBtn.textContent = 'Verificando acceso...';
 
       try {
-        const resp = await fetch('/api/auth/login', {
+        const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.endsWith('railway.app')) ? '' : 'https://creditob2b-production.up.railway.app';
+        const resp = await fetch(API_BASE + '/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: email, password: token })
@@ -1800,7 +1801,8 @@
       submitBtn.textContent = 'Creando cuenta...';
 
       try {
-        const resp = await fetch('/api/auth/register', {
+        const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.endsWith('railway.app')) ? '' : 'https://creditob2b-production.up.railway.app';
+        const resp = await fetch(API_BASE + '/api/auth/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

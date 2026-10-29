@@ -334,6 +334,13 @@ def landing():
 def app_view():
     return send_file(ROOT + '/index.html')
 
+@app.route('/terminos-y-condiciones.html')
+@app.route('/politica-de-privacidad.html')
+@app.route('/politica-de-reembolso.html')
+def legal_pages():
+    name = request.path.lstrip('/')
+    return send_file(ROOT + '/' + name)
+
 @app.route('/sitemap.xml')
 def sitemap_xml():
     return send_file(ROOT + '/sitemap.xml', mimetype='application/xml')
@@ -672,11 +679,11 @@ def create_mp_preference():
             'Content-Type': 'application/json'
         }
         host = request.host_url.rstrip('/')
-        # Mercado Pago requiere URLs https válidas para habilitar auto_return
-        if not host.startswith('https://'):
-            base_url = os.environ.get('BASE_PUBLIC_URL', 'https://creditob2b.cl')
-        else:
+        # Las rutas /pago/* se sirven por este backend; en frontend (Hostinger) usar BASE_PUBLIC_URL (Railway)
+        if 'railway.app' in host or 'localhost' in host or '127.0.0.1' in host:
             base_url = host
+        else:
+            base_url = os.environ.get('BASE_PUBLIC_URL', 'https://creditob2b-production.up.railway.app')
             
         preference_payload = {
             'items': [
