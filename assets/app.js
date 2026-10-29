@@ -854,8 +854,8 @@
       ["costos_directos","Costos directos (6-xx)"],["gastos_op","Gastos operacionales (5-01)"],["gastos_fin","Gastos financieros"],
       ["depreciacion","Depreciacion y amortizacion"],["dif_cambio","Diferencia de cambio"],["gasto_other","Otros gastos"],["ignore","Ignorar"]
     ];
-    var html = '<div style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;">'
-      + '<div style="background:#fff;border-radius:12px;max-width:900px;width:100%;max-height:85vh;display:flex;flex-direction:column;">'
+    var html = '<div id="planOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;">'
+      + '<div id="planCard" style="background:#fff;border-radius:12px;max-width:900px;width:100%;max-height:85vh;display:flex;flex-direction:column;">'
       + '<div style="padding:14px 18px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">'
       + '<strong>Plan de Cuentas Maestro</strong>'
       + '<button type="button" id="btnClosePlan" style="border:none;background:none;font-size:20px;cursor:pointer;">&times;</button></div>'
@@ -875,6 +875,7 @@
     });
     html += '</tbody></table></div>'
       + '<div style="padding:12px 18px;border-top:1px solid #e2e8f0;display:flex;gap:8px;justify-content:flex-end;">'
+      + '<button type="button" id="btnClosePlan2" class="btn btn-outline">Cerrar</button>'
       + '<button type="button" id="btnSavePlan" class="btn btn-outline">Guardar plan</button>'
       + '<button type="button" id="btnReclass" class="btn primary">Reclasificar con plan</button>'
       + '</div></div></div>';
@@ -883,7 +884,14 @@
     wrap.innerHTML = html;
     document.body.appendChild(wrap);
 
-    document.getElementById("btnClosePlan").addEventListener("click", function(){ wrap.remove(); });
+    function closePlan(){ wrap.remove(); }
+    document.getElementById("btnClosePlan").addEventListener("click", closePlan);
+    var btnClose2 = document.getElementById("btnClosePlan2");
+    if (btnClose2) btnClose2.addEventListener("click", closePlan);
+    var overlay = document.getElementById("planOverlay");
+    if (overlay) overlay.addEventListener("click", function(e){ if (e.target === overlay) closePlan(); });
+    var card = document.getElementById("planCard");
+    if (card) card.addEventListener("click", function(e){ e.stopPropagation(); });
     document.getElementById("btnSavePlan").addEventListener("click", function() {
       var newPlan = {};
       wrap.querySelectorAll("select[data-plan-code]").forEach(function(sel) {
