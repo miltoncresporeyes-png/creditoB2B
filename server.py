@@ -434,6 +434,17 @@ def extract_pdf():
     except Exception as e:
         return jsonify({'error': f'Error al procesar el PDF: {str(e)}'}), 500
 
+@app.route('/api/reclassify-eeff', methods=['POST'])
+def reclassify_eeff():
+    body = request.get_json() or {}
+    rows = body.get('rows') or []
+    mapping = body.get('mapping') or {}
+    try:
+        data = pdf_extractor.reclassify_eeff(rows, mapping)
+        return jsonify({'success': True, 'data': data})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/evaluations', methods=['POST'])
 def handle_evaluations():
     """Registra de forma segura un expediente de evaluación evaluado localmente."""

@@ -766,6 +766,7 @@
         if (d.notas_relevantes && d.notas_relevantes.length) estMsg += " · Notas: " + d.notas_relevantes.join(" | ");
         showToast(estMsg);
       } else if (docType === "eeff" || d.tipo === "ESTADOS_FINANCIEROS") {
+        if (d.raw_rows) LAST_EEFF_RAW_ROWS = d.raw_rows;
         var eeffFields = {};
         if (d.activoCorriente !== null && d.activoCorriente !== undefined) eeffFields.activoCorriente = d.activoCorriente;
         if (d.pasivoCorriente !== null && d.pasivoCorriente !== undefined) eeffFields.pasivoCorriente = d.pasivoCorriente;
@@ -825,6 +826,111 @@
       if (dpBox) dpBox.classList.add("hidden");
       showToast("Error de conexión al procesar el PDF");
     });
+  }
+
+  var LAST_EEFF_RAW_ROWS = null;
+  var ACCOUNT_PLAN_KEY = "creditob2b_account_plan_v1";
+
+  function getAccountPlan() {
+    try { return JSON.parse(localStorage.getItem(ACCOUNT_PLAN_KEY) || "{}"); } catch (e) { return {}; }
+  }
+  function saveAccountPlan(plan) {
+    try { localStorage.setItem(ACCOUNT_PLAN_KEY, JSON.stringify(plan || {})); } catch (e) {}
+  }
+
+  function openPlanCuentasModal() {
+    if (!LAST_EEFF_RAW_ROWS || !LAST_EEFF_RAW_ROWS.length) {
+      showToast("Primero procesa un Estado Financiero para desplegar el plan de cuentas.");
+      return;
+    }
+    var plan = getAccountPlan();
+    var cats = [
+      ["caja","Caja y equivalentes"],["cxc","Cuentas por cobrar comerciales"],["inv","Inventarios / mercaderias"],
+      ["otros_act_cte","Otros activos corrientes"],["activo_no_cte","Activo no corriente / fijo"],
+      ["cxp_op","Cuentas por pagar operacionales"],["pasivo_fin_cp","Deuda financiera C/P"],["pasivo_fin_lp","Deuda financiera L/P"],
+      ["deuda_socios","Prestamos socios/relacionadas"],["pasivo_cte_other","Otros pasivos corrientes"],["pasivo_no_cte","Otros pasivos no corrientes"],
+      ["patrimonio","Patrimonio neto"],["capital_social","Capital social"],["ing_op","Ingresos operacionales"],
+      ["costos_directos","Costos directos (6-xx)"],["gastos_op","Gastos operacionales (5-01)"],["gastos_fin","Gastos financieros"],
+      ["depreciacion","Depreciacion y amortizacion"],["dif_cambio","Diferencia de cambio"],["gasto_other","Otros gastos"],["ignore","Ignorar"]
+    ];
+    var html = '<div style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;">'
+      + '<div style="background:#fff;border-radius:12px;max-width:900px;width:100%;max-height:85vh;display:flex;flex-direction:column;">'
+      + '<div style="padding:14px 18px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">'
+      + '<strong>Plan de Cuentas Maestro</strong>'
+      + '<button type="button" id="btnClosePlan" style="border:none;background:none;font-size:20px;cursor:pointer;">&times;</button></div>'
+      + '<div style="padding:12px 18px;overflow:auto;flex:1;">'
+      + '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr><th style="text-align:left;padding:6px;">Codigo</th><th style="text-align:left;padding:6px;">Cuenta</th><th style="text-align:left;padding:6px;">Clasificacion</th></tr></thead><tbody>';
+    LAST_EEFF_RAW_ROWS.forEach(function(r) {
+      var code = r.code;
+      var sel = plan[code] || "";
+      html += '<tr><td style="padding:6px;border-top:1px solid #f1f5f9;">' + code + '</td>'
+        + '<td style="padding:6px;border-top:1px solid #f1f5f9;">' + (r.name || "") + '</td>'
+        + '<td style="padding:6px;border-top:1px solid #f1f5f9;"><select data-plan-code="' + code + '" style="width:100%;padding:4px;">'
+        + '<option value="">-- sin mapeo --</option>';
+      cats.forEach(function(c) {
+        html += '<option value="' + c[0] + '"' + (sel === c[0] ? " selected" : "") + '>' + c[1] + '</option>';
+      });
+      html += '</select></td></tr>';
+    });
+    html += '</tbody></table></div>'
+      + '<div style="padding:12px 18px;border-top:1px solid #e2e8f0;display:flex;gap:8px;justify-content:flex-end;">'
+      + '<button type="button" id="btnSavePlan" class="btn btn-outline">Guardar plan</button>'
+      + '<button type="button" id="btnReclass" class="btn primary">Reclasificar con plan</button>'
+      + '</div></div></div>';
+    var wrap = document.createElement("div");
+    wrap.id = "planModalWrap";
+    wrap.innerHTML = html;
+    document.body.appendChild(wrap);
+
+    document.getElementById("btnClosePlan").addEventListener("click", function(){ wrap.remove(); });
+    document.getElementById("btnSavePlan").addEventListener("click", function() {
+      var newPlan = {};
+      wrap.querySelectorAll("select[data-plan-code]").forEach(function(sel) {
+        var code = sel.getAttribute("data-plan-code");
+        if (sel.value) newPlan[code] = sel.value;
+      });
+      saveAccountPlan(newPlan);
+      showToast("Plan de cuentas guardado en este navegador.");
+    });
+    document.getElementById("btnReclass").addEventListener("click", function() {
+      var newPlan = {};
+      wrap.querySelectorAll("select[data-plan-code]").forEach(function(sel) {
+        var code = sel.getAttribute("data-plan-code");
+        if (sel.value) newPlan[code] = sel.value;
+      });
+      saveAccountPlan(newPlan);
+      reclassifyWithPlan(newPlan);
+      wrap.remove();
+    });
+  }
+
+  function reclassifyWithPlan(plan) {
+    if (!LAST_EEFF_RAW_ROWS) return;
+    showToast("Reclasificando con plan maestro...");
+    fetch(API_BASE + "/api/reclassify-eeff", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rows: LAST_EEFF_RAW_ROWS, mapping: plan })
+    }).then(function(res){ return res.json(); })
+    .then(function(res) {
+      if (!res.success || !res.data) { showToast(res.error || "No se pudo reclasificar"); return; }
+      var d = res.data;
+      var fields = ["activoCorriente","pasivoCorriente","cuentasPorCobrar","inventarios","caja","pasivoTotal","patrimonio","ebitda","flujoCajaOperacional","gastosFinancieros","servicioDeuda","deudaFinanciera","deudaFinancieraCP"];
+      var mapping = {"activoCorriente":"activoCorriente","pasivoCorriente":"pasivoCorriente","cuentasPorCobrar":"cuentasPorCobrar","inventarios":"inventarios","caja":"caja","pasivoTotal":"pasivoTotal","patrimonio":"patrimonio","ebitda":"ebitda","flujoCajaOperacional":"flujoCajaOperacional","gastosFinancieros":"gastosFinancieros","servicioDeuda":"servicioDeuda","deudaFinanciera":"deudaFinanciera","deudaFinancieraCP":"deudaFinancieraCP"};
+      fields.forEach(function(f) {
+        var el = $(f);
+        if (el && d[f] !== null && d[f] !== undefined) {
+          el.value = d[f];
+          el.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+      });
+      if (d.deudaSociosRelacionados !== null && d.deudaSociosRelacionados !== undefined) {
+        var el2 = $("deudaSociosRelacionados"); // may not exist
+      }
+      showToast("Reclasificación aplicada con plan maestro.");
+      updateLiveMetrics();
+      scheduleSave();
+    }).catch(function(){ showToast("Error de conexión al reclasificar"); });
   }
 
   function bindFileLabels() {
@@ -890,14 +996,10 @@
     }
   }
 
-  function renderEeffVariaciones(v) {
-    var box = $("eeffVariaciones");
-    if (!box) return;
-    if (!v || !v.items || !v.items.length) {
-      box.innerHTML = "";
-      box.classList.add("hidden");
-      return;
-    }
+  var CURRENT_VARIACIONES_DATA = null;
+
+  function buildVariacionesHtml(v) {
+    if (!v || !v.items || !v.items.length) return "";
     var html = '<div class="var-head"><strong>Principales variaciones EEFF</strong>';
     var periods = [];
     if (v.periodo_base) periods.push("Año base: " + esc(v.periodo_base));
@@ -920,8 +1022,61 @@
         '<span class="var-note">' + esc(it.nota) + "</span>" +
         "</div>";
     });
-    box.innerHTML = html;
-    box.classList.remove("hidden");
+    return html;
+  }
+
+  function openVariacionesModal() {
+    var modal = $("variacionesModal");
+    var body = $("variacionesModalBody");
+    var periodsEl = $("variacionesModalPeriods");
+    if (!modal || !CURRENT_VARIACIONES_DATA) return;
+    if (periodsEl) {
+      var p = [];
+      if (CURRENT_VARIACIONES_DATA.periodo_base) p.push("Base: " + CURRENT_VARIACIONES_DATA.periodo_base);
+      if (CURRENT_VARIACIONES_DATA.periodo_actual) p.push("Actual: " + CURRENT_VARIACIONES_DATA.periodo_actual);
+      periodsEl.textContent = p.join(" · ");
+    }
+    if (body) {
+      body.innerHTML = buildVariacionesHtml(CURRENT_VARIACIONES_DATA);
+    }
+    modal.classList.remove("hidden");
+  }
+
+  function closeVariacionesModal() {
+    var modal = $("variacionesModal");
+    if (modal) modal.classList.add("hidden");
+  }
+
+  function renderEeffVariaciones(v, autoPrompt) {
+    CURRENT_VARIACIONES_DATA = v;
+    var box = $("eeffVariaciones");
+    var banner = $("eeffVariacionesBanner");
+    var bannerSub = $("eeffVariacionesBannerSub");
+
+    if (!v || !v.items || !v.items.length) {
+      if (box) { box.innerHTML = ""; box.classList.add("hidden"); }
+      if (banner) banner.classList.add("hidden");
+      return;
+    }
+
+    var html = buildVariacionesHtml(v);
+    if (box) box.innerHTML = html;
+
+    // Actualizar texto del banner informativo
+    if (bannerSub) {
+      var p = [];
+      if (v.periodo_base) p.push("Base " + v.periodo_base);
+      if (v.periodo_actual) p.push("Actual " + v.periodo_actual);
+      bannerSub.textContent = (p.length ? p.join(" vs ") + " · " : "") + v.items.length + " variaciones significativas calculadas.";
+    }
+
+    // Mostrar banner de opción (el usuario siempre puede abrirla u omitirla)
+    if (banner) banner.classList.remove("hidden");
+
+    // Si se extrajo un PDF comparativo, abrir modal emergente dándole la opción de omitir o revisar
+    if (autoPrompt !== false) {
+      openVariacionesModal();
+    }
   }
 
   function showToast(message) {
@@ -1658,6 +1813,44 @@
       });
   });
   $("btnCloseHelp").addEventListener("click", closeHelp);
+    
+    // Listeners para Modal y Banner de Variaciones EEFF
+    var btnOpenVarModal = $("btnOpenVariacionesModal");
+    if (btnOpenVarModal) {
+      btnOpenVarModal.addEventListener("click", function() {
+        openVariacionesModal();
+      });
+    }
+    var btnCloseVarModal = $("btnCloseVariacionesModal");
+    if (btnCloseVarModal) {
+      btnCloseVarModal.addEventListener("click", function() {
+        closeVariacionesModal();
+      });
+    }
+    var btnDismissVarModal = $("btnDismissVariacionesModal");
+    if (btnDismissVarModal) {
+      btnDismissVarModal.addEventListener("click", function() {
+        closeVariacionesModal();
+      });
+    }
+    var btnDismissVarBanner = $("btnDismissVariacionesBanner");
+    if (btnDismissVarBanner) {
+      btnDismissVarBanner.addEventListener("click", function() {
+        var banner = $("eeffVariacionesBanner");
+        if (banner) banner.classList.add("hidden");
+      });
+    }
+    var varModal = $("variacionesModal");
+    if (varModal) {
+      varModal.addEventListener("click", function(event) {
+        if (event.target === varModal) closeVariacionesModal();
+      });
+    }
+    document.addEventListener("keydown", function(event) {
+      if (event.key === "Escape" && varModal && !varModal.classList.contains("hidden")) {
+        closeVariacionesModal();
+      }
+    });
   helpModal.addEventListener("click", function (event) {
     if (event.target === helpModal) closeHelp();
   });
@@ -2061,6 +2254,8 @@
   populateSelects();
   applySelectDefaults();
   bindFileLabels();
+  var btnPlan = $("btnPlanCuentas");
+  if (btnPlan) btnPlan.addEventListener("click", openPlanCuentasModal);
   loadDraft();
   // Si no se cargó un borrador que haya renderizado la lista, renderizarla desde el valor inicial
   if (!$("repListContainer").children.length) {

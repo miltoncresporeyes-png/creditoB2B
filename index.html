@@ -475,6 +475,7 @@
             <label class="doc-head"><input id="docEEFFOk" name="docEEFFOk" type="checkbox"><span>Estados financieros</span></label>
             <input id="docEEFF" type="file" accept=".pdf,image/*" multiple data-extract-type="eeff">
             <small class="file-label" data-file-label="docEEFF">Sin archivo (Autocompleta balance y cuentas clave)</small>
+            <button type="button" id="btnPlanCuentas" class="btn btn-outline" style="margin-top:6px;font-size:12px;">Plan de Cuentas Maestro</button>
           </div>
           <div class="doc">
             <label class="doc-head"><input id="docDicomOk" name="docDicomOk" type="checkbox"><span>DICOM / informe comercial (opcional)</span></label>
@@ -483,6 +484,20 @@
           </div>
         </div>
 
+        <!-- Banner y Contenedor de Principales Variaciones EEFF -->
+        <div id="eeffVariacionesBanner" class="var-prompt-banner hidden">
+          <div class="var-prompt-content">
+            <span class="var-prompt-icon">📊</span>
+            <div>
+              <div class="var-prompt-title">Principales variaciones EEFF detectadas</div>
+              <div id="eeffVariacionesBannerSub" class="var-prompt-sub">Se compararon 2 períodos contables del balance.</div>
+            </div>
+          </div>
+          <div class="var-prompt-actions">
+            <button type="button" id="btnOpenVariacionesModal" class="var-prompt-btn primary">Ver variaciones</button>
+            <button type="button" id="btnDismissVariacionesBanner" class="var-prompt-btn ghost">Omitir</button>
+          </div>
+        </div>
         <div id="eeffVariaciones" class="var-panel hidden"></div>
 
         <div class="grid" style="margin-top:14px">
@@ -731,6 +746,26 @@
 <footer class="footer">
   Herramienta de apoyo a la decisión. No constituye una clasificación oficial de la CMF ni una probabilidad estadística de incumplimiento. La aprobación final debe ser humana y documentada.
 </footer>
+
+<!-- Modal Emergente: Principales Variaciones EEFF -->
+<div id="variacionesModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="variacionesModalTitle">
+  <div class="modal-card" style="max-width: 760px;">
+    <div class="modal-head">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:20px;">📊</span>
+        <div>
+          <h2 id="variacionesModalTitle" style="margin:0;font-size:16px;">Principales variaciones EEFF</h2>
+          <small id="variacionesModalPeriods" style="color:var(--mut);font-size:12px;"></small>
+        </div>
+      </div>
+      <button id="btnCloseVariacionesModal" class="btn ghost small" type="button">Cerrar</button>
+    </div>
+    <div id="variacionesModalBody" style="padding: 16px 0;"></div>
+    <div style="display:flex;justify-content:flex-end;gap:10px;padding-top:12px;border-top:1px solid var(--bd);">
+      <button id="btnDismissVariacionesModal" class="btn ghost small" type="button">Omitir y cerrar</button>
+    </div>
+  </div>
+</div>
 
 <div id="helpModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
   <div class="modal-card">

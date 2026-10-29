@@ -906,6 +906,7 @@ def parse_estados_financieros(pdf_bytes_or_path_or_list, filenames=None):
                 ext['servicio_deuda'] = (ext['deuda_cp'] + (ext['gastos_fin'] or 0))
             return ext
 
+    curr_raw_rows = parsed_docs[-1]['table_rows'] if parsed_docs else []
     processed_list = [process_balance_metrics(d) for d in parsed_docs]
 
     # parsed_docs ya viene ordenado cronológicamente (parse_period_key):
@@ -1011,6 +1012,7 @@ def parse_estados_financieros(pdf_bytes_or_path_or_list, filenames=None):
         'deudaSociosRelacionados': curr_b['deuda_socios'] if curr_b.get('deuda_socios') else None,
         'desglose_flujo': desglose_flujo,
         'variaciones': variaciones,
+        'raw_rows': [{'code': r['code'], 'name': r['name'], 'activo': r['activo'], 'pasivo': r['pasivo'], 'perdida': r['perdida'], 'ganancia': r['ganancia']} for r in curr_raw_rows],
         'cuentas_detectadas': [
             {'campo': 'caja', 'glosa': 'Saldo neto 1-01-01 (Efectivo y Equivalentes)', 'monto': curr_b['caja']},
             {'campo': 'cuentasPorCobrar', 'glosa': 'Saldo neto 1-01-02 (Deudores Comerciales)', 'monto': curr_b['cxc']},
@@ -1030,4 +1032,113 @@ def parse_estados_financieros(pdf_bytes_or_path_or_list, filenames=None):
             {'campo': 'pasivoTotal', 'glosa': 'Pasivo Total (2-01 + 2-02)', 'monto': curr_b['pasivo_total']},
             {'campo': 'patrimonio', 'glosa': 'Patrimonio Neto (3-xx)', 'monto': curr_b['patrimonio']}
         ]
+    }
+RECLASS_CATEGORIES = [
+    ("caja", "Caja y equivalentes"),
+    ("cxc", "Cuentas por cobrar comerciales"),
+    ("inv", "Inventarios / mercaderias"),
+    ("otros_act_cte", "Otros activos corrientes"),
+    ("activo_no_cte", "Activo no corriente / fijo"),
+    ("cxp_op", "Cuentas por pagar operacionales"),
+    ("pasivo_fin_cp", "Deuda financiera C/P"),
+    ("pasivo_fin_lp", "Deuda financiera L/P"),
+    ("deuda_socios", "Prestamos socios/relacionadas"),
+    ("pasivo_cte_other", "Otros pasivos corrientes"),
+    ("pasivo_no_cte", "Otros pasivos no corrientes"),
+    ("patrimonio", "Patrimonio neto"),
+    ("capital_social", "Capital social"),
+    ("ing_op", "Ingresos operacionales"),
+    ("costos_directos", "Costos directos (6-xx)"),
+    ("gastos_op", "Gastos operacionales (5-01)"),
+    ("gastos_fin", "Gastos financieros"),
+    ("depreciacion", "Depreciacion y amortizacion"),
+    ("dif_cambio", "Diferencia de cambio"),
+    ("gasto_other", "Otros gastos"),
+    ("ignore", "Ignorar / no clasificar"),
+]
+
+def reclassify_eeff(rows, mapping):
+    buckets = {c[0]: {"activo": 0, "pasivo": 0, "perdida": 0, "ganancia": 0} for c in RECLASS_CATEGORIES}
+    for r in (rows or []):
+        code = str(r.get("code", "")).strip()
+        cat = (mapping or {}).get(code) or "ignore"
+        if cat not in buckets:
+            cat = "ignore"
+        b = buckets[cat]
+        b["activo"] += r.get("activo") or 0
+        b["pasivo"] += r.get("pasivo") or 0
+        b["perdida"] += r.get("perdida") or 0
+        b["ganancia"] += r.get("ganancia") or 0
+
+    def asset(cat):
+        return buckets[cat]["activo"] - buckets[cat]["pasivo"]
+    def liab(cat):
+        return buckets[cat]["pasivo"] - buckets[cat]["activo"]
+    def income(cat):
+        return buckets[cat]["ganancia"] - buckets[cat]["perdida"]
+    def expense(cat):
+        return buckets[cat]["perdida"] - buckets[cat]["ganancia"]
+
+    caja = asset("caja")
+    cxc = asset("cxc")
+    inv = asset("inv")
+    otros_act_op = asset("otros_act_cte")
+    activo_cte = caja + cxc + inv + otros_act_op
+    activo_no_cte = asset("activo_no_cte")
+    activo_total = activo_cte + activo_no_cte
+
+    cxp_op = liab("cxp_op")
+    deuda_cp = liab("pasivo_fin_cp")
+    deuda_lp = liab("pasivo_fin_lp")
+    deuda_socios = liab("deuda_socios")
+    pasivo_cte_other = liab("pasivo_cte_other")
+    pasivo_cte = cxp_op + deuda_cp + deuda_socios + pasivo_cte_other
+    pasivo_no_cte_extra = liab("pasivo_no_cte")
+    pasivo_no_cte = deuda_lp + pasivo_no_cte_extra
+    pasivo_total = pasivo_cte + pasivo_no_cte
+
+    patrimonio = liab("patrimonio")
+    capital_social = liab("capital_social")
+
+    ing_op = income("ing_op")
+    costos_directos = expense("costos_directos")
+    gastos_op = expense("gastos_op")
+    gastos_fin = expense("gastos_fin")
+    depreciacion = expense("depreciacion")
+    gasto_other = expense("gasto_other")
+    dif_cambio = income("dif_cambio")
+
+    gastos_tot = costos_directos + gastos_op + gastos_fin + depreciacion + gasto_other
+    ebitda = ing_op - costos_directos - gastos_op
+    utilidad_neta = ing_op - gastos_tot
+    utilidad_ejercicio = activo_total - pasivo_total - patrimonio
+    deuda_financiera = (deuda_cp + deuda_lp) if (deuda_cp + deuda_lp) > 0 else None
+    servicio_deuda = (deuda_cp + gastos_fin) if (deuda_cp + gastos_fin) > 0 else (gastos_fin if gastos_fin > 0 else None)
+
+    return {
+        "tipo": "ESTADOS_FINANCIEROS",
+        "activoCorriente": activo_cte,
+        "pasivoCorriente": pasivo_cte,
+        "cuentasPorCobrar": cxc,
+        "inventarios": inv,
+        "caja": caja,
+        "pasivoTotal": pasivo_total,
+        "patrimonio": patrimonio,
+        "activoTotal": activo_total,
+        "capitalSocial": capital_social,
+        "utilidadEjercicio": utilidad_ejercicio,
+        "ebitda": ebitda,
+        "costosDirectos": costos_directos,
+        "depreciacion": depreciacion,
+        "flujoCajaOperacional": None,
+        "gastosFinancieros": gastos_fin,
+        "diferenciaCambio": dif_cambio,
+        "servicioDeuda": servicio_deuda,
+        "deudaFinanciera": deuda_financiera,
+        "deudaFinancieraCP": deuda_cp if deuda_cp else None,
+        "deudaSociosRelacionados": deuda_socios if deuda_socios else None,
+        "desglose_flujo": None,
+        "variaciones": None,
+        "raw_rows": rows,
+        "cuentas_detectadas": []
     }
