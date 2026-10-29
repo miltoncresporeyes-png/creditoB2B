@@ -928,7 +928,7 @@
     html += '</tbody></table></div>'
       + '<div style="padding:12px 18px;border-top:1px solid #e2e8f0;display:flex;gap:8px;justify-content:flex-end;">'
       + '<button type="button" id="btnClosePlan2" class="btn btn-outline">Cerrar</button>'
-      + '<button type="button" id="btnSavePlan" class="btn btn-outline">Guardar plan</button>'
+      + '<button type="button" id="btnSavePlan" class="btn btn-outline" onclick="alert(\'save click\')">Guardar plan</button>'
       + '<button type="button" id="btnReclass" class="btn primary">Reclasificar con plan</button>'
       + '</div></div></div>';
     var wrap = document.createElement("div");
@@ -997,13 +997,14 @@
     });
 
     document.getElementById("btnSavePlan").addEventListener("click", function() {
+      alert("Guardando plan...");
       var newPlan = {};
       wrap.querySelectorAll("select[data-plan-code]").forEach(function(sel) {
         var code = sel.getAttribute("data-plan-code");
         if (sel.value) newPlan[code] = sel.value;
       });
       saveAccountPlan(newPlan);
-      showToast("Plan de cuentas guardado en este navegador.");
+      alert("Plan guardado: " + Object.keys(newPlan).length + " cuentas.");
     });
     document.getElementById("btnReclass").addEventListener("click", function() {
       var newPlan = {};
