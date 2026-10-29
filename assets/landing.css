@@ -793,12 +793,15 @@ body {
 
 /* Responsive & Breakpoints Adaptativos */
 @media (max-width: 1024px) {
+  .header-container {
+    gap: 1rem;
+  }
   .nav-links {
-    gap: 0.2rem;
+    gap: 0.15rem;
   }
   .nav-links a {
-    padding: 0.4rem 0.65rem;
-    font-size: 0.82rem;
+    padding: 0.4rem 0.55rem;
+    font-size: 0.78rem;
   }
 }
 
@@ -810,10 +813,10 @@ body {
     display: inline-flex;
   }
   .grid-4, .grid-3 {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .footer-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 2rem;
   }
 }
@@ -862,7 +865,7 @@ body {
     width: 100%;
   }
   .grid-2, .grid-3, .grid-4 {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .section {
     padding: 3.5rem 1rem;
@@ -993,4 +996,43 @@ h1, h2, h3, h4, .brand-name {
 .legal-content p, .legal-content li {
   color: #334155;
   line-height: 1.75;
+}
+
+/* ============================================================
+   RESPONSIVE ULTRA-COMPACTO (pantallas muy angostas)
+   ============================================================ */
+@media (max-width: 420px) {
+  .header-container {
+    padding: 0.6rem 0.75rem;
+    gap: 0.5rem;
+  }
+  .brand-badge {
+    display: none;
+  }
+  .brand-name {
+    font-size: 1rem;
+  }
+  .brand-emblem {
+    width: 34px;
+    height: 34px;
+  }
+  .header-actions {
+    gap: 5px;
+  }
+  .header-actions .btn,
+  .header-enter-btn {
+    padding: 0.45rem 0.75rem;
+    font-size: 0.8rem;
+  }
+  .comparison-card {
+    padding: 1.5rem 1.25rem;
+  }
+  .card,
+  .pricing-card,
+  .report-features-box {
+    padding: 1.5rem 1.25rem;
+  }
+  .hero-title {
+    font-size: 1.65rem;
+  }
 }

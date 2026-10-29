@@ -390,6 +390,88 @@ def parse_estatutos(pdf_bytes_or_path):
         'es_res': 'Registro de Empresas y Sociedades' in full
     }
 
+def _var_nota(key, base, actual):
+    """Nota interpretativa de la variación de una partida entre año base y año actual."""
+    flip_down = base > 0 and actual < 0
+    flip_up = base < 0 and actual > 0
+    up = actual > base
+    if key == 'ing_op':
+        if flip_down: return 'Ingresos netos pasaron a negativos.'
+        if flip_up: return 'Recuperó ingresos netos positivos.'
+        return 'Mayor actividad comercial.' if up else 'Contracción de los ingresos netos.'
+    if key == 'ebitda':
+        if base > 0 and actual <= 0: return 'EBITDA negativo: la operación no cubre sus costos fijos.'
+        if base < 0 and actual >= 0: return 'Recuperó EBITDA positivo.'
+        return 'Mejora de la rentabilidad operacional.' if up else 'Deterioro de la rentabilidad operacional.'
+    if key == 'gastos_fin':
+        return 'Mayor carga financiera por deuda o tasas.' if up else 'Alivio en los costos financieros.'
+    if key == 'utilidad_ejercicio':
+        if flip_down: return 'Pasó de ganancia a pérdida.'
+        if flip_up: return 'Pasó de pérdida a ganancia.'
+        return 'Mejora del resultado neto.' if up else 'Deterioro del resultado neto.'
+    if key == 'caja':
+        return 'Mayor colchón de caja.' if up else 'Menor liquidez disponible.'
+    if key == 'cxc':
+        return 'Más crédito comercial: inmoviliza caja.' if up else 'Cobro de cartera: libera caja.'
+    if key == 'inv':
+        return 'Acumulación de inventarios: consume caja.' if up else 'Rotación de inventarios: libera caja.'
+    if key == 'cxp_op':
+        return 'Mayor financiamiento con proveedores: libera caja.' if up else 'Pagos a proveedores: usa caja.'
+    if key == 'pasivo_total':
+        return 'Mayor apalancamiento con terceros.' if up else 'Reducción de deuda con terceros.'
+    if key == 'deuda_financiera':
+        return 'Incorporó deuda bancaria nueva.' if up else 'Amortizó deuda bancaria.'
+    if key == 'patrimonio':
+        return 'Generación de patrimonio o aporte de capital.' if up else 'Pérdidas o distribuciones reducen el patrimonio.'
+    return 'Incremento.' if up else 'Disminución.'
+
+def _build_variaciones(prev_b, curr_b):
+    """Principales variaciones entre el año base (prev_b) y el año actual (curr_b)."""
+    specs = [
+        ('ing_op', 'Ingresos operacionales'),
+        ('ebitda', 'EBITDA'),
+        ('gastos_fin', 'Gastos financieros'),
+        ('utilidad_ejercicio', 'Utilidad del ejercicio'),
+        ('caja', 'Caja y equivalentes'),
+        ('cxc', 'Cuentas por cobrar comerciales'),
+        ('inv', 'Inventarios'),
+        ('cxp_op', 'Cuentas por pagar operacionales'),
+        ('pasivo_total', 'Pasivo total'),
+        ('deuda_financiera', 'Deuda financiera bancaria'),
+        ('patrimonio', 'Patrimonio neto'),
+    ]
+    items = []
+    for key, glosa in specs:
+        base = prev_b.get(key)
+        actual = curr_b.get(key)
+        if base is None or actual is None:
+            continue
+        delta = actual - base
+        if delta == 0:
+            continue
+        pct = round(delta / abs(base) * 100, 1) if base != 0 else None
+        flip = (base > 0 > actual) or (base < 0 < actual)
+        material = flip or base == 0 or (pct is not None and abs(pct) >= 10)
+        nota = _var_nota(key, base, actual)
+        if not material:
+            nota = 'Variación no material (<10% vs año base). ' + nota
+        items.append({
+            'campo': key,
+            'glosa': glosa,
+            'base': base,
+            'actual': actual,
+            'variacion': delta,
+            'pct': pct,
+            'material': material,
+            'nota': nota
+        })
+    items.sort(key=lambda it: (not it['material'], -abs(it['variacion'])))
+    return {
+        'periodo_base': prev_b.get('period_label'),
+        'periodo_actual': curr_b.get('period_label'),
+        'items': items
+    }
+
 def parse_estados_financieros(pdf_bytes_or_path_or_list, filenames=None):
     """
     Analiza y extrae partidas contables estándar de balances (soporta uno o múltiples balances para análisis comparativo):
@@ -771,6 +853,9 @@ def parse_estados_financieros(pdf_bytes_or_path_or_list, filenames=None):
             impuestos_est = max(0, base_imponible * 0.25)
             flujo_caja_op = int(round(ebitda_v - gfin_v - impuestos_est))
 
+    # Principales variaciones entre año base y año actual (requiere dos balances)
+    variaciones = _build_variaciones(prev_b, curr_b) if prev_b is not None else None
+
     return {
         'tipo': 'ESTADOS_FINANCIEROS',
         # Valores en crudo (raw): no se ocultan negativos ni ceros.
@@ -797,6 +882,7 @@ def parse_estados_financieros(pdf_bytes_or_path_or_list, filenames=None):
         'deudaFinancieraCP': curr_b['deuda_cp'] if curr_b.get('deuda_cp') else None,
         'deudaSociosRelacionados': curr_b['deuda_socios'] if curr_b.get('deuda_socios') else None,
         'desglose_flujo': desglose_flujo,
+        'variaciones': variaciones,
         'cuentas_detectadas': [
             {'campo': 'caja', 'glosa': 'Saldo neto 1-01-01 (Efectivo y Equivalentes)', 'monto': curr_b['caja']},
             {'campo': 'cuentasPorCobrar', 'glosa': 'Saldo neto 1-01-02 (Deudores Comerciales)', 'monto': curr_b['cxc']},

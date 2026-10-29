@@ -802,6 +802,7 @@
           }
           showToast("Balance procesado: " + updatedCount + " partidas asignadas" + extraMsg);
         }
+        renderEeffVariaciones(d.variaciones);
       }
 
       updateMoneyHints();
@@ -877,6 +878,40 @@
     } catch (error) {
       return;
     }
+  }
+
+  function renderEeffVariaciones(v) {
+    var box = $("eeffVariaciones");
+    if (!box) return;
+    if (!v || !v.items || !v.items.length) {
+      box.innerHTML = "";
+      box.classList.add("hidden");
+      return;
+    }
+    var html = '<div class="var-head"><strong>Principales variaciones EEFF</strong>';
+    var periods = [];
+    if (v.periodo_base) periods.push("Año base: " + esc(v.periodo_base));
+    if (v.periodo_actual) periods.push("Año actual: " + esc(v.periodo_actual));
+    if (periods.length) html += '<span class="var-periods">' + periods.join(" &middot; ") + "</span>";
+    html += "</div>";
+    html += '<div class="var-hint">Partidas de resultado (ingresos, EBITDA, gastos, utilidad) comparan el período acumulado de cada balance; verifica que ambos cubran la misma duración.</div>';
+    v.items.forEach(function (it) {
+      var up = it.variacion >= 0;
+      var pctTxt = "";
+      if (it.pct !== null && it.pct !== undefined) {
+        pctTxt = " (" + (it.pct > 0 ? "+" : "") + String(it.pct).replace(".", ",") + "%)";
+      }
+      html += '<div class="var-row' + (it.material ? "" : " var-immaterial") + '">' +
+        '<span class="var-glosa">' + esc(it.glosa) + "</span>" +
+        '<span class="var-amount">' + M.formatCLP(it.actual) +
+          '<small class="var-base">base ' + M.formatCLP(it.base) + "</small></span>" +
+        '<span class="var-chip ' + (up ? "var-up" : "var-down") + '">' +
+          (up ? "+" : "−") + M.formatCLP(Math.abs(it.variacion)) + pctTxt + "</span>" +
+        '<span class="var-note">' + esc(it.nota) + "</span>" +
+        "</div>";
+    });
+    box.innerHTML = html;
+    box.classList.remove("hidden");
   }
 
   function showToast(message) {
