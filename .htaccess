@@ -5,6 +5,9 @@ DirectoryIndex landing.html index.html
   RewriteEngine On
   RewriteBase /
 
+  # Redirigir /informe-ejemplo al backend (Railway) que genera el PDF
+  RewriteRule ^informe-ejemplo/?$ https://creditob2b-production.up.railway.app/informe-ejemplo [R=302,L,QSA]
+
   # Redirigir /app a index.html (manteniendo query params como ?credit_token=... o ?email=...)
   RewriteRule ^app/?$ index.html [L,QSA]
 </IfModule>
