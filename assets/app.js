@@ -928,8 +928,8 @@
     html += '</tbody></table></div>'
       + '<div style="padding:12px 18px;border-top:1px solid #e2e8f0;display:flex;gap:8px;justify-content:flex-end;">'
       + '<button type="button" id="btnClosePlan2" class="btn btn-outline">Cerrar</button>'
-      + '<button type="button" id="btnSavePlan" class="btn btn-outline" onclick="alert(\'save click\')">Guardar plan</button>'
-      + '<button type="button" id="btnReclass" class="btn primary">Reclasificar con plan</button>'
+      + '<button type="button" id="btnSavePlan" class="btn btn-outline" onclick="window.savePlanFromModal && window.savePlanFromModal()">Guardar plan</button>'
+      + '<button type="button" id="btnReclass" class="btn primary" onclick="window.reclassPlanFromModal && window.reclassPlanFromModal()">Reclasificar con plan</button>'
       + '</div></div></div>';
     var wrap = document.createElement("div");
     wrap.id = "planModalWrap";
@@ -996,26 +996,31 @@
       });
     });
 
-    document.getElementById("btnSavePlan").addEventListener("click", function() {
-      alert("Guardando plan...");
+    window.__planWrap = wrap;
+    window.savePlanFromModal = function() {
+      var w = window.__planWrap;
+      if (!w) return;
       var newPlan = {};
-      wrap.querySelectorAll("select[data-plan-code]").forEach(function(sel) {
+      w.querySelectorAll("select[data-plan-code]").forEach(function(sel) {
         var code = sel.getAttribute("data-plan-code");
         if (sel.value) newPlan[code] = sel.value;
       });
       saveAccountPlan(newPlan);
       alert("Plan guardado: " + Object.keys(newPlan).length + " cuentas.");
-    });
-    document.getElementById("btnReclass").addEventListener("click", function() {
+    };
+    window.reclassPlanFromModal = function() {
+      var w = window.__planWrap;
+      if (!w) return;
       var newPlan = {};
-      wrap.querySelectorAll("select[data-plan-code]").forEach(function(sel) {
+      w.querySelectorAll("select[data-plan-code]").forEach(function(sel) {
         var code = sel.getAttribute("data-plan-code");
         if (sel.value) newPlan[code] = sel.value;
       });
       saveAccountPlan(newPlan);
       reclassifyWithPlan(newPlan);
-      wrap.remove();
-    });
+      w.remove();
+      window.__planWrap = null;
+    };
     } catch (e) { alert("Error al abrir plan: " + e.message); }
   }
 
