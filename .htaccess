@@ -8,3 +8,22 @@ DirectoryIndex landing.html index.html
   # Redirigir /app a index.html (manteniendo query params como ?credit_token=... o ?email=...)
   RewriteRule ^app/?$ index.html [L,QSA]
 </IfModule>
+
+# ------------------------------------------------------------------------------
+# Control de caché: el HTML siempre fresco y assets revalidados en cada visita.
+# Sin esto, Hostinger HCDN/cachea CSS y JS por 7 días (max-age=604800) y tras un
+# deploy el usuario queda con HTML nuevo + CSS viejo (páginas "rotas").
+# ------------------------------------------------------------------------------
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/html "access plus 0 seconds"
+  ExpiresByType text/css "access plus 0 seconds"
+  ExpiresByType application/javascript "access plus 0 seconds"
+  ExpiresByType text/javascript "access plus 0 seconds"
+</IfModule>
+
+<IfModule mod_headers.c>
+  <FilesMatch "\.(html|htm|css|js)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+</IfModule>
