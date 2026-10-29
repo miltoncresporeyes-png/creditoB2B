@@ -838,6 +838,45 @@
     try { localStorage.setItem(ACCOUNT_PLAN_KEY, JSON.stringify(plan || {})); } catch (e) {}
   }
 
+  function autoCategory(code, name) {
+    var c = String(code || "").toLowerCase();
+    var n = String(name || "").toLowerCase();
+    n = n.normalize ? n.normalize("NFD").replace(/[\u0300-\u036f]/g, "") : n;
+    if (c.indexOf("1-01-01") === 0) return "caja";
+    if (c.indexOf("1-01-02") === 0) return "cxc";
+    if (c.indexOf("1-01-03") === 0) return "inv";
+    if (c.indexOf("1-01") === 0) return "otros_act_cte";
+    if (c.indexOf("1-02") === 0) return "activo_no_cte";
+    if (c.indexOf("2-01-04") === 0) return "pasivo_fin_cp";
+    if (c.indexOf("2-02-03") === 0) return "pasivo_fin_lp";
+    if (n.indexOf("socio") >= 0 || n.indexOf("relacionad") >= 0) return "deuda_socios";
+    if (c.indexOf("2-01") === 0) {
+      if (n.indexOf("proveedor") >= 0 || n.indexOf("cxp") >= 0 || n.indexOf("por pagar") >= 0) return "cxp_op";
+      return "pasivo_cte_other";
+    }
+    if (c.indexOf("2-02") === 0) return "pasivo_no_cte";
+    if (c.indexOf("3-") === 0) {
+      if (n.indexOf("capital") >= 0) return "capital_social";
+      return "patrimonio";
+    }
+    if (c.indexOf("4-") === 0) return "ing_op";
+    if (c.indexOf("6-") === 0) return "costos_directos";
+    if (c.indexOf("5-") === 0) {
+      if (n.indexOf("interes") >= 0 || n.indexOf("financ") >= 0) return "gastos_fin";
+      if (n.indexOf("deprec") >= 0 || n.indexOf("amort") >= 0) return "depreciacion";
+      if (n.indexOf("cambio") >= 0) return "dif_cambio";
+      return "gastos_op";
+    }
+    if (n.indexOf("caja") >= 0 || n.indexOf("banco") >= 0 || n.indexOf("efectivo") >= 0) return "caja";
+    if (n.indexOf("deudor") >= 0 || n.indexOf("cuentas por cobrar") >= 0) return "cxc";
+    if (n.indexOf("invent") >= 0 || n.indexOf("mercader") >= 0) return "inv";
+    if (n.indexOf("proveedor") >= 0) return "cxp_op";
+    if (n.indexOf("capital") >= 0) return "capital_social";
+    if (n.indexOf("patrimonio") >= 0) return "patrimonio";
+    if (n.indexOf("ingreso") >= 0 || n.indexOf("venta") >= 0) return "ing_op";
+    return "";
+  }
+
   function openPlanCuentasModal() {
     try {
     if (!LAST_EEFF_RAW_ROWS || !LAST_EEFF_RAW_ROWS.length) {
@@ -854,24 +893,37 @@
       ["costos_directos","Costos directos (6-xx)"],["gastos_op","Gastos operacionales (5-01)"],["gastos_fin","Gastos financieros"],
       ["depreciacion","Depreciacion y amortizacion"],["dif_cambio","Diferencia de cambio"],["gasto_other","Otros gastos"],["ignore","Ignorar"]
     ];
+    function catOptions(selected) {
+      var o = '<option value="">-- sin mapeo --</option>';
+      cats.forEach(function(c){ o += '<option value="' + c[0] + '"' + (selected === c[0] ? " selected" : "") + '>' + c[1] + '</option>'; });
+      return o;
+    }
     var html = '<div id="planOverlay" style="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;">'
-      + '<div id="planCard" style="background:#fff;border-radius:12px;max-width:900px;width:100%;max-height:85vh;display:flex;flex-direction:column;">'
+      + '<div id="planCard" style="background:#fff;border-radius:12px;max-width:980px;width:100%;max-height:90vh;display:flex;flex-direction:column;">'
       + '<div style="padding:14px 18px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">'
       + '<strong>Plan de Cuentas Maestro</strong>'
       + '<button type="button" id="btnClosePlan" style="border:none;background:none;font-size:20px;cursor:pointer;">&times;</button></div>'
+      + '<div style="padding:10px 18px;border-bottom:1px solid #f1f5f9;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'
+      + '<input id="planSearch" type="text" placeholder="Filtrar cuentas..." style="flex:1;min-width:160px;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;">'
+      + '<button type="button" id="btnAutoEmpty" class="btn btn-outline" style="font-size:12px;">Auto-clasificar vacias</button>'
+      + '<button type="button" id="btnAutoAll" class="btn btn-outline" style="font-size:12px;">Auto-clasificar todo</button>'
+      + '<select id="planBulkCat" style="padding:6px;border:1px solid #cbd5e1;border-radius:6px;">' + catOptions("") + '</select>'
+      + '<button type="button" id="btnApplyBulk" class="btn btn-outline" style="font-size:12px;">Aplicar a seleccionadas</button>'
+      + '</div>'
       + '<div style="padding:12px 18px;overflow:auto;flex:1;">'
-      + '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr><th style="text-align:left;padding:6px;">Codigo</th><th style="text-align:left;padding:6px;">Cuenta</th><th style="text-align:left;padding:6px;">Clasificacion</th></tr></thead><tbody>';
+      + '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr>'
+      + '<th style="text-align:left;padding:6px;"><input type="checkbox" id="planSelectAll"></th>'
+      + '<th style="text-align:left;padding:6px;">Codigo</th><th style="text-align:left;padding:6px;">Cuenta</th>'
+      + '<th style="text-align:left;padding:6px;">Clasificacion</th></tr></thead><tbody id="planTbody">';
     LAST_EEFF_RAW_ROWS.forEach(function(r) {
       var code = r.code;
-      var sel = plan[code] || "";
-      html += '<tr><td style="padding:6px;border-top:1px solid #f1f5f9;">' + code + '</td>'
+      var sel = plan[code] || autoCategory(code, r.name);
+      html += '<tr data-code="' + code + '" data-name="' + (r.name || "").toLowerCase() + '">'
+        + '<td style="padding:6px;border-top:1px solid #f1f5f9;"><input type="checkbox" class="planChk" data-code="' + code + '"></td>'
+        + '<td style="padding:6px;border-top:1px solid #f1f5f9;">' + code + '</td>'
         + '<td style="padding:6px;border-top:1px solid #f1f5f9;">' + (r.name || "") + '</td>'
-        + '<td style="padding:6px;border-top:1px solid #f1f5f9;"><select data-plan-code="' + code + '" style="width:100%;padding:4px;">'
-        + '<option value="">-- sin mapeo --</option>';
-      cats.forEach(function(c) {
-        html += '<option value="' + c[0] + '"' + (sel === c[0] ? " selected" : "") + '>' + c[1] + '</option>';
-      });
-      html += '</select></td></tr>';
+        + '<td style="padding:6px;border-top:1px solid #f1f5f9;"><select data-plan-code="' + code + '" style="width:100%;padding:4px;">' + catOptions(sel) + '</select></td>'
+        + '</tr>';
     });
     html += '</tbody></table></div>'
       + '<div style="padding:12px 18px;border-top:1px solid #e2e8f0;display:flex;gap:8px;justify-content:flex-end;">'
@@ -892,6 +944,58 @@
     if (overlay) overlay.addEventListener("click", function(e){ if (e.target === overlay) closePlan(); });
     var card = document.getElementById("planCard");
     if (card) card.addEventListener("click", function(e){ e.stopPropagation(); });
+
+    // filtro
+    var search = document.getElementById("planSearch");
+    if (search) search.addEventListener("input", function() {
+      var q = search.value.toLowerCase();
+      wrap.querySelectorAll("#planTbody tr").forEach(function(tr) {
+        var code = (tr.getAttribute("data-code") || "").toLowerCase();
+        var name = (tr.getAttribute("data-name") || "").toLowerCase();
+        tr.style.display = (code.indexOf(q) >= 0 || name.indexOf(q) >= 0) ? "" : "none";
+      });
+    });
+    // select all
+    var selAll = document.getElementById("planSelectAll");
+    if (selAll) selAll.addEventListener("change", function() {
+      wrap.querySelectorAll(".planChk").forEach(function(chk){ chk.checked = selAll.checked; });
+    });
+    // auto classify empty
+    var btnAutoEmpty = document.getElementById("btnAutoEmpty");
+    if (btnAutoEmpty) btnAutoEmpty.addEventListener("click", function() {
+      wrap.querySelectorAll("select[data-plan-code]").forEach(function(sel) {
+        if (!sel.value) {
+          var code = sel.getAttribute("data-plan-code");
+          var tr = sel.closest("tr");
+          var name = tr ? (tr.getAttribute("data-name") || "") : "";
+          var cat = autoCategory(code, name);
+          if (cat) sel.value = cat;
+        }
+      });
+    });
+    // auto classify all
+    var btnAutoAll = document.getElementById("btnAutoAll");
+    if (btnAutoAll) btnAutoAll.addEventListener("click", function() {
+      wrap.querySelectorAll("select[data-plan-code]").forEach(function(sel) {
+        var code = sel.getAttribute("data-plan-code");
+        var tr = sel.closest("tr");
+        var name = tr ? (tr.getAttribute("data-name") || "") : "";
+        var cat = autoCategory(code, name);
+        if (cat) sel.value = cat;
+      });
+    });
+    // bulk apply
+    var btnApplyBulk = document.getElementById("btnApplyBulk");
+    if (btnApplyBulk) btnApplyBulk.addEventListener("click", function() {
+      var bulkCat = document.getElementById("planBulkCat").value;
+      if (!bulkCat) { alert("Selecciona una clasificacion para aplicar."); return; }
+      wrap.querySelectorAll(".planChk:checked").forEach(function(chk) {
+        var code = chk.getAttribute("data-code");
+        var sel = wrap.querySelector('select[data-plan-code="' + code + '"]');
+        if (sel) sel.value = bulkCat;
+      });
+    });
+
     document.getElementById("btnSavePlan").addEventListener("click", function() {
       var newPlan = {};
       wrap.querySelectorAll("select[data-plan-code]").forEach(function(sel) {
