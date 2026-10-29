@@ -475,7 +475,7 @@
             <label class="doc-head"><input id="docEEFFOk" name="docEEFFOk" type="checkbox"><span>Estados financieros</span></label>
             <input id="docEEFF" type="file" accept=".pdf,image/*" multiple data-extract-type="eeff">
             <small class="file-label" data-file-label="docEEFF">Sin archivo (Autocompleta balance y cuentas clave)</small>
-            <button type="button" id="btnPlanCuentas" class="btn btn-outline" style="margin-top:6px;font-size:12px;">Plan de Cuentas Maestro</button>
+            <button type="button" id="btnPlanCuentas" class="btn btn-outline" style="margin-top:6px;font-size:12px;" onclick="if(window.openPlanCuentasModal) window.openPlanCuentasModal();">Plan de Cuentas Maestro</button>
           </div>
           <div class="doc">
             <label class="doc-head"><input id="docDicomOk" name="docDicomOk" type="checkbox"><span>DICOM / informe comercial (opcional)</span></label>

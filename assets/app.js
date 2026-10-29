@@ -839,8 +839,9 @@
   }
 
   function openPlanCuentasModal() {
+    try {
     if (!LAST_EEFF_RAW_ROWS || !LAST_EEFF_RAW_ROWS.length) {
-      showToast("Primero procesa un Estado Financiero para desplegar el plan de cuentas.");
+      alert("Primero procesa un Estado Financiero para desplegar el plan de cuentas.");
       return;
     }
     var plan = getAccountPlan();
@@ -902,6 +903,7 @@
       reclassifyWithPlan(newPlan);
       wrap.remove();
     });
+    } catch (e) { alert("Error al abrir plan: " + e.message); }
   }
 
   function reclassifyWithPlan(plan) {
@@ -2256,6 +2258,7 @@
   bindFileLabels();
   var btnPlan = $("btnPlanCuentas");
   if (btnPlan) btnPlan.addEventListener("click", openPlanCuentasModal);
+  window.openPlanCuentasModal = openPlanCuentasModal;
   loadDraft();
   // Si no se cargó un borrador que haya renderizado la lista, renderizarla desde el valor inicial
   if (!$("repListContainer").children.length) {
