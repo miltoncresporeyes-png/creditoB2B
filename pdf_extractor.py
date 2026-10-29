@@ -373,22 +373,150 @@ def _parse_carpeta_tributaria_doc(doc):
         'eeff_f22': f22_data
     }
 
-def parse_estatutos(pdf_bytes_or_path):
-    """Extrae representantes legales vigentes y datos societarios de escrituras/estatutos RES."""
-    full = _pdf_text(pdf_bytes_or_path)
+def _parse_one_estatuto(full):
+    """Extrae solo la información societaria relevante para la evaluación de crédito."""
     if not full.strip():
         return {'tipo': 'ESTATUTOS_PODERES', 'error': 'PDF escaneado o sin capa de texto extraíble (requiere OCR)'}
-    
-    ruts = set(re.findall(r'\b\d{1,2}\.\d{3}\.\d{3}-[\dkK]\b', full))
-    # Quitar ruts tipicos de notarías o genéricos si es necesario
-    facultades_financieras = any(term in _norm(full) for term in ['endeudar', 'obligar', 'banco', 'mutuo', 'credito', 'pagare', 'cuenta corriente'])
-    
+    n = _norm(full)
+    ruts_all = sorted(set(re.findall(r'\b\d{1,2}\.\d{3}\.\d{3}-[\dkK]\b', full)))
+    rut_sociedad = None
+    m = re.search(r'rut\s*(?:sociedad)?\s*[:\-]?\s*(\d{1,2}\.\d{3}\.\d{3}-[\dkK])', full, re.I)
+    if m:
+        rut_sociedad = m.group(1)
+    ruts = [r for r in ruts_all if r != rut_sociedad]
+    razon_social = None
+    m = re.search(r'raz[oó]n\s+social\s*[:\-]?\s*(.+?)(?:\n|$)', full, re.I)
+    if m:
+        razon_social = ' '.join(m.group(1).split()).strip(' .:-')
+    if not razon_social:
+        m = re.search(r'(?:CONSTITUCI[^\n]*|MODIFICACI[^\n]*)\n\s*([A-ZÁÉÍÓÚÑ][^\n]{5,80}?(?:SpA|S\.?A\.?|Ltda))', full, re.I)
+        if m:
+            razon_social = m.group(1).strip()
+    fecha_const = None
+    for pat in [r'fecha\s+de\s+constituci[oó]n\s*[:\-]?\s*(.+?)(?:\n|$)',
+                r'constituy[oó]\w*\s+.*?el\s+d[ií]a\s+(\d{1,2}\s+de\s+\w+\s+del?\s+\d{4})',
+                r'constituida\s+con\s+fecha\s+(\d{1,2}\s+de\s+\w+\s+del?\s+\d{4})']:
+        m = re.search(pat, full, re.I | re.S)
+        if m:
+            fecha_const = ' '.join(m.group(1).split()).strip(' .:-')
+            break
+    anio_const = None
+    if fecha_const:
+        ym = re.search(r'(19|20)\d{2}', fecha_const)
+        if ym:
+            anio_const = int(ym.group(0))
+    if fecha_const is None:
+        m = re.search(r'(\d{1,2}\s+de\s+\w+\s+del?\s+\d{4})', full, re.I)
+        if m:
+            fecha_const = m.group(1).strip()
+    if anio_const is None and fecha_const:
+        ym = re.search(r'(19|20)\d{2}', fecha_const)
+        if ym:
+            anio_const = int(ym.group(0))
+    if anio_const is None:
+        ym = re.search(r'constituci[oó]n\s*[:\-]?\s*.*?(\d{4})', n)
+        if ym:
+            anio_const = int(ym.group(1))
+    representante_sii = None
+    m = re.search(r'representante\s+ante\s+el\s+SII\s+es\s+(.+?)(?:,?\s*Rut\s+\d)', full, re.I)
+    if m:
+        representante_sii = ' '.join(m.group(1).split()).strip(' .:-,')
+    gerente = None
+    m = re.search(r'individualizaci\w*\s+es:\s*(.+?)(?:,?\s*Rut\s+\d)', full, re.I | re.S)
+    if m:
+        gerente = ' '.join(m.group(1).split()).strip(' .:-,')
+    capital_social = None
+    m = re.search(r'capital\s+(?:de\s+la\s+sociedad|social)?\s+es\s+la\s+cantidad\s+de\s+(?:CLP?|CL|\$)?\s*([\d\.\,]+)', full, re.I)
+    if m:
+        capital_social = parse_amount(m.group(1))
+    if capital_social is None:
+        m = re.search(r'capital\s*(?:social)?\s*[:\-]?\s*(?:CLP?|CL|\$)\s*([\d\.\,]+)', full, re.I)
+        if m:
+            capital_social = parse_amount(m.group(1))
+    capital_antes = None
+    capital_despues = None
+    mm = re.search(r'Antes\s+de\s+la\s+modificaci[oó]n\s+Despu[eé]s\s+de\s+la\s+modificaci[oó]n\s+Capital\s+(?:CL\s*)?([\d\.\,]+)\s+(?:CL\s*)?([\d\.\,]+)', full, re.I | re.S)
+    if mm:
+        capital_antes = parse_amount(mm.group(1))
+        capital_despues = parse_amount(mm.group(2))
+        if capital_social is None:
+            capital_social = capital_despues
+    facultades = any(t in n for t in ['endeudar', 'obligar', 'banco', 'mutuo', 'credito', 'pagare', 'cuenta corriente'])
+    poderes_vigentes = bool(facultades or 'representante' in n or 'administrador' in n)
+    notas = []
+    for line in full.splitlines():
+        s = line.strip()
+        if not s or len(s) > 160:
+            continue
+        nl = _norm(s)
+        if any(k in nl for k in ['se ha ', 'nota:', 'nota ', 'margen', 'observ', 'fusion', 'cambio de', 'transitori']):
+            if not any(x in nl for x in ['titulo', 'articulo', 'representar a la']):
+                if s not in notas:
+                    notas.append(s)
+    notas = notas[:6]
     return {
         'tipo': 'ESTATUTOS_PODERES',
-        'ruts_detectados': list(ruts),
-        'facultades_financieras_detectadas': facultades_financieras,
+        'rut_sociedad': rut_sociedad,
+        'razon_social': razon_social,
+        'fecha_constitucion': fecha_const,
+        'anio_constitucion': anio_const,
+        'ruts_detectados': ruts,
+        'representantes': ruts,
+        'representante_sii': representante_sii,
+        'gerente_general': gerente,
+        'capital_social': capital_social,
+        'capital_antes': capital_antes,
+        'capital_despues': capital_despues,
+        'facultades_financieras_detectadas': facultades,
+        'poderes_vigentes': poderes_vigentes,
+        'notas_relevantes': notas,
         'es_res': 'Registro de Empresas y Sociedades' in full
     }
+
+def parse_estatutos(pdf_bytes_or_path):
+    """Extrae información societaria puntual de escrituras/estatutos (soporta uno o varios PDFs)."""
+    if isinstance(pdf_bytes_or_path, (list, tuple)):
+        items = []
+        for p in pdf_bytes_or_path:
+            items.append(_parse_one_estatuto(_pdf_text(p)))
+        items.sort(key=lambda d: d.get('anio_constitucion') or 0)
+        merged = {
+            'tipo': 'ESTATUTOS_PODERES',
+            'ruts_detectados': [],
+            'representantes': [],
+            'facultades_financieras_detectadas': False,
+            'poderes_vigentes': False,
+            'notas_relevantes': [],
+            'es_res': False
+        }
+        for d in items:
+            if d.get('error'):
+                continue
+            for key in ('rut_sociedad', 'razon_social', 'fecha_constitucion', 'anio_constitucion',
+                        'representante_sii', 'gerente_general', 'capital_social', 'capital_antes',
+                        'capital_despues'):
+                if d.get(key) is not None:
+                    merged[key] = d.get(key)
+            for r in d.get('ruts_detectados', []):
+                if r not in merged['ruts_detectados']:
+                    merged['ruts_detectados'].append(r)
+            for r in d.get('representantes', []):
+                if r not in merged['representantes']:
+                    merged['representantes'].append(r)
+            merged['facultades_financieras_detectadas'] = merged['facultades_financieras_detectadas'] or d.get('facultades_financieras_detectadas', False)
+            merged['poderes_vigentes'] = merged['poderes_vigentes'] or d.get('poderes_vigentes', False)
+            merged['es_res'] = merged['es_res'] or d.get('es_res', False)
+            for n in d.get('notas_relevantes', []):
+                if n not in merged['notas_relevantes']:
+                    merged['notas_relevantes'].append(n)
+        if not any(d.get('ruts_detectados') for d in items if not d.get('error')):
+            errs = [d['error'] for d in items if d.get('error')]
+            if errs:
+                return {'tipo': 'ESTATUTOS_PODERES', 'error': errs[0]}
+        merged['notas_relevantes'] = merged['notas_relevantes'][:10]
+        return merged
+    full = _pdf_text(pdf_bytes_or_path)
+    return _parse_one_estatuto(full)
 
 def _var_nota(key, base, actual):
     """Nota interpretativa de la variación de una partida entre año base y año actual."""

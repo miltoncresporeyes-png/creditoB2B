@@ -753,8 +753,18 @@
         if (d.facultades_financieras_detectadas) {
           $("facultades").checked = true;
         }
+        if (d.anio_constitucion) {
+          var antig = new Date().getFullYear() - Number(d.anio_constitucion);
+          if (antig >= 0 && $("antiguedad")) {
+            $("antiguedad").value = antig;
+            $("antiguedad").dispatchEvent(new Event("input", { bubbles: true }));
+          }
+        }
         $("sociedadVigente").checked = true;
-        showToast("Estatutos/Poderes procesados correctamente");
+        var estMsg = "Estatutos/Poderes procesados correctamente";
+        if (d.capital_social) estMsg += " · Capital social " + M.formatCLP(d.capital_social);
+        if (d.notas_relevantes && d.notas_relevantes.length) estMsg += " · Notas: " + d.notas_relevantes.join(" | ");
+        showToast(estMsg);
       } else if (docType === "eeff" || d.tipo === "ESTADOS_FINANCIEROS") {
         var eeffFields = {};
         if (d.activoCorriente !== null && d.activoCorriente !== undefined) eeffFields.activoCorriente = d.activoCorriente;

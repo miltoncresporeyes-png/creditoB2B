@@ -382,11 +382,13 @@ def extract_pdf():
         return jsonify({'error': 'Todos los archivos deben ser PDF'}), 400
 
     try:
-        if len(pdf_files) > 1 and doc_type in ('eeff', 'auto'):
-            # Procesamiento consolidado / comparativo de múltiples balances
+        if len(pdf_files) > 1 and doc_type in ('eeff', 'estatutos', 'auto'):
             contents = [f.read() for f in pdf_files]
             names = [f.filename for f in pdf_files]
-            data = pdf_extractor.parse_estados_financieros(contents, filenames=names)
+            if doc_type == 'estatutos':
+                data = pdf_extractor.parse_estatutos(contents)
+            else:
+                data = pdf_extractor.parse_estados_financieros(contents, filenames=names)
             if data.get('error'):
                 return jsonify({'error': data['error']}), 400
             return jsonify({'success': True, 'data': data})
