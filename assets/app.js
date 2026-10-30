@@ -20,10 +20,11 @@
   var LAST_RESULT = null;
   var CURRENT_EVAL_ID = null;
   var CURRENT_MODE = "manual"; // 'manual' (gratuita) o 'automated' (documental de pago)
+  var TOKEN_STORAGE_KEY = "creditob2b_active_token";
   var urlParams = new URLSearchParams(window.location.search);
   var urlCreditToken = urlParams.get("credit_token");
   if (urlCreditToken) {
-    localStorage.setItem("creditob2b_active_token", urlCreditToken.trim());
+    localStorage.setItem(TOKEN_STORAGE_KEY, urlCreditToken.trim());
     // Limpiar inmediatamente el token de la URL visible para evitar fugas en historial, bookmarks o Referer
     urlParams.delete("credit_token");
     var cleanSearch = urlParams.toString();
@@ -32,7 +33,7 @@
       window.history.replaceState(null, "", cleanUrl);
     }
   }
-  var ACTIVE_CREDIT_TOKEN = localStorage.getItem("creditob2b_active_token") || "";
+  var ACTIVE_CREDIT_TOKEN = localStorage.getItem(TOKEN_STORAGE_KEY) || "";
   var saveTimer = null;
   var toastTimer = null;
   var extractedExtra = {};
@@ -2260,7 +2261,7 @@
           updateCreditPanelUI();
         } else {
           ACTIVE_CREDIT_TOKEN = "";
-          localStorage.removeItem("creditob2b_active_token");
+          localStorage.removeItem(TOKEN_STORAGE_KEY);
           refreshCreditStatus();
         }
       })
@@ -2322,7 +2323,7 @@
         btn.textContent = "Verificar y Activar Créditos";
         if (data.valid && data.creditos_restantes > 0) {
           ACTIVE_CREDIT_TOKEN = code;
-          localStorage.setItem("creditob2b_active_token", code);
+          localStorage.setItem(TOKEN_STORAGE_KEY, code);
           var rModal = $("redeemModal");
           if (rModal) { rModal.style.display = "none"; rModal.classList.add("hidden"); }
           showToast("¡Créditos activados! Dispones de " + data.creditos_restantes + " informe(s) oficial(es).");
@@ -2342,7 +2343,7 @@
 
   if ($("btnClearCreditToken")) $("btnClearCreditToken").addEventListener("click", function() {
     ACTIVE_CREDIT_TOKEN = "";
-    localStorage.removeItem("creditob2b_active_token");
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
     refreshCreditStatus();
     showToast("Código de créditos desvinculado.");
   });
@@ -2373,7 +2374,7 @@
   if ($("btnPanelChangeToken")) $("btnPanelChangeToken").addEventListener("click", function() {
     closeCreditPanel();
     ACTIVE_CREDIT_TOKEN = "";
-    localStorage.removeItem("creditob2b_active_token");
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
     refreshCreditStatus();
     var rModal = $("redeemModal");
     if (rModal) {
