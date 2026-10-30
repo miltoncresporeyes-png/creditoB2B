@@ -1,9 +1,32 @@
 # Reglas de enrutamiento automáticas para Hostinger
 DirectoryIndex landing.html index.html
+Options -Indexes
+ServerSignature Off
+
+# ------------------------------------------------------------------------------
+# Bloqueo de archivos sensibles que no deben servirse desde el document root.
+# ------------------------------------------------------------------------------
+<FilesMatch "(^\.env|^\.git|\.(db|sqlite|sqlite3|py|pyc|log|sql|bak|ini|toml)$|^(requirements\.txt|Procfile|README\.md)$)">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
+
+  # Bloquear métodos que la landing no necesita.
+  RewriteCond %{REQUEST_METHOD} !^(GET|HEAD|POST|OPTIONS)$ [NC]
+  RewriteRule ^ - [F,L]
+
+  # Responder rápido a rutas típicas de scanners (sin ejecutar la landing).
+  RewriteRule ^(wp-admin|wp-login\.php|wp-content|wp-includes|xmlrpc\.php|phpmyadmin|administrator|cgi-bin)(/|$) - [F,L,NC]
+  RewriteRule ^(\.git|\.env|vendor|\.aws)(/|$) - [F,L,NC]
 
   # Redirigir rutas de backend (Railway)
   RewriteRule ^informe-ejemplo/?$ https://creditob2b-production.up.railway.app/informe-ejemplo [R=302,L,QSA]
@@ -14,20 +37,39 @@ DirectoryIndex landing.html index.html
 </IfModule>
 
 # ------------------------------------------------------------------------------
-# Control de caché: el HTML siempre fresco y assets revalidados en cada visita.
-# Sin esto, Hostinger HCDN/cachea CSS y JS por 7 días (max-age=604800) y tras un
-# deploy el usuario queda con HTML nuevo + CSS viejo (páginas "rotas").
+# Caché:
+# - HTML siempre fresco para que un deploy no mezcle HTML nuevo con assets viejos.
+# - Assets con cache largo; los archivos se referencian con ?v=YYYYMMDD y se debe
+#   actualizar esa versión en cada deploy.
 # ------------------------------------------------------------------------------
 <IfModule mod_expires.c>
   ExpiresActive On
   ExpiresByType text/html "access plus 0 seconds"
-  ExpiresByType text/css "access plus 0 seconds"
-  ExpiresByType application/javascript "access plus 0 seconds"
-  ExpiresByType text/javascript "access plus 0 seconds"
+  ExpiresByType text/css "access plus 1 year"
+  ExpiresByType application/javascript "access plus 1 year"
+  ExpiresByType text/javascript "access plus 1 year"
+  ExpiresByType image/jpeg "access plus 1 year"
+  ExpiresByType image/png "access plus 1 year"
+  ExpiresByType image/webp "access plus 1 year"
+  ExpiresByType image/svg+xml "access plus 1 year"
+  ExpiresByType image/x-icon "access plus 1 year"
+  ExpiresByType font/woff "access plus 1 year"
+  ExpiresByType font/woff2 "access plus 1 year"
 </IfModule>
 
 <IfModule mod_headers.c>
-  <FilesMatch "\.(html|htm|css|js)$">
-    Header set Cache-Control "no-cache, must-revalidate"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+  Header always set Strict-Transport-Security "max-age=31536000"
+  Header always unset X-Powered-By
+
+  <FilesMatch "\.(html|htm)$">
+    Header always set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+  </FilesMatch>
+
+  <FilesMatch "\.(css|js|jpg|jpeg|png|gif|svg|webp|ico|woff|woff2|ttf|otf)$">
+    Header always set Cache-Control "public, max-age=31536000, immutable"
   </FilesMatch>
 </IfModule>

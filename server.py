@@ -2,6 +2,7 @@ import os, re, time, threading, json
 import uuid, secrets, hmac, hashlib
 from html import escape as hesc
 from datetime import datetime
+from urllib.parse import quote
 from flask import Flask, request, jsonify, send_from_directory, send_file, Response
 from dotenv import load_dotenv
 import requests as req
@@ -10,6 +11,9 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 import pdf_extractor
 import db
@@ -21,22 +25,145 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(ROOT, '.env'))
 
 app = Flask(__name__, static_folder='assets', static_url_path='/assets')
-CORS(app, resources={r"/api/*": {"origins": "*"}})
+app.config['MAX_CONTENT_LENGTH'] = 15 * 1024 * 1024
+
+# Railway termina TLS y agrega X-Forwarded-*; confiamos en un único proxy.
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
+DEFAULT_ALLOWED_ORIGINS = [
+    'https://creditob2b.cl',
+    'https://www.creditob2b.cl',
+    'https://creditob2b-production.up.railway.app',
+]
+ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get('ALLOWED_ORIGINS', '').split(',')
+    if origin.strip()
+] or DEFAULT_ALLOWED_ORIGINS
+CORS(app, resources={
+    r"/api/*": {
+        "origins": ALLOWED_ORIGINS + [
+            r"http://localhost:\d+",
+            r"http://127\.0\.0\.1:\d+",
+        ]
+    }
+})
+
+RATELIMIT_STORAGE_URI = os.environ.get('RATELIMIT_STORAGE_URI', 'memory://')
+limiter = Limiter(
+    key_func=get_remote_address,
+    app=app,
+    default_limits=["100 per minute"],
+    storage_uri=RATELIMIT_STORAGE_URI,
+    headers_enabled=True,
+)
+
+@limiter.request_filter
+def skip_rate_limit_for_non_api():
+    """Aplica el límite global solo a /api/*, no a la landing ni a assets."""
+    return not request.path.startswith('/api/')
+
 CACHE = {}
-LOCK = threading.Lock()
+CACHE_TS = {}
+CACHE_LOCK = threading.Lock()
+SII_CACHE_TTL_SECONDS = int(os.environ.get('SII_CACHE_TTL_SECONDS', '21600'))
+SII_CACHE_MAX_ITEMS = int(os.environ.get('SII_CACHE_MAX_ITEMS', '500'))
+SAMPLE_REPORT_CACHE = None
+SAMPLE_REPORT_LOCK = threading.Lock()
+
+def cache_get(key):
+    with CACHE_LOCK:
+        if key not in CACHE:
+            return None
+        if time.time() - CACHE_TS.get(key, 0) >= SII_CACHE_TTL_SECONDS:
+            CACHE.pop(key, None)
+            CACHE_TS.pop(key, None)
+            return None
+        return CACHE[key]
+
+def cache_set(key, value):
+    with CACHE_LOCK:
+        if key not in CACHE and len(CACHE) >= SII_CACHE_MAX_ITEMS:
+            oldest_key = min(CACHE_TS, key=CACHE_TS.get)
+            CACHE.pop(oldest_key, None)
+            CACHE_TS.pop(oldest_key, None)
+        CACHE[key] = value
+        CACHE_TS[key] = time.time()
+
+@app.after_request
+def apply_security_headers(response):
+    response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+    response.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
+    response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+    response.headers.setdefault('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+    response.headers.setdefault('Strict-Transport-Security', 'max-age=31536000')
+    response.headers.pop('X-Powered-By', None)
+
+    if request.path.startswith('/api/'):
+        response.headers['Cache-Control'] = 'no-store'
+    elif request.path.startswith('/assets/'):
+        response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+    elif response.mimetype == 'application/pdf':
+        response.headers['Cache-Control'] = 'no-store'
+    return response
+
+@app.errorhandler(413)
+def handle_request_too_large(error):
+    return jsonify({'error': 'El archivo o la solicitud excede el tamaño máximo permitido.'}), 413
+
+@app.errorhandler(404)
+def handle_not_found(error):
+    if request.path.startswith('/api/'):
+        return jsonify({'error': 'Recurso no encontrado.'}), 404
+    return error
+
+@app.errorhandler(405)
+def handle_method_not_allowed(error):
+    if request.path.startswith('/api/'):
+        return jsonify({'error': 'Método no permitido.'}), 405
+    return error
+
+@app.errorhandler(429)
+def handle_rate_limit_exceeded(error):
+    return jsonify({'error': 'Demasiadas solicitudes. Espera un momento e inténtalo nuevamente.'}), 429
+
+@app.errorhandler(500)
+def handle_internal_error(error):
+    app.logger.exception('Error interno no controlado')
+    if request.path.startswith('/api/'):
+        return jsonify({'error': 'Error interno del servidor.'}), 500
+    return error
+
+def normalize_rut(value):
+    return re.sub(r'[^0-9kK]', '', value or '').upper()
+
+def is_valid_rut(value):
+    clean = normalize_rut(value)
+    if len(clean) < 2 or len(clean) > 9:
+        return False
+    body, dv = clean[:-1], clean[-1]
+    if not body.isdigit() or len(body) > 8:
+        return False
+    total = 0
+    multiplier = 2
+    for digit in reversed(body):
+        total += int(digit) * multiplier
+        multiplier = 2 if multiplier == 7 else multiplier + 1
+    result = 11 - (total % 11)
+    expected = '0' if result == 11 else 'K' if result == 10 else str(result)
+    return hmac.compare_digest(dv, expected)
 
 def fetch_sii_v2(rut):
     return fetch_sii_engine(rut)
-LOCK = threading.Lock()
 
 def fetch_sii(rut):
     return fetch_sii_engine(rut)
 
 def fetch_sii_engine(rut):
     rut = rut.strip()
-    with LOCK:
-        if rut in CACHE:
-            return CACHE[rut]
+    cached = cache_get(rut)
+    if cached is not None:
+        return cached
     
     clean_rut = re.sub(r'[^0-9kK]', '', rut)
     if len(clean_rut) >= 2:
@@ -120,8 +247,7 @@ def fetch_sii_engine(rut):
                     'documentosTimbrados': documentos_timbrados,
                     'rawSnippet': f"Razón Social: {nombre}. Giros: {len(giros)}. Timbrajes: {len(timbrajes)}"
                 }
-                with LOCK:
-                    CACHE[rut] = data
+                cache_set(rut, data)
                 return data
     except Exception as api_err:
         print(f"[SII REST API Info] Consulta REST SII directa no disponible ({str(api_err)}).")
@@ -153,8 +279,7 @@ def fetch_sii_engine(rut):
                 'documentosTimbrados': [{'documento': 'Factura Electrónica', 'anio': str(datetime.now().year)}],
                 'fuente': 'Historial CRM'
             }
-            with LOCK:
-                CACHE[rut] = data
+            cache_set(rut, data)
             return data
     except Exception as db_err:
         print(f"[SII DB History Info] {db_err}")
@@ -177,13 +302,14 @@ def fetch_sii_engine(rut):
         'fallback': True,
         'nota': 'El RUT ingresado no registra antecedentes en el SII o el servicio no se encuentra disponible. Puedes completar los datos manualmente o adjuntar la Carpeta Tributaria.'
     }
+    cache_set(rut, data)
     return data
 
 def fetch_sii_legacy(rut):
     rut = rut.strip()
-    with LOCK:
-        if rut in CACHE:
-            return CACHE[rut]
+    cached = cache_get(rut)
+    if cached is not None:
+        return cached
     body, dv = (rut.split('-') + [''])[:2]
     driver = None
     text = ""
@@ -243,8 +369,7 @@ def fetch_sii_legacy(rut):
             except Exception:
                 pass
     data = parse_sii(text, rut)
-    with LOCK:
-        CACHE[rut] = data
+    cache_set(rut, data)
     return data
 
 def parse_sii(text, rut):
@@ -358,17 +483,23 @@ def assets(path):
     return send_from_directory(ROOT + '/assets', path)
 
 @app.route('/api/sii')
+@limiter.limit("10 per minute")
 def api_sii():
     rut = request.args.get('rut', '').strip()
     if not rut:
         return jsonify({'error': 'RUT requerido'}), 400
+    if not is_valid_rut(rut):
+        return jsonify({'error': 'RUT inválido. Verifica el número y su dígito verificador.'}), 400
+    rut = normalize_rut(rut)
     try:
         data = fetch_sii(rut)
         return jsonify(data)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    except Exception:
+        app.logger.exception('Error al consultar SII')
+        return jsonify({'error': 'No fue posible consultar el SII en este momento. Intenta nuevamente o adjunta la Carpeta Tributaria.'}), 500
 
 @app.route('/api/extract-pdf', methods=['POST'])
+@limiter.limit("5 per minute")
 def extract_pdf():
     files = request.files.getlist('file')
     if not files or len(files) == 0:
@@ -380,10 +511,17 @@ def extract_pdf():
     pdf_files = [f for f in files if f.filename.lower().endswith('.pdf')]
     if not pdf_files:
         return jsonify({'error': 'Todos los archivos deben ser PDF'}), 400
+    if len(pdf_files) > 5:
+        return jsonify({'error': 'Puedes adjuntar como máximo 5 archivos PDF.'}), 400
 
     try:
         if len(pdf_files) > 1 and doc_type in ('eeff', 'estatutos', 'auto'):
-            contents = [f.read() for f in pdf_files]
+            contents = []
+            for pdf_file in pdf_files:
+                content = pdf_file.read()
+                if not content.startswith(b'%PDF-'):
+                    return jsonify({'error': 'Uno de los archivos no es un PDF válido.'}), 400
+                contents.append(content)
             names = [f.filename for f in pdf_files]
             if doc_type == 'estatutos':
                 data = pdf_extractor.parse_estatutos(contents)
@@ -395,6 +533,8 @@ def extract_pdf():
 
         file = pdf_files[0]
         content = file.read()
+        if not content.startswith(b'%PDF-'):
+            return jsonify({'error': 'El archivo no es un PDF válido.'}), 400
         if doc_type == 'erut':
             data = pdf_extractor.parse_erut(content)
         elif doc_type == 'cmf':
@@ -431,10 +571,12 @@ def extract_pdf():
         if data.get('error'):
             return jsonify({'error': data['error']}), 400
         return jsonify({'success': True, 'data': data})
-    except Exception as e:
-        return jsonify({'error': f'Error al procesar el PDF: {str(e)}'}), 500
+    except Exception:
+        app.logger.exception('Error al procesar PDF')
+        return jsonify({'error': 'No fue posible procesar el PDF. Verifica que el archivo sea válido e inténtalo nuevamente.'}), 500
 
 @app.route('/api/reclassify-eeff', methods=['POST'])
+@limiter.limit("30 per minute")
 def reclassify_eeff():
     body = request.get_json() or {}
     rows = body.get('rows') or []
@@ -442,10 +584,12 @@ def reclassify_eeff():
     try:
         data = pdf_extractor.reclassify_eeff(rows, mapping)
         return jsonify({'success': True, 'data': data})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    except Exception:
+        app.logger.exception('Error al reclasificar EEFF')
+        return jsonify({'error': 'No fue posible reclasificar el estado financiero.'}), 500
 
 @app.route('/api/evaluations', methods=['POST'])
+@limiter.limit("30 per minute")
 def handle_evaluations():
     """Registra de forma segura un expediente de evaluación evaluado localmente."""
     body = request.get_json() or {}
@@ -456,10 +600,12 @@ def handle_evaluations():
     try:
         eval_id = db.save_evaluation(input_data, result_data)
         return jsonify({'success': True, 'id': eval_id})
-    except Exception as e:
+    except Exception:
+        app.logger.exception('Error al guardar expediente')
         return jsonify({'error': 'Error al guardar el expediente'}), 500
 
 @app.route('/api/evaluations', methods=['GET'])
+@limiter.limit("30 per minute")
 def list_evaluations_restricted():
     """El listado público de expedientes confidenciales está bloqueado por seguridad."""
     return jsonify({
@@ -467,6 +613,7 @@ def list_evaluations_restricted():
     }), 403
 
 @app.route('/api/evaluations/<int:eval_id>', methods=['GET'])
+@limiter.limit("30 per minute")
 def get_single_evaluation(eval_id):
     """Consulta segura de expediente que requiere token de acceso válido."""
     token = request.args.get('token', '').strip()
@@ -484,6 +631,7 @@ def get_single_evaluation(eval_id):
     return jsonify({'success': True, 'evaluation': eval_record})
 
 @app.route('/api/report-pdf', methods=['POST'])
+@limiter.limit("10 per minute")
 def export_report_pdf():
     body = request.get_json() or {}
     input_data = body.get('input', {})
@@ -519,8 +667,9 @@ def export_report_pdf():
         )
         resp.headers['X-Report-Type'] = 'official' if not is_preliminary else 'preliminary'
         return resp
-    except Exception as e:
-        return jsonify({'error': f'Error al generar dictamen PDF: {str(e)}'}), 500
+    except Exception:
+        app.logger.exception('Error al generar dictamen PDF')
+        return jsonify({'error': 'No fue posible generar el dictamen PDF.'}), 500
 
 # Configuración centralizada de precios conforme a la política comercial de CreditoB2B
 PRICES_CONFIG = {
@@ -535,8 +684,10 @@ for _plan_info in PRICES_CONFIG.values():
 
 @app.route('/informe-ejemplo', methods=['GET'])
 @app.route('/api/sample-report', methods=['GET'])
+@limiter.limit("10 per minute")
 def get_sample_report():
     """Genera y descarga un informe de demostración con datos ficticios claramente identificados."""
+    global SAMPLE_REPORT_CACHE
     sample_input = {
         'rut': '76.999.888-K',
         'razonSocial': 'DISTRIBUIDORA EJEMPLO DEMO SpA',
@@ -595,17 +746,22 @@ def get_sample_report():
         'issues': []
     }
     try:
-        pdf_bytes = report_generator.generate_credit_report(sample_input, sample_result)
+        with SAMPLE_REPORT_LOCK:
+            if SAMPLE_REPORT_CACHE is None:
+                SAMPLE_REPORT_CACHE = report_generator.generate_credit_report(sample_input, sample_result)
+            pdf_bytes = SAMPLE_REPORT_CACHE
         filename = "Informe_Ejemplo_Demostracion_CreditoB2B.pdf"
         return Response(
             pdf_bytes,
             mimetype="application/pdf",
             headers={"Content-Disposition": f"attachment; filename={filename}"}
         )
-    except Exception as e:
-        return jsonify({'error': f'Error al generar dictamen demo: {str(e)}'}), 500
+    except Exception:
+        app.logger.exception('Error al generar dictamen demo')
+        return jsonify({'error': 'No fue posible generar el informe de ejemplo.'}), 500
 
 @app.route('/api/payments/create', methods=['POST'])
+@limiter.limit("20 per minute")
 def create_payment():
     data = request.get_json() or {}
     plan = data.get('plan', 'pack_3')
@@ -627,13 +783,30 @@ def create_payment():
             'precio_informe': plan_info['precio_informe'],
             'moneda': 'CLP'
         })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    except Exception:
+        app.logger.exception('Error al crear orden de pago')
+        return jsonify({'error': 'No fue posible crear la orden de pago.'}), 500
 
 # Variables Mercado Pago exclusivamente desde entorno (.env)
 MP_ACCESS_TOKEN = os.environ.get('MERCADO_PAGO_ACCESS_TOKEN')
 MP_PUBLIC_KEY = os.environ.get('MERCADO_PAGO_PUBLIC_KEY')
 MP_WEBHOOK_SECRET = os.environ.get('MERCADO_PAGO_WEBHOOK_SECRET')
+INVOICE_SIGNING_SECRET = (
+    os.environ.get('INVOICE_SIGNING_SECRET')
+    or MP_WEBHOOK_SECRET
+    or os.environ.get('ADMIN_BACKUP_KEY')
+    or 'creditob2b-invoice-dev-secret'
+)
+
+def invoice_signature(order_id):
+    return hmac.new(
+        INVOICE_SIGNING_SECRET.encode('utf-8'),
+        order_id.encode('utf-8'),
+        hashlib.sha256
+    ).hexdigest()
+
+def invoice_url(order_id):
+    return f"/api/invoice-pdf?order_id={quote(order_id, safe='')}&sig={invoice_signature(order_id)}"
 
 def verify_mp_webhook_signature(x_signature, x_request_id, data_id):
     """Valida la firma HMAC-SHA256 enviada por Mercado Pago en el header x-signature."""
@@ -670,6 +843,7 @@ def verify_mp_webhook_signature(x_signature, x_request_id, data_id):
     return True, "Firma verificada"
 
 @app.route('/api/payments/mp-preference', methods=['POST'])
+@limiter.limit("20 per minute")
 def create_mp_preference():
     """Genera preferencia de pago oficial en Mercado Pago Sandbox/Producción."""
     
@@ -740,6 +914,7 @@ def create_mp_preference():
         return jsonify({'error': 'Error al procesar la solicitud de pago.'}), 500
 
 @app.route('/api/payments/mp-webhook', methods=['POST'])
+@limiter.limit("600 per minute")
 def mp_webhook():
     """Webhook oficial de Mercado Pago: valida firma criptográfica y confirma transacciones consultando el estado real."""
     data = request.get_json() or {}
@@ -849,6 +1024,7 @@ def pago_exito():
     receptor_nombre = hesc(billing.get('razon_social') or billing.get('nombre') or 'Cliente Registrado')
     receptor_rut = hesc(billing.get('rut') or 'N/A')
     order_id_esc = hesc(order_id)
+    invoice_url_esc = hesc(invoice_url(order_id))
     plan_nombre = hesc(PRICES_CONFIG.get(order_record.get('plan_tipo'), {}).get('nombre', 'Evaluación de Crédito'))
     monto_fmt = f"${int(order_record.get('monto', 0)):,}".replace(',', '.')
 
@@ -856,7 +1032,7 @@ def pago_exito():
     status_msg = "Tu pago ha sido confirmado. Puedes descargar de inmediato tu comprobante comercial y acceder a la plataforma." if is_approved else "Estamos validando la confirmación de la pasarela bancaria. Si el pago fue completado, tu acceso se habilitará en breve."
 
     download_button = f"""
-    <a href="/api/invoice-pdf?order_id={order_id_esc}" class="btn btn-invoice" target="_blank" download>
+    <a href="{invoice_url_esc}" class="btn btn-invoice" target="_blank" download>
       📄 Descargar Comprobante de Compra (PDF)
     </a>
     """ if is_approved else """
@@ -1128,10 +1304,14 @@ def pago_pendiente():
     """, 200
 
 @app.route('/api/invoice-pdf', methods=['GET'])
+@limiter.limit("20 per minute")
 def download_invoice_pdf():
     order_id = request.args.get('order_id', '').strip()
+    signature = request.args.get('sig', '').strip()
     if not order_id:
         return jsonify({'error': 'order_id requerido'}), 400
+    if not signature or not hmac.compare_digest(signature, invoice_signature(order_id)):
+        return jsonify({'error': 'Acceso no autorizado a la factura.'}), 403
     order_record = db.get_payment_order(order_id)
     if not order_record:
         return jsonify({'error': 'Orden no encontrada'}), 404
@@ -1140,16 +1320,19 @@ def download_invoice_pdf():
     try:
         pdf_bytes = invoice_generator.generate_invoice_pdf(order_record, billing_data)
         rut_clean = re.sub(r'[^a-zA-Z0-9]', '', billing_data.get('rut', 'cliente'))
-        filename = f"Factura_Electronica_{order_id}_{rut_clean}.pdf"
+        safe_order_id = re.sub(r'[^a-zA-Z0-9_-]', '', order_id)
+        filename = f"Factura_Electronica_{safe_order_id}_{rut_clean}.pdf"
         return Response(
             pdf_bytes,
             mimetype="application/pdf",
             headers={"Content-Disposition": f"attachment; filename={filename}"}
         )
-    except Exception as e:
-        return jsonify({'error': f'Error al generar factura PDF: {str(e)}'}), 500
+    except Exception:
+        app.logger.exception('Error al generar factura PDF')
+        return jsonify({'error': 'No fue posible generar la factura PDF.'}), 500
 
 @app.route('/api/payments/verify', methods=['POST'])
+@limiter.limit("30 per minute")
 def verify_payment():
     """Consulta de SOLO LECTURA del estado de una orden.
 
@@ -1171,14 +1354,16 @@ def verify_payment():
             'estado': order_record.get('estado'),
             'paid': order_record.get('estado') == 'APPROVED'
         })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    except Exception:
+        app.logger.exception('Error al verificar pago')
+        return jsonify({'error': 'No fue posible verificar el estado del pago.'}), 500
 
 # ==============================================================================
 # RUTAS DE AUTENTICACIÓN Y VALIDACIÓN DE ACCESO
 # ==============================================================================
 
 @app.route('/api/auth/login', methods=['POST'])
+@limiter.limit("5 per minute")
 def auth_login():
     """Valida credenciales de acceso de un usuario o comprador de informes."""
     data = request.get_json(silent=True) or {}
@@ -1213,6 +1398,7 @@ def auth_login():
     }), 200
 
 @app.route('/api/auth/register', methods=['POST'])
+@limiter.limit("5 per minute")
 def auth_register():
     """Registra una nueva cuenta de usuario en CréditoB2B."""
     data = request.get_json(silent=True) or {}
@@ -1239,6 +1425,7 @@ def auth_register():
     }), 201
 
 @app.route('/api/auth/check-user', methods=['GET'])
+@limiter.limit("20 per minute")
 def auth_check_user():
     """Comprueba de forma ágil si un correo electrónico está registrado."""
     email = request.args.get('email', '').strip().lower()
@@ -1262,6 +1449,7 @@ def auth_check_user():
     return jsonify({'registered': False})
 
 @app.route('/api/payments/credit-status', methods=['GET'])
+@limiter.limit("30 per minute")
 def get_credit_status():
     """Consulta el saldo de créditos disponible exclusivamente mediante token de acceso secreto."""
     token = request.args.get('token', '').strip() or request.args.get('identifier', '').strip()
@@ -1297,10 +1485,11 @@ def get_credit_status():
         'order_id_masked': masked_order,
         'paid_at': paid_at,
         'evaluacion_id': order.get('evaluacion_id'),
-        'invoice_url': f"/api/invoice-pdf?order_id={order_id}" if order_id else None
+        'invoice_url': invoice_url(order_id) if order_id else None
     })
 
 @app.route('/api/report-pdf-paid', methods=['GET'])
+@limiter.limit("20 per minute")
 def export_paid_report():
     token = request.args.get('token', '').strip()
     if not token:
@@ -1327,8 +1516,9 @@ def export_paid_report():
             mimetype="application/pdf",
             headers={"Content-Disposition": f"attachment; filename={filename}"}
         )
-    except Exception as e:
-        return jsonify({'error': f'Error al generar dictamen PDF: {str(e)}'}), 500
+    except Exception:
+        app.logger.exception('Error al generar dictamen PDF pagado')
+        return jsonify({'error': 'No fue posible generar el dictamen PDF.'}), 500
 
 def _require_admin_key():
     """Valida la clave de administración (env ADMIN_BACKUP_KEY) para endpoints de diagnóstico.
@@ -1345,6 +1535,7 @@ def _require_admin_key():
 
 
 @app.route('/api/test-email', methods=['GET', 'POST'])
+@limiter.limit("5 per minute")
 def trigger_test_email():
     """Endpoint de diagnóstico protegido para emitir correos de prueba reales hacia cliente y administración."""
     _, auth_err = _require_admin_key()
@@ -1409,6 +1600,7 @@ def trigger_test_email():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/db-status')
+@limiter.limit("10 per minute")
 def check_db_status():
     """Diagnóstico en vivo de la conexión con PostgreSQL / SQLite (protegido)."""
     _, auth_err = _require_admin_key()
@@ -1423,6 +1615,7 @@ def check_db_status():
     return jsonify(status)
 
 @app.route('/api/admin/backup-download', methods=['GET'])
+@limiter.limit("5 per minute")
 def download_database_backup():
     """Descarga de respaldo completo de la base de datos en formato JSON.
 
@@ -1438,7 +1631,7 @@ def download_database_backup():
         filename = f"backup_creditob2b_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         
         response = app.response_class(
-            response=json.dumps(data, indent=2, ensure_ascii=False),
+            json.dumps(data, indent=2, ensure_ascii=False),
             status=200,
             mimetype='application/json'
         )
