@@ -524,10 +524,14 @@ def export_report_pdf():
 
 # Configuración centralizada de precios conforme a la política comercial de CreditoB2B
 PRICES_CONFIG = {
-    'individual': {'monto': 6993.0, 'informes': 1, 'nombre': 'Informe Individual'},
-    'pack_3': {'monto': 17493.0, 'informes': 3, 'nombre': 'Pack 3 Informes'},
+    'individual': {'monto': 6990.0, 'informes': 1, 'nombre': 'Informe Individual'},
+    'pack_3': {'monto': 17490.0, 'informes': 3, 'nombre': 'Pack 3 Informes'},
     'pack_10': {'monto': 48930.0, 'informes': 10, 'nombre': 'Pack 10 Informes'}
 }
+
+# Precio unitario por informe calculado desde el total del plan y su cantidad de informes.
+for _plan_info in PRICES_CONFIG.values():
+    _plan_info['precio_informe'] = round(_plan_info['monto'] / _plan_info['informes'])
 
 @app.route('/informe-ejemplo', methods=['GET'])
 @app.route('/api/sample-report', methods=['GET'])
@@ -620,6 +624,7 @@ def create_payment():
             'plan_nombre': plan_info['nombre'],
             'informes': plan_info['informes'],
             'monto': monto,
+            'precio_informe': plan_info['precio_informe'],
             'moneda': 'CLP'
         })
     except Exception as e:
@@ -1352,7 +1357,7 @@ def trigger_test_email():
     fake_order = {
         'order_id': f'TEST-{int(time.time())}',
         'plan_tipo': 'pack_3',
-        'monto': 17493,
+        'monto': 17490,
         'creditos_totales': 3,
         'creditos_restantes': 3,
         'token_acceso': f'tok_test_{secrets.token_urlsafe(16)}',
