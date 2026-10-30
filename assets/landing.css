@@ -696,7 +696,10 @@ body {
 }
 
 .footer-disclaimer {
-  max-width: 720px;
+  max-width: none;
+  width: calc(100% - 4px);
+  margin-left: 2px;
+  margin-right: 2px;
   line-height: 1.55;
   color: #64748b;
   font-size: 0.8rem;
