@@ -43,8 +43,8 @@
         "offers": {
           "@type": "AggregateOffer",
           "priceCurrency": "CLP",
-          "lowPrice": "9990",
-          "highPrice": "69900",
+          "lowPrice": "6993",
+          "highPrice": "48930",
           "offerCount": "3"
         },
         "publisher": {
@@ -491,8 +491,8 @@
         <div class="pricing-card">
           <h3 class="pricing-title">Informe Individual</h3>
           <p style="color: var(--color-text-muted); font-size: 0.88rem;">Para evaluar una empresa puntualmente.</p>
-          <div class="pricing-price">$9.990 <span style="font-size: 0.95rem; font-weight: 500; color: var(--color-text-muted);">CLP</span></div>
-          <div class="pricing-tax"><strong>Valores netos, más IVA</strong> · $9.990 CLP por informe</div>
+          <div class="pricing-price">$6.993 <span style="font-size: 0.95rem; font-weight: 500; color: var(--color-text-muted);">CLP</span></div>
+          <div class="pricing-tax"><strong>Valores netos, más IVA</strong> · $6.993 CLP por informe</div>
           
           <ul class="pricing-features">
             <li>✓ 1 Dictamen formal en PDF descargable</li>
@@ -503,7 +503,7 @@
             <li>✓ Pago seguro vía Mercado Pago</li>
           </ul>
 
-          <button type="button" class="btn btn-outline" style="width: 100%;" onclick="startCheckout('individual', 9990)">
+          <button type="button" class="btn btn-outline" style="width: 100%;" onclick="startCheckout('individual', 6993)">
             Comprar 1 informe (Mercado Pago)
           </button>
         </div>
@@ -513,7 +513,7 @@
           <div class="pricing-badge">Recomendado</div>
           <h3 class="pricing-title">Pack de 3 Informes</h3>
           <p style="color: var(--color-text-muted); font-size: 0.88rem;">Recomendado para pymes y distribuidoras comerciales.</p>
-          <div class="pricing-price">$24.990 <span style="font-size: 0.95rem; font-weight: 500; color: var(--color-text-muted);">CLP</span></div>
+          <div class="pricing-price">$17.493 <span style="font-size: 0.95rem; font-weight: 500; color: var(--color-text-muted);">CLP</span></div>
           <div class="pricing-tax"><strong>Valores netos, más IVA</strong> · <strong>$8.330 CLP</strong> por informe</div>
           
           <ul class="pricing-features">
@@ -525,7 +525,7 @@
             <li>✓ Pago seguro vía Mercado Pago</li>
           </ul>
 
-          <button type="button" class="btn btn-accent" style="width: 100%;" onclick="startCheckout('pack_3', 24990)">
+          <button type="button" class="btn btn-accent" style="width: 100%;" onclick="startCheckout('pack_3', 17493)">
             Comprar Pack de 3 (Mercado Pago)
           </button>
         </div>
@@ -534,7 +534,7 @@
         <div class="pricing-card">
           <h3 class="pricing-title">Pack de 10 Informes</h3>
           <p style="color: var(--color-text-muted); font-size: 0.88rem;">Para comités de crédito y evaluación continua de clientes.</p>
-          <div class="pricing-price">$69.900 <span style="font-size: 0.95rem; font-weight: 500; color: var(--color-text-muted);">CLP</span></div>
+          <div class="pricing-price">$48.930 <span style="font-size: 0.95rem; font-weight: 500; color: var(--color-text-muted);">CLP</span></div>
           <div class="pricing-tax"><strong>Valores netos, más IVA</strong> · <strong>$6.990 CLP</strong> por informe</div>
           
           <ul class="pricing-features">
@@ -546,7 +546,7 @@
             <li>✓ Pago seguro vía Mercado Pago</li>
           </ul>
 
-          <button type="button" class="btn btn-outline" style="width: 100%;" onclick="startCheckout('pack_10', 69900)">
+          <button type="button" class="btn btn-outline" style="width: 100%;" onclick="startCheckout('pack_10', 48930)">
             Comprar Pack de 10 (Mercado Pago)
           </button>
         </div>
@@ -1262,9 +1262,18 @@
         <button type="button" onclick="closeBillingModal()" style="background: none; border: none; color: #94a3b8; font-size: 24px; cursor: pointer; padding: 0; line-height: 1;">&times;</button>
       </div>
 
-      <div style="padding: 16px 24px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem;">
-        <span>Plan seleccionado: <strong id="modalPlanName" style="color: #0066cc;">-</strong></span>
-        <strong id="modalPlanAmount" style="color: #0f172a; font-size: 1rem;">-</strong>
+      <!-- Tarjeta resumen simétrica del ítem a facturar -->
+      <div style="padding: 16px 24px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 16px; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);">
+          <div style="display: flex; flex-direction: column; gap: 3px; min-width: 0;">
+            <span style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; color: #64748b;">Plan seleccionado</span>
+            <strong id="modalPlanName" style="font-size: 0.95rem; color: #0284c7; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">-</strong>
+          </div>
+          <div style="text-align: right; flex-shrink: 0; border-left: 1px solid #e2e8f0; padding-left: 16px;">
+            <span style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; color: #64748b; display: block;">Total a pagar</span>
+            <strong id="modalPlanAmount" style="color: #0f172a; font-size: 1.05rem; font-weight: 800; white-space: nowrap;">-</strong>
+          </div>
+        </div>
       </div>
 
       <form onsubmit="submitBillingAndCheckout(event)" style="padding: 24px;">
@@ -1867,9 +1876,9 @@
       pendingCheckoutAmount = amount;
       
       const planNames = {
-        'individual': '1 Informe Individual ($9.990 CLP + IVA)',
-        'pack_3': 'Pack 3 Informes ($24.990 CLP + IVA)',
-        'pack_10': 'Pack 10 Informes ($69.900 CLP + IVA)'
+        'individual': '1 Informe Individual',
+        'pack_3': 'Pack 3 Informes',
+        'pack_10': 'Pack 10 Informes'
       };
       document.getElementById('modalPlanName').textContent = planNames[planKey] || planKey;
       document.getElementById('modalPlanAmount').textContent = `$${amount.toLocaleString('es-CL')} CLP + IVA`;

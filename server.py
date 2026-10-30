@@ -524,9 +524,9 @@ def export_report_pdf():
 
 # Configuración centralizada de precios conforme a la política comercial de CreditoB2B
 PRICES_CONFIG = {
-    'individual': {'monto': 9990.0, 'informes': 1, 'nombre': 'Informe Individual'},
-    'pack_3': {'monto': 24990.0, 'informes': 3, 'nombre': 'Pack 3 Informes'},
-    'pack_10': {'monto': 69900.0, 'informes': 10, 'nombre': 'Pack 10 Informes'}
+    'individual': {'monto': 6993.0, 'informes': 1, 'nombre': 'Informe Individual'},
+    'pack_3': {'monto': 17493.0, 'informes': 3, 'nombre': 'Pack 3 Informes'},
+    'pack_10': {'monto': 48930.0, 'informes': 10, 'nombre': 'Pack 10 Informes'}
 }
 
 @app.route('/informe-ejemplo', methods=['GET'])
@@ -1352,7 +1352,7 @@ def trigger_test_email():
     fake_order = {
         'order_id': f'TEST-{int(time.time())}',
         'plan_tipo': 'pack_3',
-        'monto': 24990,
+        'monto': 17493,
         'creditos_totales': 3,
         'creditos_restantes': 3,
         'token_acceso': f'tok_test_{secrets.token_urlsafe(16)}',
