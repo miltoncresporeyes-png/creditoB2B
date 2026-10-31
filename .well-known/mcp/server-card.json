@@ -1,0 +1,59 @@
+{
+  "$schema": "https://modelcontextprotocol.io/schemas/server-card-v1.json",
+  "name": "creditob2b-mcp-server",
+  "version": "1.0.0",
+  "description": "Servidor MCP de CréditoB2B Chile para evaluación de solvencia empresarial, scoring de riesgo crediticio B2B y consulta de antecedentes tributarios/comerciales.",
+  "homepage": "https://creditob2b.cl/",
+  "endpoint": "https://creditob2b-production.up.railway.app/api/mcp",
+  "capabilities": {
+    "tools": {
+      "list": true,
+      "call": true
+    },
+    "resources": {
+      "list": true,
+      "read": true
+    },
+    "prompts": {
+      "list": true
+    }
+  },
+  "tools": [
+    {
+      "name": "evaluar_credito_empresa",
+      "description": "Calcula el scoring de riesgo (0-100), estado de aprobación (Aprobado, Condicional, Rechazado), límite de crédito sugerido (CLP) y plazo de pago conforme al marco legal chileno.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "rut": { "type": "string", "description": "RUT de la empresa evaluada (ej: 76.543.210-3)" },
+          "ventas12m": { "type": "number", "description": "Ventas anuales netas en CLP" },
+          "montoSolicitado": { "type": "number", "description": "Monto de crédito solicitado en CLP" },
+          "plazo": { "type": "number", "description": "Plazo solicitado en días (30, 60, 90)" },
+          "activoCorriente": { "type": "number", "description": "Total activo corriente en CLP" },
+          "pasivoCorriente": { "type": "number", "description": "Total pasivo corriente en CLP" },
+          "ebitda": { "type": "number", "description": "EBITDA anual en CLP" },
+          "patrimonio": { "type": "number", "description": "Patrimonio neto en CLP" },
+          "deudaFinanciera": { "type": "number", "description": "Deuda financiera bancaria total en CLP" }
+        },
+        "required": ["rut", "ventas12m", "montoSolicitado"]
+      }
+    },
+    {
+      "name": "consultar_sii_rut",
+      "description": "Obtiene la razón social, giro de actividades y vigencia tributaria oficial en el Servicio de Impuestos Internos (SII) de Chile para un RUT empresarial.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "rut": { "type": "string", "description": "RUT chileno a consultar (ej: 76.723.958-0)" }
+        },
+        "required": ["rut"]
+      }
+    }
+  ],
+  "contact": {
+    "organization": "Servicios Profesionales M&C Ltda",
+    "email": "contacto@creditob2b.cl",
+    "url": "https://creditob2b.cl/"
+  }
+}
+

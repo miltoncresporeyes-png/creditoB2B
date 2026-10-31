@@ -1,0 +1,32 @@
+# CréditoB2B Chile
+
+> Plataforma SaaS de análisis de capacidad crediticia comercial, scoring de solvencia financiera y recomendación de límites de crédito para empresas en Chile.
+
+CréditoB2B permite a gerencias de crédito, finanzas, comercial y pymes determinar con respaldo técnico a quién vender a crédito, qué cupo asignar y a qué plazo (30, 60 o 90 días), conforme a la Ley 19.983 (Facturas electrónicas) y Ley 21.131 (Pago en 30 días).
+
+## Recursos Clave
+
+- [Inicio / Landing](https://creditob2b.cl/): Información del producto, propuesta de valor, planes y calculadora comercial.
+- [Simulador y Evaluador](https://creditob2b.cl/app): Aplicación interactiva de evaluación manual o automatizada mediante extracción de balances y carpetas tributarias SII.
+- [Informe Ejemplo Oficial](https://creditob2b.cl/informe-ejemplo): Descarga directa del dictamen de evaluación de crédito en PDF.
+- [Términos y Condiciones](https://creditob2b.cl/terminos-y-condiciones.html): Condiciones de uso de la plataforma y del servicio de evaluación.
+- [Política de Privacidad](https://creditob2b.cl/politica-de-privacidad.html): Tratamiento confidencial de antecedentes comerciales según Ley 19.628 y Ley 21.719.
+- [Política de Reembolso](https://creditob2b.cl/politica-de-reembolso.html): Garantías de servicio y política de reembolsos de compras.
+- [MCP Server Card](https://creditob2b.cl/.well-known/mcp/server-card.json): Ficha de capacidades del servidor MCP de CréditoB2B.
+
+## Modelos y Capacidades
+
+- **Scoring Multidimensional (0-100 pts):** Ponderación de Liquidez (20%), Rentabilidad/EBITDA (25%), Endeudamiento y Solvencia (20%), Comportamiento Comercial CMF (25%) y Estabilidad (10%).
+- **Límites de Política Dinámicos:** Estimación prudencial del cupo de crédito combinando capacidad sobre ventas anuales (8% - 15%) y patrimonio neto (10% - 20%).
+- **Extracción de PDF:** Soporte para lectura automática de Balances de 8 columnas, Carpetas Tributarias F29/F22 del SII, Informes de Deudas CMF y Estatutos societarios.
+- **Dictámenes Auditables en PDF:** Emisión de dictámenes formales para comités de riesgo y auditorías comerciales.
+
+## Empresa y Contacto
+
+- **Razón Social:** Servicios Profesionales M&C Ltda
+- **RUT:** 77.741.668-5
+- **Ubicación:** Santiago, Región Metropolitana, Chile
+- **Correo Electrónico:** contacto@creditob2b.cl
+- **WhatsApp Oficial:** +56 9 8341 4730
+- **Web:** https://creditob2b.cl/
+

@@ -453,7 +453,36 @@ def parse_sii(text, rut):
 
 @app.route('/')
 def landing():
-    return send_file(ROOT + '/landing.html')
+    accept = request.headers.get('Accept', '')
+    link_header = '<https://creditob2b.cl/llms.txt>; rel="describedby"; type="text/plain", <https://creditob2b.cl/landing.md>; rel="alternate"; type="text/markdown", <https://creditob2b.cl/.well-known/mcp/server-card.json>; rel="service-desc"; type="application/json"'
+    
+    if 'text/markdown' in accept:
+        resp = send_file(ROOT + '/landing.md', mimetype='text/markdown; charset=utf-8')
+        resp.headers['Link'] = link_header
+        resp.headers['Vary'] = 'Accept'
+        return resp
+        
+    resp = send_file(ROOT + '/landing.html')
+    resp.headers['Link'] = link_header
+    resp.headers['Vary'] = 'Accept'
+    return resp
+
+@app.route('/landing.md')
+def landing_markdown():
+    resp = send_file(ROOT + '/landing.md', mimetype='text/markdown; charset=utf-8')
+    resp.headers['Link'] = '<https://creditob2b.cl/llms.txt>; rel="describedby"; type="text/plain"'
+    return resp
+
+@app.route('/llms.txt')
+def llms_txt():
+    return send_file(ROOT + '/llms.txt', mimetype='text/plain; charset=utf-8')
+
+@app.route('/.well-known/mcp/server-card.json')
+def mcp_server_card():
+    card_path = os.path.join(ROOT, '.well-known', 'mcp', 'server-card.json')
+    if os.path.exists(card_path):
+        return send_file(card_path, mimetype='application/json')
+    return jsonify({'error': 'Server card not found'}), 404
 
 @app.route('/app')
 def app_view():

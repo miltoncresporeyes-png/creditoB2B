@@ -28,39 +28,140 @@
   <meta name="twitter:description" content="Decide a quién vender a crédito, cuánto y a qué plazo bajo la normativa chilena.">
   <meta name="twitter:image" content="https://creditob2b.cl/assets/dashboard_preview.jpg">
 
-  <!-- Schema.org JSON-LD Estructurado para metabuscadores y Google Rich Results -->
+  <!-- Schema.org JSON-LD Estructurado para metabuscadores y Agentes IA -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@graph": [
       {
-        "@type": "SoftwareApplication",
-        "name": "CréditoB2B",
+        "@type": ["Organization", "LocalBusiness"],
+        "@id": "https://creditob2b.cl/#organization",
+        "name": "CréditoB2B Chile",
+        "legalName": "Servicios Profesionales M&C Ltda",
+        "taxID": "77.741.668-5",
         "url": "https://creditob2b.cl/",
+        "logo": "https://creditob2b.cl/assets/dashboard_preview.jpg",
+        "image": "https://creditob2b.cl/assets/dashboard_preview.jpg",
+        "description": "Plataforma SaaS fintech en Chile para evaluación técnica de riesgo comercial, solvencia empresarial y límites de crédito B2B conforme a Ley 19.983 y Ley 21.131.",
+        "telephone": "+56983414730",
+        "email": "contacto@creditob2b.cl",
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": "Santiago",
+          "addressLocality": "Santiago",
+          "addressRegion": "Región Metropolitana",
+          "addressCountry": "CL"
+        },
+        "geo": {
+          "@type": "GeoCoordinates",
+          "latitude": -33.4489,
+          "longitude": -70.6693
+        },
+        "priceRange": "$$",
+        "openingHours": "Mo-Fr 09:00-18:00",
+        "sameAs": [
+          "https://www.linkedin.com/company/creditob2b-chile",
+          "https://github.com/creditob2b",
+          "https://twitter.com/creditob2b",
+          "https://www.youtube.com/@creditob2b-chile"
+        ],
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "telephone": "+56983414730",
+          "contactType": "customer service",
+          "email": "contacto@creditob2b.cl",
+          "areaServed": "CL",
+          "availableLanguage": ["Spanish"]
+        }
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://creditob2b.cl/#software",
+        "name": "CréditoB2B",
+        "url": "https://creditob2b.cl/app",
         "applicationCategory": "BusinessApplication, FinanceApplication",
         "operatingSystem": "All",
-        "description": "Plataforma SaaS para evaluación de capacidad crediticia comercial, scoring de solvencia y límites de crédito B2B en Chile.",
+        "description": "Scoring financiero algorítmico, extracción de balances F22 y carpetas tributarias SII con emisión de dictámenes de crédito comercial en PDF.",
+        "provider": {
+          "@id": "https://creditob2b.cl/#organization"
+        },
         "offers": {
           "@type": "AggregateOffer",
           "priceCurrency": "CLP",
-          "lowPrice": "6990",
+          "lowPrice": "6993",
           "highPrice": "48930",
           "offerCount": "3"
-        },
-        "publisher": {
-          "@type": "Organization",
-          "name": "CréditoB2B Chile",
-          "url": "https://creditob2b.cl/",
-          "logo": "https://creditob2b.cl/assets/dashboard_preview.jpg",
-          "contactPoint": {
-            "@type": "ContactPoint",
-            "telephone": "+56983414730",
-            "contactType": "customer service",
-            "email": "contacto@creditob2b.cl",
-            "areaServed": "CL",
-            "availableLanguage": "Spanish"
-          }
         }
+      },
+      {
+        "@type": "Service",
+        "@id": "https://creditob2b.cl/#service",
+        "name": "Evaluación de Capacidad Crediticia Comercial B2B",
+        "serviceType": "Evaluación de Riesgo y Crédito Comercial",
+        "provider": {
+          "@id": "https://creditob2b.cl/#organization"
+        },
+        "areaServed": {
+          "@type": "Country",
+          "name": "Chile"
+        },
+        "description": "Análisis cuantitativo de solvencia patrimonial, liquidez ácida, rotación comercial y determinación de cupo crediticio máximo recomendado para ventas a plazo entre empresas."
+      },
+      {
+        "@type": "Product",
+        "@id": "https://creditob2b.cl/#product-individual",
+        "name": "1 Informe de Evaluación Crediticia Oficial",
+        "description": "Dictamen oficial descargable en PDF con lectura automatizada de Carpeta Tributaria F29/F22 y deudas bancarias CMF.",
+        "offers": {
+          "@type": "Offer",
+          "price": "6993",
+          "priceCurrency": "CLP",
+          "availability": "https://schema.org/InStock",
+          "url": "https://creditob2b.cl/#precios"
+        }
+      },
+      {
+        "@type": "Product",
+        "@id": "https://creditob2b.cl/#product-pack3",
+        "name": "Pack 3 Informes de Crédito B2B",
+        "description": "Paquete de 3 evaluaciones de crédito comercial descargables en PDF para pymes y comités de crédito.",
+        "offers": {
+          "@type": "Offer",
+          "price": "17493",
+          "priceCurrency": "CLP",
+          "availability": "https://schema.org/InStock",
+          "url": "https://creditob2b.cl/#precios"
+        }
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://creditob2b.cl/#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "¿Qué es CréditoB2B?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "CréditoB2B es una plataforma de análisis y evaluación de capacidad crediticia comercial para empresas en Chile. Permite analizar la solvencia de clientes antes de vender a crédito, estimando límites de exposición financiera y plazos de pago acordes a la ley chilena."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "¿Para qué sirve el informe?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Sirve para respaldar técnicamente la decisión de otorgar o denegar crédito comercial, fijar un monto máximo sugerido de exposición a plazo y definir un plazo de pago coherente para presentar ante gerencia o comités de crédito."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "¿Qué antecedentes se requieren para emitir el dictamen?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Se analizan carpetas tributarias electrónicas del SII (F29/F22), informes de deudas bancarias de la Comisión para el Mercado Financiero (CMF), balances generales o tributarios y acreditación de personería legal."
+            }
+          }
+        ]
       },
       {
         "@type": "WebSite",
@@ -68,7 +169,10 @@
         "url": "https://creditob2b.cl/",
         "name": "CréditoB2B Chile",
         "description": "Evaluación de capacidad crediticia comercial B2B en Chile",
-        "inLanguage": "es-CL"
+        "inLanguage": "es-CL",
+        "publisher": {
+          "@id": "https://creditob2b.cl/#organization"
+        }
       }
     ]
   }
@@ -109,8 +213,9 @@
         <a href="#solucion">Solución</a>
         <a href="#como-funciona">Cómo funciona</a>
         <a href="#precios">Precios</a>
-        <a href="#seguridad">Seguridad</a>
+        <a href="#nosotros">Nosotros</a>
         <a href="#contacto">Contacto</a>
+        <a href="/terminos-y-condiciones.html">Términos</a>
       </nav>
 
       <div class="header-actions">
@@ -133,8 +238,9 @@
         <a href="#solucion" onclick="closeMobileNav()">Solución</a>
         <a href="#como-funciona" onclick="closeMobileNav()">Cómo funciona</a>
         <a href="#precios" onclick="closeMobileNav()">Precios</a>
-        <a href="#seguridad" onclick="closeMobileNav()">Seguridad</a>
+        <a href="#nosotros" onclick="closeMobileNav()">Nosotros</a>
         <a href="#contacto" onclick="closeMobileNav()">Contacto</a>
+        <a href="/terminos-y-condiciones.html">Términos</a>
       </div>
       <div class="mobile-nav-footer">
         <button type="button" class="btn btn-outline" style="width:100%;font-weight:700;color:var(--color-primary);background:#ffffff;" onclick="closeMobileNav(); openAccessModal();">
@@ -983,9 +1089,10 @@
             <li><a href="#solucion"><span>→</span> Solución</a></li>
             <li><a href="#como-funciona"><span>→</span> Cómo funciona</a></li>
             <li><a href="#precios"><span>→</span> Precios</a></li>
-            <li><a href="#seguridad"><span>→</span> Seguridad</a></li>
+            <li><a href="#nosotros"><span>→</span> Quiénes Somos (About)</a></li>
             <li><a href="#contacto"><span>→</span> Contacto</a></li>
             <li><a href="#faq"><span>→</span> Preguntas Frecuentes</a></li>
+            <li><a href="/terminos-y-condiciones.html"><span>→</span> Términos del Servicio</a></li>
           </ul>
         </div>
 

@@ -2407,5 +2407,50 @@
   updateMoneyHints();
   updateRutValidation();
   updateLiveMetrics();
+  // Registro de WebMCP Tools para agentes in-browser (navigator.modelContext.registerTool)
+  function initWebMCPTools() {
+    if (typeof navigator !== "undefined" && navigator.modelContext && typeof navigator.modelContext.registerTool === "function") {
+      try {
+        navigator.modelContext.registerTool({
+          name: "evaluar_credito_comercial",
+          description: "Evalúa la solvencia, calcula scoring (0-100), estado de aprobación y límite de crédito recomendado en CLP para una empresa en Chile.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              rut: { type: "string", description: "RUT de la empresa (ej: 76.543.210-3)" },
+              razonSocial: { type: "string", description: "Razón social de la empresa" },
+              ventas12m: { type: "number", description: "Ventas anuales netas en CLP" },
+              montoSolicitado: { type: "number", description: "Monto de crédito solicitado en CLP" },
+              plazo: { type: "number", description: "Plazo solicitado en días (30, 60, 90)" },
+              activoCorriente: { type: "number", description: "Activo corriente en CLP" },
+              pasivoCorriente: { type: "number", description: "Pasivo corriente en CLP" },
+              ebitda: { type: "number", description: "EBITDA anual en CLP" }
+            },
+            required: ["rut", "ventas12m", "montoSolicitado"]
+          },
+          execute: function (params) {
+            if (params.rut && $("rut")) { $("rut").value = params.rut; }
+            if (params.razonSocial && $("razonSocial")) { $("razonSocial").value = params.razonSocial; }
+            if (params.ventas12m && $("ventas12m")) { $("ventas12m").value = params.ventas12m; }
+            if (params.montoSolicitado && $("montoSolicitado")) { $("montoSolicitado").value = params.montoSolicitado; }
+            if (params.plazo && $("plazo")) { $("plazo").value = params.plazo; }
+            if (params.activoCorriente && $("activoCorriente")) { $("activoCorriente").value = params.activoCorriente; }
+            if (params.pasivoCorriente && $("pasivoCorriente")) { $("pasivoCorriente").value = params.pasivoCorriente; }
+            if (params.ebitda && $("ebitda")) { $("ebitda").value = params.ebitda; }
+            
+            runEvaluation();
+            return {
+              success: true,
+              result: LAST_RESULT
+            };
+          }
+        });
+      } catch (e) {
+        console.warn("WebMCP registration note:", e);
+      }
+    }
+  }
+  initWebMCPTools();
+
   refreshCreditStatus();
   })();

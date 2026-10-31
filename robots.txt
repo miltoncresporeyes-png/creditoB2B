@@ -6,6 +6,11 @@ Allow: /assets/
 Allow: /terminos-y-condiciones.html
 Allow: /politica-de-privacidad.html
 Allow: /politica-de-reembolso.html
+Allow: /llms.txt
+Allow: /.well-known/mcp/server-card.json
+
+# Directiva de uso de contenido para agentes de IA y motores de búsqueda (Content Signals)
+Content-Signal: search=yes, ai-train=no
 
 # Prohibir rastreo de APIs internas y endpoints de administración
 Disallow: /api/
